@@ -182,7 +182,9 @@ import Layout from '../layouts/Layout.astro';
 		if (data.user) {
 			await supabase.from("user_roles").insert([{
 				user_id: data.user.id,
-				role: "admin"
+				role: "owner",
+				activo: true,
+				name: business
 			}]);
 		}
 

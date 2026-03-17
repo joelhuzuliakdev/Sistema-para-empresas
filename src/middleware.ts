@@ -1,13 +1,14 @@
 import { defineMiddleware } from "astro:middleware";
 import { createClient } from "@supabase/supabase-js";
 
-const PUBLIC_ROUTES = ["/", "/login", "/register"];
+const PUBLIC_ROUTES = ["/", "/login", "/register", "/pago"];
 const ADMIN_ROUTES = ["/dashboard", "/products", "/clients", "/cash", "/reports", "/sales", "/team"];
 
 export const onRequest = defineMiddleware(async ({ url, request, cookies, redirect }, next) => {
     const pathname = url.pathname;
 
     if (PUBLIC_ROUTES.includes(pathname)) return next();
+    if (pathname.startsWith("/api/webhook")) return next(); // para el webhook de Stripe
 
     const accessToken = cookies.get("sb-access-token")?.value;
     const refreshToken = cookies.get("sb-refresh-token")?.value;
@@ -31,7 +32,7 @@ export const onRequest = defineMiddleware(async ({ url, request, cookies, redire
 
     const { data: roleData } = await supabase
         .from("user_roles")
-        .select("role")
+        .select("role, activo, plan_expira_en")  // 👈 agregamos los nuevos campos
         .eq("user_id", user.id)
         .single();
 
