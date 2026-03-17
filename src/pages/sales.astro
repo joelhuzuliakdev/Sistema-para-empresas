@@ -20,525 +20,701 @@ const pendingCount = notifications?.length ?? 0;
 
 <Layout>
     <div class="min-h-screen bg-slate-50 px-6 py-8">
-        <div class="max-w-3xl mx-auto">
+    <div class="max-w-3xl mx-auto">
 
-            <!-- Header -->
-            <div class="flex items-center gap-4 mb-8">
-                <div class="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                </div>
-                <div>
-                    <h1 class="text-2xl font-bold text-slate-800 leading-tight">Cobros</h1>
-                    <p class="text-sm text-slate-500">Procesá los cobros de las ventas pendientes</p>
-                </div>
+        <!-- Header -->
+        <div class="flex items-center gap-4 mb-8">
+        <div class="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+            </svg>
+        </div>
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800 leading-tight">Cobros</h1>
+            <p class="text-sm text-slate-500">Procesá los cobros de las ventas pendientes</p>
+        </div>
+        </div>
+
+        <!-- Sin pendientes -->
+        {pendingCount === 0 && (
+        <div id="empty-state" class="bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col items-center justify-center py-16 text-center">
+            <div class="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center mb-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            </div>
+            <p class="text-slate-700 font-semibold text-sm">Todo al día</p>
+            <p class="text-slate-400 text-xs mt-1">No hay ventas pendientes de cobro</p>
+        </div>
+        )}
+
+        <!-- Lista -->
+        {pendingCount > 0 && (
+        <div id="sales-list" class="space-y-4">
+            <div class="flex items-center justify-between mb-2">
+            <p id="pending-label" class="text-sm font-semibold text-slate-600">
+                {pendingCount} {pendingCount === 1 ? "venta pendiente" : "ventas pendientes"}
+            </p>
+            <button id="mark-all-read" class="text-xs text-slate-400 hover:text-red-500 transition-colors">
+                Descartar todas
+            </button>
             </div>
 
-            <!-- Sin pendientes -->
-            {pendingCount === 0 && (
-                <div class="bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col items-center justify-center py-16 text-center">
-                    <div class="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center mb-3">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                        </svg>
-                    </div>
-                    <p class="text-slate-700 font-semibold text-sm">Todo al día</p>
-                    <p class="text-slate-400 text-xs mt-1">No hay ventas pendientes de cobro</p>
-                </div>
-            )}
+            {notifications?.map((n) => {
+            let parsed: any = null;
+            try { parsed = JSON.parse(n.data ?? "{}"); } catch {}
+            return (
+                <div class="sale-card bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden" data-notification-id={n.id}>
 
-            <!-- Lista de ventas pendientes -->
-            {pendingCount > 0 && (
-                <div class="space-y-4">
-                    <div class="flex items-center justify-between mb-2">
-                        <p class="text-sm font-semibold text-slate-600">
-                            {pendingCount} {pendingCount === 1 ? "venta pendiente" : "ventas pendientes"}
-                        </p>
-                        <button id="mark-all-read" class="text-xs text-slate-400 hover:text-red-500 transition-colors">
-                            Descartar todas
+                <!-- Cabecera siempre visible -->
+                <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+                    <div>
+                    <p class="text-sm font-semibold text-slate-800">{n.message}</p>
+                    <p class="text-xs text-slate-400 mt-0.5">
+                        {new Date(n.created_at).toLocaleString("es-AR", {
+                        day: "2-digit", month: "2-digit", year: "numeric",
+                        hour: "2-digit", minute: "2-digit"
+                        })}
+                    </p>
+                    </div>
+                    <span class="text-lg font-bold text-emerald-600">{formatMoney(parsed?.total ?? 0)}</span>
+                </div>
+
+                <!-- Items siempre visibles -->
+                <div class="px-5 py-3 border-b border-slate-100 space-y-1.5">
+                    {parsed?.items?.map((item: any) => (
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-slate-600">{item.name} × {item.qty}</span>
+                        <span class="text-xs font-medium text-slate-700">{formatMoney(item.subtotal)}</span>
+                    </div>
+                    ))}
+                </div>
+
+                <!-- Formulario de cobro -->
+                <div class="cobro-form px-5 py-4 space-y-3">
+
+                    <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                        Cliente <span class="client-required hidden text-red-500">*</span>
+                    </label>
+                    <select class="client-select w-full py-2 pl-3 pr-8 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition appearance-none">
+                        <option value="">Cliente general</option>
+                        {clients?.map((c) => (
+                        <option value={c.id}>{c.name}</option>
+                        ))}
+                    </select>
+                    </div>
+
+                    <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Método de pago</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        {[
+                        { value: "efectivo",      label: "Efectivo",      surcharge: "0",  span: false },
+                        { value: "transferencia", label: "Transferencia", surcharge: "0",  span: false },
+                        { value: "debito",        label: "Débito +8%",    surcharge: "8",  span: false },
+                        { value: "credito",       label: "Crédito +15%",  surcharge: "15", span: false },
+                        { value: "deudor",        label: "Deudor",        surcharge: "0",  span: true  },
+                        ].map((m) => (
+                        <button type="button"
+                            class={`payment-btn py-2 rounded-xl text-xs font-semibold border transition-all
+                            ${m.span ? "col-span-2" : ""}
+                            ${m.value === "deudor"
+                                ? "border-red-200 text-red-500 hover:bg-red-50 hover:border-red-400"
+                                : "border-slate-200 text-slate-600 hover:border-emerald-400 hover:text-emerald-700 hover:bg-emerald-50"}`}
+                            data-method={m.value}
+                            data-surcharge={m.surcharge}>
+                            {m.label}
+                        </button>
+                        ))}
+                    </div>
+                    <input type="hidden" class="payment-method-value" value=""/>
+                    <input type="hidden" class="surcharge-value" value="0"/>
+                    </div>
+
+                    <div class="transfer-info hidden">
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">CBU / Alias</label>
+                    <input type="text" placeholder="Ej: mi.alias"
+                        class="transfer-account w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"/>
+                    </div>
+
+                    <div class="surcharge-info hidden px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl">
+                    <p class="surcharge-label text-xs text-amber-700 font-medium"></p>
+                    </div>
+
+                    <div class="debtor-info hidden px-3 py-2 bg-red-50 border border-red-200 rounded-xl">
+                    <p class="text-xs text-red-700 font-medium">Se registrará como deuda. Seleccioná un cliente.</p>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-xl px-4 py-3 space-y-1">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-slate-400">Subtotal</span>
+                        <span class="subtotal-display text-xs text-slate-600">{formatMoney(parsed?.total ?? 0)}</span>
+                    </div>
+                    <div class="surcharge-row hidden flex items-center justify-between">
+                        <span class="surcharge-row-label text-xs text-amber-600"></span>
+                        <span class="surcharge-amount text-xs font-medium text-amber-600"></span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-semibold text-slate-700">Total</span>
+                        <span class="total-display text-base font-bold text-slate-800">{formatMoney(parsed?.total ?? 0)}</span>
+                    </div>
+                    </div>
+
+                    <div class="cash-section hidden space-y-2">
+                    <div class="flex items-center gap-3">
+                        <div class="flex-1 space-y-1">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Entregado</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none font-medium">$</span>
+                            <input type="number" min="0" step="1" placeholder="0"
+                            class="cash-received w-full pl-6 pr-3 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"/>
+                        </div>
+                        </div>
+                        <div class="flex-1 space-y-1">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Vuelto</label>
+                        <div class="change-display flex items-center justify-center py-2 px-3 rounded-xl bg-emerald-50 border border-emerald-100 min-h-[38px]">
+                            <span class="change-amount text-sm font-bold text-emerald-700">—</span>
+                        </div>
+                        </div>
+                    </div>
+                    <div class="insufficient-alert hidden px-3 py-1.5 rounded-lg bg-red-50 border border-red-200">
+                        <p class="text-xs text-red-600 font-medium">El monto entregado es menor al total.</p>
+                    </div>
+                    </div>
+
+                    <div class="cobro-error hidden px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs"></div>
+
+                    <div class="flex gap-2">
+                    <button type="button"
+                        class="discard-btn flex-none px-3 py-2.5 rounded-xl text-xs font-semibold border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
+                        data-notification-id={n.id}>
+                        Descartar
+                    </button>
+                    <button type="button"
+                        class="cobrar-btn flex-1 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors flex items-center justify-center gap-2 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
+                        data-notification-id={n.id}
+                        data-sale-id={parsed?.sale_id}
+                        data-base-total={parsed?.total}
+                        data-items={n.data}>
+                        <span class="cobrar-text">Confirmar cobro</span>
+                        <svg class="cobrar-spinner hidden w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 12 0 12 0v4a8 8 0 00-8 8H0z"/>
+                        </svg>
+                    </button>
+                    </div>
+
+                </div>
+
+                <!-- Panel de éxito -->
+                <div class="success-panel hidden px-5 py-4 space-y-3">
+                    <div class="success-msg flex items-center gap-3"></div>
+                    <div class="border-t border-slate-100 pt-3">
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Comprobante</p>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" class="ticket-print-btn flex flex-col items-center justify-center gap-1.5 py-3 rounded-xl text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H9v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                        </svg>
+                        Imprimir
+                        </button>
+                        <button type="button" class="ticket-pdf-btn flex flex-col items-center justify-center gap-1.5 py-3 rounded-xl text-xs font-semibold border border-emerald-200 text-emerald-700 hover:bg-emerald-50 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                        </svg>
+                        Descargar
+                        </button>
+                        <button type="button" class="ticket-wa-btn flex flex-col items-center justify-center gap-1.5 py-3 rounded-xl text-xs font-semibold border border-green-200 text-green-700 hover:bg-green-50 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                        </svg>
+                        WhatsApp
                         </button>
                     </div>
-
-                    {notifications?.map((n) => {
-                        let parsed: any = null;
-                        try { parsed = JSON.parse(n.data ?? "{}"); } catch {}
-                        return (
-                            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden" data-notification-id={n.id}>
-
-                                <!-- Cabecera -->
-                                <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-                                    <div>
-                                        <p class="text-sm font-semibold text-slate-800">{n.message}</p>
-                                        <p class="text-xs text-slate-400 mt-0.5">
-                                            {new Date(n.created_at).toLocaleString("es-AR", {
-                                                day: "2-digit", month: "2-digit", year: "numeric",
-                                                hour: "2-digit", minute: "2-digit"
-                                            })}
-                                        </p>
-                                    </div>
-                                    <span class="text-lg font-bold text-emerald-600">
-                                        {formatMoney(parsed?.total ?? 0)}
-                                    </span>
-                                </div>
-
-                                <!-- Items -->
-                                <div class="px-5 py-3 border-b border-slate-100 space-y-1.5">
-                                    {parsed?.items?.map((item: any) => (
-                                        <div class="flex items-center justify-between">
-                                            <span class="text-xs text-slate-600">{item.name} × {item.qty}</span>
-                                            <span class="text-xs font-medium text-slate-700">{formatMoney(item.subtotal)}</span>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <!-- Formulario de cobro -->
-                                <div class="px-5 py-4 space-y-3">
-
-                                    <!-- Cliente -->
-                                    <div>
-                                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                                            Cliente <span class="client-required hidden text-red-500">*</span>
-                                        </label>
-                                        <select class="client-select w-full py-2 pl-3 pr-8 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition appearance-none">
-                                            <option value="">Cliente general</option>
-                                            {clients?.map((c) => (
-                                                <option value={c.id}>{c.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    <!-- Método de pago -->
-                                    <div>
-                                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Método de pago</label>
-                                        <div class="grid grid-cols-2 gap-2">
-                                            {[
-                                                { value: "efectivo",      label: "Efectivo",      surcharge: "0",  span: false },
-                                                { value: "transferencia", label: "Transferencia", surcharge: "0",  span: false },
-                                                { value: "debito",        label: "Débito +8%",    surcharge: "8",  span: false },
-                                                { value: "credito",       label: "Crédito +15%",  surcharge: "15", span: false },
-                                                { value: "deudor",        label: "Deudor",        surcharge: "0",  span: true  },
-                                            ].map((m) => (
-                                                <button
-                                                    type="button"
-                                                    class={`payment-btn py-2 rounded-xl text-xs font-semibold border transition-all
-                                                        ${m.span ? "col-span-2" : ""}
-                                                        ${m.value === "deudor"
-                                                            ? "border-red-200 text-red-500 hover:bg-red-50 hover:border-red-400"
-                                                            : "border-slate-200 text-slate-600 hover:border-emerald-400 hover:text-emerald-700 hover:bg-emerald-50"
-                                                        }`}
-                                                    data-method={m.value}
-                                                    data-surcharge={m.surcharge}
-                                                >
-                                                    {m.label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                        <input type="hidden" class="payment-method-value" value="" />
-                                        <input type="hidden" class="surcharge-value" value="0" />
-                                    </div>
-
-                                    <!-- CBU/Alias -->
-                                    <div class="transfer-info hidden">
-                                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">CBU / Alias</label>
-                                        <input type="text" placeholder="Ej: mi.alias"
-                                            class="transfer-account w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
-                                        />
-                                    </div>
-
-                                    <!-- Recargo -->
-                                    <div class="surcharge-info hidden px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl">
-                                        <p class="surcharge-label text-xs text-amber-700 font-medium"></p>
-                                    </div>
-
-                                    <!-- Deudor -->
-                                    <div class="debtor-info hidden px-3 py-2 bg-red-50 border border-red-200 rounded-xl">
-                                        <p class="text-xs text-red-700 font-medium">Se registrará como deuda. Seleccioná un cliente.</p>
-                                    </div>
-
-                                    <!-- Totales -->
-                                    <div class="bg-slate-50 rounded-xl px-4 py-3 space-y-1">
-                                        <div class="flex items-center justify-between">
-                                            <span class="text-xs text-slate-400">Subtotal</span>
-                                            <span class="subtotal-display text-xs text-slate-600">{formatMoney(parsed?.total ?? 0)}</span>
-                                        </div>
-                                        <div class="surcharge-row hidden flex items-center justify-between">
-                                            <span class="surcharge-row-label text-xs text-amber-600"></span>
-                                            <span class="surcharge-amount text-xs font-medium text-amber-600"></span>
-                                        </div>
-                                        <div class="flex items-center justify-between">
-                                            <span class="text-sm font-semibold text-slate-700">Total</span>
-                                            <span class="total-display text-base font-bold text-slate-800">{formatMoney(parsed?.total ?? 0)}</span>
-                                        </div>
-                                    </div>
-
-                                    <!-- Efectivo entregado + vuelto (solo efectivo) -->
-                                    <div class="cash-section hidden space-y-2">
-                                        <div class="flex items-center gap-3">
-                                            <div class="flex-1 space-y-1">
-                                                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Entregado</label>
-                                                <div class="relative">
-                                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none font-medium">$</span>
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        step="1"
-                                                        placeholder="0"
-                                                        class="cash-received w-full pl-6 pr-3 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div class="flex-1 space-y-1">
-                                                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Vuelto</label>
-                                                <div class="change-display flex items-center justify-center py-2 px-3 rounded-xl bg-emerald-50 border border-emerald-100 min-h-[38px]">
-                                                    <span class="change-amount text-sm font-bold text-emerald-700">—</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <!-- Alerta si el monto es insuficiente -->
-                                        <div class="insufficient-alert hidden px-3 py-1.5 rounded-lg bg-red-50 border border-red-200">
-                                            <p class="text-xs text-red-600 font-medium">El monto entregado es menor al total.</p>
-                                        </div>
-                                    </div>
-
-                                    <!-- Error -->
-                                    <div class="cobro-error hidden px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs"></div>
-
-                                    <!-- Botones -->
-                                    <div class="flex gap-2">
-                                        <button
-                                            type="button"
-                                            class="discard-btn flex-none px-3 py-2.5 rounded-xl text-xs font-semibold border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
-                                            data-notification-id={n.id}
-                                        >
-                                            Descartar
-                                        </button>
-                                        <button
-                                            type="button"
-                                            class="cobrar-btn flex-1 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors flex items-center justify-center gap-2 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
-                                            data-notification-id={n.id}
-                                            data-sale-id={parsed?.sale_id}
-                                            data-base-total={parsed?.total}
-                                            data-items={n.data}
-                                        >
-                                            <span class="cobrar-text">Confirmar cobro</span>
-                                            <svg class="cobrar-spinner hidden w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 12 0 12 0v4a8 8 0 00-8 8H0z"></path>
-                                            </svg>
-                                        </button>
-                                    </div>
-
-                                </div>
-                            </div>
-                        );
-                    })}
+                    </div>
+                    <button type="button" class="done-btn w-full py-2.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors">
+                    ✓ Listo, cerrar
+                    </button>
                 </div>
-            )}
 
+                </div>
+            );
+            })}
+        </div>
+        )}
+
+    </div>
+    </div>
+
+    <!-- Modal WhatsApp -->
+    <div id="wa-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+        <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-green-600" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+            </svg>
+        </div>
+        <div>
+            <p class="text-sm font-bold text-slate-800">Enviar por WhatsApp</p>
+            <p class="text-xs text-slate-400">Ingresá el número del cliente</p>
+        </div>
+        </div>
+        <div>
+        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Número con código de país</label>
+        <div class="flex items-center gap-2">
+            <span class="px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl text-sm text-slate-500 font-medium select-none">+</span>
+            <input id="wa-phone-input" type="tel" placeholder="5493515551234"
+            class="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500 transition"/>
+        </div>
+        <p class="text-xs text-slate-400 mt-1.5">Ej: 549 + código de área sin 0 + número sin 15</p>
+        </div>
+        <div id="wa-modal-error" class="hidden px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs"></div>
+        <div class="flex gap-2">
+        <button id="wa-cancel-btn" type="button" class="flex-none px-4 py-2.5 rounded-xl text-xs font-semibold border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
+            Cancelar
+        </button>
+        <button id="wa-confirm-btn" type="button" class="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-green-600 hover:bg-green-700 text-white transition-colors">
+            Abrir WhatsApp
+        </button>
         </div>
     </div>
+    </div>
+
 </Layout>
 
 <script>
     import { supabase } from "../lib/supabaseClient.js";
 
-    const formatARS = (n: number) =>
-        new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(n);
+    const EMPRESA_NOMBRE   = "El Mundo Del Descartable";
+    const EMPRESA_TELEFONO = "5493572599909";
+    const METODOS: Record<string, string> = {
+    efectivo:"Efectivo", transferencia:"Transferencia",
+    debito:"Débito", credito:"Crédito", deudor:"Deuda",
+    };
 
-    // Para cada tarjeta de venta
-    document.querySelectorAll<HTMLElement>(".bg-white.border.border-slate-200.rounded-2xl").forEach((card) => {
-        const paymentBtns        = card.querySelectorAll<HTMLButtonElement>(".payment-btn");
-        const paymentMethodInput = card.querySelector<HTMLInputElement>(".payment-method-value")!;
-        const surchargeInput     = card.querySelector<HTMLInputElement>(".surcharge-value")!;
-        const transferInfo       = card.querySelector<HTMLElement>(".transfer-info")!;
-        const surchargeInfo      = card.querySelector<HTMLElement>(".surcharge-info")!;
-        const surchargeLabel     = card.querySelector<HTMLElement>(".surcharge-label")!;
-        const debtorInfo         = card.querySelector<HTMLElement>(".debtor-info")!;
-        const clientSelect       = card.querySelector<HTMLSelectElement>(".client-select")!;
-        const clientRequired     = card.querySelector<HTMLElement>(".client-required")!;
-        const surchargeRow       = card.querySelector<HTMLElement>(".surcharge-row")!;
-        const surchargeRowLabel  = card.querySelector<HTMLElement>(".surcharge-row-label")!;
-        const surchargeAmount    = card.querySelector<HTMLElement>(".surcharge-amount")!;
-        const totalDisplay       = card.querySelector<HTMLElement>(".total-display")!;
-        const cobrarBtn          = card.querySelector<HTMLButtonElement>(".cobrar-btn")!;
+    const fmt = (n: number) =>
+    new Intl.NumberFormat("es-AR", { style:"currency", currency:"ARS" }).format(n);
 
-        // Sección vuelto
-        const cashSection        = card.querySelector<HTMLElement>(".cash-section")!;
-        const cashReceivedInput  = card.querySelector<HTMLInputElement>(".cash-received")!;
-        const changeAmountEl     = card.querySelector<HTMLElement>(".change-amount")!;
-        const changeDisplay      = card.querySelector<HTMLElement>(".change-display")!;
-        const insufficientAlert  = card.querySelector<HTMLElement>(".insufficient-alert")!;
+    type TicketData = {
+    items: { name: string; qty: number; subtotal: number }[];
+    total: number;
+    paymentMethod: string;
+    clientName: string | null;
+    fecha: string;
+    surcharge: number;
+    };
 
-        const baseTotal = Number(cobrarBtn?.dataset.baseTotal ?? 0);
+    // ── Ticket HTML (se usa para imprimir Y para descargar) ───────────────────────
+    function buildTicketHTML(td: TicketData): string {
+    const rows = td.items.map(it => `
+        <tr>
+        <td style="padding:4px 0 4px 0;font-size:12px;color:#111;vertical-align:top;">${it.name}</td>
+        <td style="padding:4px 8px;font-size:12px;color:#111;text-align:center;">${it.qty}</td>
+        <td style="padding:4px 0;font-size:12px;color:#111;text-align:right;white-space:nowrap;">${fmt(it.subtotal)}</td>
+        </tr>`).join("");
 
-        // Devuelve el total actual (con recargo si aplica)
-        function getCurrentTotal(): number {
-            const surcharge = Number(surchargeInput?.value ?? 0);
-            return baseTotal + baseTotal * (surcharge / 100);
-        }
+    const srRow = td.surcharge > 0 ? (() => {
+        const base = td.total / (1 + td.surcharge / 100);
+        return `<tr>
+        <td colspan="2" style="padding:3px 0;font-size:11px;color:#b45309;">Recargo ${td.surcharge}%</td>
+        <td style="padding:3px 0;font-size:11px;color:#b45309;text-align:right;">+${fmt(td.total - base)}</td>
+        </tr>`;
+    })() : "";
 
-        function updateCardTotal() {
-            const surcharge    = Number(surchargeInput?.value ?? 0);
-            const surchargeAmt = baseTotal * (surcharge / 100);
-            const total        = baseTotal + surchargeAmt;
+    return `<!DOCTYPE html>
+    <html lang="es">
+    <head>
+    <meta charset="utf-8">
+    <title>Ticket</title>
+    <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:"Courier New",Courier,monospace;background:#fff;}
+    @page{margin:0;size:80mm auto;}
+    @media print{
+        html,body{width:80mm;}
+        .no-print{display:none!important;}
+    }
+    </style>
+    </head>
+    <body>
+    <div style="width:300px;max-width:100%;padding:14px 12px;margin:0 auto;">
 
-            if (surcharge > 0) {
-                surchargeRow?.classList.remove("hidden");
-                if (surchargeRowLabel) surchargeRowLabel.textContent = `Recargo ${surcharge}%`;
-                if (surchargeAmount)   surchargeAmount.textContent   = `+ ${formatARS(surchargeAmt)}`;
-            } else {
-                surchargeRow?.classList.add("hidden");
-            }
+    <div style="text-align:center;margin-bottom:10px;">
+        <div style="display:inline-block;background:#059669;color:#fff;font-size:10px;font-weight:bold;
+                    padding:5px 14px;border-radius:5px;letter-spacing:0.6px;font-family:Arial,sans-serif;">
+        ${EMPRESA_NOMBRE.toUpperCase()}
+        </div>
+        <p style="margin-top:6px;font-size:11px;color:#555;font-family:Arial,sans-serif;">Tel: +${EMPRESA_TELEFONO}</p>
+        <p style="font-size:11px;color:#555;font-family:Arial,sans-serif;">${td.fecha}</p>
+    </div>
 
-            if (totalDisplay) totalDisplay.textContent = formatARS(total);
+    <div style="border-top:1px dashed #bbb;margin-bottom:8px;"></div>
 
-            // Recalcular vuelto si ya hay monto ingresado
-            updateChange();
-        }
+    <table style="width:100%;border-collapse:collapse;">
+        <thead>
+        <tr style="border-bottom:1px solid #ddd;">
+            <th style="padding:2px 0;font-size:10px;color:#888;text-align:left;font-family:Arial,sans-serif;">PRODUCTO</th>
+            <th style="padding:2px 8px;font-size:10px;color:#888;text-align:center;font-family:Arial,sans-serif;">CANT</th>
+            <th style="padding:2px 0;font-size:10px;color:#888;text-align:right;font-family:Arial,sans-serif;">IMPORTE</th>
+        </tr>
+        </thead>
+        <tbody>${rows}${srRow}</tbody>
+    </table>
 
-        function updateChange() {
-            const total    = getCurrentTotal();
-            const received = parseFloat(cashReceivedInput?.value ?? "");
+    <div style="border-top:1px dashed #bbb;margin:8px 0;"></div>
 
-            if (isNaN(received) || cashReceivedInput?.value === "") {
-                changeAmountEl.textContent = "—";
-                changeDisplay.className    = "change-display flex items-center justify-center py-2 px-3 rounded-xl bg-emerald-50 border border-emerald-100 min-h-[38px]";
-                insufficientAlert.classList.add("hidden");
-                return;
-            }
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+        <span style="font-size:14px;font-weight:bold;font-family:Arial,sans-serif;">TOTAL</span>
+        <span style="font-size:16px;font-weight:bold;color:#059669;font-family:Arial,sans-serif;">${fmt(td.total)}</span>
+    </div>
 
-            const change = received - total;
+    <p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">
+        Pago: ${METODOS[td.paymentMethod] ?? td.paymentMethod}
+    </p>
+    ${td.clientName ? `<p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">Cliente: ${td.clientName}</p>` : ""}
 
-            if (change < 0) {
-                // Monto insuficiente
-                changeAmountEl.textContent = formatARS(change);
-                changeDisplay.className    = "change-display flex items-center justify-center py-2 px-3 rounded-xl bg-red-50 border border-red-200 min-h-[38px]";
-                changeAmountEl.className   = "change-amount text-sm font-bold text-red-600";
-                insufficientAlert.classList.remove("hidden");
-            } else {
-                changeAmountEl.textContent = formatARS(change);
-                changeDisplay.className    = "change-display flex items-center justify-center py-2 px-3 rounded-xl bg-emerald-50 border border-emerald-100 min-h-[38px]";
-                changeAmountEl.className   = "change-amount text-sm font-bold text-emerald-700";
-                insufficientAlert.classList.add("hidden");
-            }
-        }
+    <div style="border-top:1px dashed #bbb;margin:10px 0 8px;"></div>
+    <p style="text-align:center;font-size:11px;color:#aaa;font-style:italic;font-family:Arial,sans-serif;">
+        ¡Gracias por su compra!
+    </p>
 
-        // Métodos de pago
-        paymentBtns.forEach((btn) => {
-            btn.addEventListener("click", () => {
-                // Reset todos a estado inactivo
-                paymentBtns.forEach((b) => {
-                    const isDeudor = b.dataset.method === "deudor";
-                    b.classList.remove(
-                        "bg-emerald-600", "border-emerald-600", "text-white",
-                        "bg-red-600",     "border-red-600",
-                        "bg-emerald-50",  "border-emerald-500", "text-emerald-700",
-                        "bg-red-50",      "border-red-400",     "text-red-600",
-                        "shadow-sm"
-                    );
-                    b.classList.add(isDeudor ? "border-red-200" : "border-slate-200");
-                    b.classList.add(isDeudor ? "text-red-500"   : "text-slate-600");
-                });
+    <div class="no-print" style="margin-top:18px;text-align:center;display:flex;gap:8px;justify-content:center;">
+        <button onclick="window.print()"
+        style="background:#059669;color:#fff;border:none;padding:9px 22px;border-radius:8px;
+                font-size:13px;cursor:pointer;font-family:Arial,sans-serif;font-weight:600;">
+        🖨️ Imprimir
+        </button>
+        <button onclick="window.close()"
+        style="background:#e2e8f0;color:#475569;border:none;padding:9px 18px;border-radius:8px;
+                font-size:13px;cursor:pointer;font-family:Arial,sans-serif;">
+        Cerrar
+        </button>
+    </div>
 
-                const method    = btn.dataset.method!;
-                const surcharge = btn.dataset.surcharge ?? "0";
+    </div>
+    </body>
+    </html>`;
+    }
 
-                // Estado activo: fondo sólido + texto blanco
-                if (method === "deudor") {
-                    btn.classList.remove("border-red-200", "text-red-500");
-                    btn.classList.add("bg-red-600", "border-red-600", "text-white", "shadow-sm");
-                } else {
-                    btn.classList.remove("border-slate-200", "text-slate-600");
-                    btn.classList.add("bg-emerald-600", "border-emerald-600", "text-white", "shadow-sm");
-                }
+    // ── Imprimir en ventana nueva ─────────────────────────────────────────────────
+    function imprimirTicket(td: TicketData) {
+    const win = window.open("", "_blank", "width=420,height=650,menubar=no,toolbar=no,scrollbars=yes");
+    if (!win) {
+        alert("Habilitá las ventanas emergentes para este sitio y volvé a intentar.");
+        return;
+    }
+    win.document.open();
+    win.document.write(buildTicketHTML(td));
+    win.document.close();
+    // El botón "Imprimir" dentro del HTML se encarga del print()
+    // También intentamos auto-print como fallback
+    win.addEventListener("load", () => {
+        // No auto-print para que el usuario vea primero el ticket
+    });
+    }
 
-                if (paymentMethodInput) paymentMethodInput.value = method;
-                if (surchargeInput)     surchargeInput.value     = surcharge;
+    // ── Descargar como HTML ───────────────────────────────────────────────────────
+    // Nota: el archivo .html descargado se puede abrir en el navegador e imprimir
+    // como PDF desde ahí (Ctrl+P → Guardar como PDF)
+    function descargarTicket(td: TicketData) {
+    const blob  = new Blob([buildTicketHTML(td)], { type: "text/html;charset=utf-8" });
+    const url   = URL.createObjectURL(blob);
+    const fecha = td.fecha.replace(/[/:, ]/g, "-");
+    const a     = document.createElement("a");
+    a.href      = url;
+    a.download  = `ticket-${fecha}.html`;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
+    }
 
-                transferInfo?.classList.toggle("hidden", method !== "transferencia");
-                surchargeInfo?.classList.toggle("hidden", surcharge === "0");
-                debtorInfo?.classList.toggle("hidden", method !== "deudor");
-                clientRequired?.classList.toggle("hidden", method !== "deudor");
+    // ── Texto para WhatsApp ───────────────────────────────────────────────────────
+    function buildWAText(td: TicketData): string {
+    const lineas = td.items.map(i => `• ${i.name} x${i.qty}: ${fmt(i.subtotal)}`).join("\n");
+    const lines = [
+        `🧾 *Ticket de compra*`,
+        `📅 ${td.fecha}`,
+        `🏪 ${EMPRESA_NOMBRE}`,
+        ``,
+        lineas,
+        td.surcharge > 0 ? `Recargo ${td.surcharge}%: incluido` : null,
+        ``,
+        `*TOTAL: ${fmt(td.total)}*`,
+        `💳 Pago: ${METODOS[td.paymentMethod] ?? td.paymentMethod}`,
+        td.clientName ? `👤 ${td.clientName}` : null,
+        ``,
+        `📞 Consultas: +${EMPRESA_TELEFONO}`,
+    ];
+    return lines.filter(l => l !== null).join("\n");
+    }
 
-                // Mostrar/ocultar sección de vuelto solo para efectivo
-                const isEfectivo = method === "efectivo";
-                cashSection?.classList.toggle("hidden", !isEfectivo);
-                if (isEfectivo) {
-                    cashReceivedInput.value = "";
-                    changeAmountEl.textContent = "—";
-                    changeAmountEl.className   = "change-amount text-sm font-bold text-emerald-700";
-                    changeDisplay.className    = "change-display flex items-center justify-center py-2 px-3 rounded-xl bg-emerald-50 border border-emerald-100 min-h-[38px]";
-                    insufficientAlert.classList.add("hidden");
-                    setTimeout(() => cashReceivedInput.focus(), 50);
-                }
+    // ── Modal WhatsApp ────────────────────────────────────────────────────────────
+    let waResolve: ((v: string | null) => void) | null = null;
 
-                if (surcharge !== "0" && surchargeLabel) {
-                    surchargeLabel.textContent = `Se aplica un recargo del ${surcharge}%`;
-                }
+    const waModal = document.getElementById("wa-modal")!;
+    const waInput = document.getElementById("wa-phone-input") as HTMLInputElement;
+    const waErr   = document.getElementById("wa-modal-error")!;
+    const waCfm   = document.getElementById("wa-confirm-btn")!;
+    const waCncl  = document.getElementById("wa-cancel-btn")!;
 
-                if (clientSelect) {
-                    if (method === "deudor") {
-                        clientSelect.classList.add("border-red-400");
-                        clientSelect.classList.remove("border-slate-200");
-                    } else {
-                        clientSelect.classList.remove("border-red-400");
-                        clientSelect.classList.add("border-slate-200");
-                    }
-                }
+    function askPhone(): Promise<string | null> {
+    return new Promise(resolve => {
+        waResolve = resolve;
+        waInput.value = "";
+        waErr.classList.add("hidden");
+        waModal.classList.remove("hidden");
+        waModal.classList.add("flex");
+        setTimeout(() => waInput.focus(), 80);
+    });
+    }
+    function closeWA(val: string | null) {
+    waModal.classList.add("hidden");
+    waModal.classList.remove("flex");
+    waResolve?.(val);
+    waResolve = null;
+    }
 
-                updateCardTotal();
-            });
-        });
-
-        // Calcular vuelto al escribir
-        cashReceivedInput?.addEventListener("input", updateChange);
+    waCncl.addEventListener("click", () => closeWA(null));
+    waModal.addEventListener("click", e => { if (e.target === waModal) closeWA(null); });
+    waCfm.addEventListener("click", () => {
+    const phone = waInput.value.replace(/\D/g, "");
+    if (phone.length < 10) {
+        waErr.textContent = "Ingresá un número válido (mínimo 10 dígitos).";
+        waErr.classList.remove("hidden");
+        return;
+    }
+    closeWA(phone);
+    });
+    waInput.addEventListener("keydown", e => {
+    if (e.key === "Enter")  waCfm.click();
+    if (e.key === "Escape") closeWA(null);
     });
 
-    // Descartar venta
-    document.querySelectorAll<HTMLButtonElement>(".discard-btn").forEach((btn) => {
-        btn.addEventListener("click", async () => {
-            const notificationId = btn.dataset.notificationId!;
-            await supabase.from("notifications").update({ read: true }).eq("id", notificationId);
-            const card = btn.closest<HTMLElement>(".bg-white");
-            card?.remove();
-            const remaining = document.querySelectorAll(".cobrar-btn").length;
-            if (remaining === 0) window.location.reload();
+    // ── Conecta botones de comprobante ────────────────────────────────────────────
+    function bindTicketButtons(card: HTMLElement, td: TicketData) {
+    card.querySelector(".ticket-print-btn")?.addEventListener("click", () => imprimirTicket(td));
+
+    card.querySelector(".ticket-pdf-btn")?.addEventListener("click", () => descargarTicket(td));
+
+    card.querySelector(".ticket-wa-btn")?.addEventListener("click", async () => {
+        const phone = await askPhone();
+        if (!phone) return;
+        const url = `https://wa.me/${phone}?text=${encodeURIComponent(buildWAText(td))}`;
+        window.open(url, "_blank");
+    });
+    }
+
+    // ── Muestra panel de éxito ────────────────────────────────────────────────────
+    function showSuccess(card: HTMLElement, total: number, pm: string, clientName: string | null, changeMsg: string, td: TicketData) {
+    card.querySelector(".cobro-form")?.classList.add("hidden");
+    const panel = card.querySelector<HTMLElement>(".success-panel")!;
+    panel.classList.remove("hidden");
+
+    panel.querySelector<HTMLElement>(".success-msg")!.innerHTML = `
+        <div class="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        </svg>
+        </div>
+        <div>
+        <p class="text-sm font-semibold text-slate-800">Cobro registrado por ${fmt(total)}${changeMsg}</p>
+        <p class="text-xs text-slate-400">${METODOS[pm] ?? pm}${clientName ? ` — ${clientName}` : ""}</p>
+        </div>`;
+
+    bindTicketButtons(card, td);
+
+    panel.querySelector(".done-btn")?.addEventListener("click", () => {
+        card.remove();
+        updateLabel();
+    });
+    }
+
+    // ── Contador de pendientes ────────────────────────────────────────────────────
+    function updateLabel() {
+    const n   = document.querySelectorAll(".sale-card").length;
+    const lbl = document.getElementById("pending-label");
+    if (lbl) lbl.textContent = `${n} ${n === 1 ? "venta pendiente" : "ventas pendientes"}`;
+    if (n === 0) {
+        document.getElementById("sales-list")!.innerHTML = `
+        <div class="bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col items-center justify-center py-16 text-center">
+            <div class="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center mb-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            </div>
+            <p class="text-slate-700 font-semibold text-sm">Todo al día</p>
+            <p class="text-slate-400 text-xs mt-1">No hay ventas pendientes de cobro</p>
+        </div>`;
+    }
+    }
+
+    // ── Lógica de cada card ───────────────────────────────────────────────────────
+    document.querySelectorAll<HTMLElement>(".sale-card").forEach(card => {
+    const pmInput   = card.querySelector<HTMLInputElement>(".payment-method-value")!;
+    const srInput   = card.querySelector<HTMLInputElement>(".surcharge-value")!;
+    const clientSel = card.querySelector<HTMLSelectElement>(".client-select")!;
+    const cobrarBtn = card.querySelector<HTMLButtonElement>(".cobrar-btn")!;
+    const totalDisp = card.querySelector<HTMLElement>(".total-display")!;
+    const srRow     = card.querySelector<HTMLElement>(".surcharge-row")!;
+    const srLbl     = card.querySelector<HTMLElement>(".surcharge-row-label")!;
+    const srAmt     = card.querySelector<HTMLElement>(".surcharge-amount")!;
+    const cashSec   = card.querySelector<HTMLElement>(".cash-section")!;
+    const cashIn    = card.querySelector<HTMLInputElement>(".cash-received")!;
+    const changeEl  = card.querySelector<HTMLElement>(".change-amount")!;
+    const changeDsp = card.querySelector<HTMLElement>(".change-display")!;
+    const insuf     = card.querySelector<HTMLElement>(".insufficient-alert")!;
+    const errorEl   = card.querySelector<HTMLElement>(".cobro-error")!;
+    const baseTotal = Number(cobrarBtn.dataset.baseTotal ?? 0);
+
+    const getTotal = () => baseTotal + baseTotal * (Number(srInput.value) / 100);
+
+    function refreshTotals() {
+        const pct = Number(srInput.value), amt = baseTotal * (pct / 100);
+        if (pct > 0) {
+        srRow.classList.remove("hidden");
+        srLbl.textContent = `Recargo ${pct}%`;
+        srAmt.textContent = `+ ${fmt(amt)}`;
+        } else { srRow.classList.add("hidden"); }
+        totalDisp.textContent = fmt(baseTotal + amt);
+        refreshChange();
+    }
+
+    function refreshChange() {
+        const total = getTotal(), recv = parseFloat(cashIn.value);
+        if (!cashIn.value || isNaN(recv)) {
+        changeEl.textContent = "—";
+        changeEl.className   = "change-amount text-sm font-bold text-emerald-700";
+        changeDsp.className  = "change-display flex items-center justify-center py-2 px-3 rounded-xl bg-emerald-50 border border-emerald-100 min-h-[38px]";
+        insuf.classList.add("hidden"); return;
+        }
+        const diff = recv - total;
+        changeEl.textContent = fmt(diff);
+        if (diff < 0) {
+        changeEl.className  = "change-amount text-sm font-bold text-red-600";
+        changeDsp.className = "change-display flex items-center justify-center py-2 px-3 rounded-xl bg-red-50 border border-red-200 min-h-[38px]";
+        insuf.classList.remove("hidden");
+        } else {
+        changeEl.className  = "change-amount text-sm font-bold text-emerald-700";
+        changeDsp.className = "change-display flex items-center justify-center py-2 px-3 rounded-xl bg-emerald-50 border border-emerald-100 min-h-[38px]";
+        insuf.classList.add("hidden");
+        }
+    }
+
+    card.querySelectorAll<HTMLButtonElement>(".payment-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+        card.querySelectorAll<HTMLButtonElement>(".payment-btn").forEach(b => {
+            const d = b.dataset.method === "deudor";
+            b.classList.remove("bg-emerald-600","border-emerald-600","bg-red-600","border-red-600","text-white","shadow-sm");
+            b.classList.add(d ? "border-red-200" : "border-slate-200", d ? "text-red-500" : "text-slate-600");
+        });
+        const m = btn.dataset.method!, sr = btn.dataset.surcharge ?? "0";
+        if (m === "deudor") {
+            btn.classList.remove("border-red-200","text-red-500");
+            btn.classList.add("bg-red-600","border-red-600","text-white","shadow-sm");
+        } else {
+            btn.classList.remove("border-slate-200","text-slate-600");
+            btn.classList.add("bg-emerald-600","border-emerald-600","text-white","shadow-sm");
+        }
+        pmInput.value = m; srInput.value = sr;
+        card.querySelector(".transfer-info")?.classList.toggle("hidden", m !== "transferencia");
+        card.querySelector(".surcharge-info")?.classList.toggle("hidden", sr === "0");
+        card.querySelector(".debtor-info")?.classList.toggle("hidden", m !== "deudor");
+        card.querySelector<HTMLElement>(".client-required")?.classList.toggle("hidden", m !== "deudor");
+        if (sr !== "0") {
+            const sl = card.querySelector<HTMLElement>(".surcharge-label");
+            if (sl) sl.textContent = `Se aplica un recargo del ${sr}%`;
+        }
+        cashSec.classList.toggle("hidden", m !== "efectivo");
+        if (m === "efectivo") { cashIn.value = ""; refreshChange(); setTimeout(() => cashIn.focus(), 50); }
+        clientSel.classList.toggle("border-red-400",  m === "deudor");
+        clientSel.classList.toggle("border-slate-200", m !== "deudor");
+        refreshTotals();
         });
     });
 
-    // Descartar todas
+    cashIn.addEventListener("input", refreshChange);
+
+    card.querySelector<HTMLButtonElement>(".discard-btn")?.addEventListener("click", async () => {
+        await supabase.from("notifications").update({ read: true }).eq("id", cobrarBtn.dataset.notificationId!);
+        card.remove(); updateLabel();
+    });
+
+    cobrarBtn.addEventListener("click", async () => {
+        const nid      = cobrarBtn.dataset.notificationId!;
+        const saleId   = cobrarBtn.dataset.saleId!;
+        const rawData  = cobrarBtn.dataset.items ?? "{}";
+        const pm       = pmInput.value;
+        const sr       = Number(srInput.value);
+        const clientId = clientSel.value || null;
+        const total    = getTotal();
+        const transfer = card.querySelector<HTMLInputElement>(".transfer-account")?.value?.trim() || null;
+        const cobTxt   = cobrarBtn.querySelector<HTMLElement>(".cobrar-text")!;
+        const spinner  = cobrarBtn.querySelector<HTMLElement>(".cobrar-spinner")!;
+
+        errorEl.classList.add("hidden");
+        if (!pm) { errorEl.textContent = "Seleccioná un método de pago."; errorEl.classList.remove("hidden"); return; }
+        if (pm === "deudor" && !clientId) {
+        errorEl.textContent = "Para registrar una deuda debés seleccionar un cliente.";
+        errorEl.classList.remove("hidden"); clientSel.focus(); return;
+        }
+        if (pm === "efectivo") {
+        const recv = parseFloat(cashIn.value);
+        if (!isNaN(recv) && recv < total) {
+            errorEl.textContent = "El monto entregado es menor al total a cobrar.";
+            errorEl.classList.remove("hidden"); return;
+        }
+        }
+
+        cobrarBtn.disabled = true; cobTxt.textContent = "Procesando..."; spinner.classList.remove("hidden");
+
+        try {
+        let clientName: string | null = null;
+        if (clientId) {
+            const { data: cd } = await supabase.from("clients").select("name").eq("id", clientId).single();
+            clientName = cd?.name ?? null;
+        }
+        const { error: upErr } = await supabase.from("sales").update({
+            client_id: clientId, client_name: clientName,
+            final_total: total, payment_method: pm, surcharge: sr,
+            note: transfer ? `Transferencia a: ${transfer}` : null,
+            status: pm === "deudor" ? "deuda" : "pagado",
+        }).eq("id", saleId);
+        if (upErr) throw upErr;
+
+        if (pm === "deudor" && clientId) {
+            const { data: cd } = await supabase.from("clients").select("debt").eq("id", clientId).single();
+            await supabase.from("clients").update({ debt: (cd?.debt ?? 0) + total }).eq("id", clientId);
+            await supabase.from("debts").insert([{ client_id: clientId, sale_id: saleId, original_total: total, current_total: total, paid: false }]);
+        }
+        await supabase.from("notifications").update({ read: true }).eq("id", nid);
+
+        let changeMsg = "";
+        if (pm === "efectivo") {
+            const recv = parseFloat(cashIn.value);
+            if (!isNaN(recv) && recv >= total) changeMsg = ` — Vuelto: <span class="font-bold text-emerald-700">${fmt(recv - total)}</span>`;
+        }
+
+        let parsed: any = {};
+        try { parsed = JSON.parse(rawData); } catch {}
+
+        const fecha = new Date().toLocaleString("es-AR", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
+        const td: TicketData = { items: parsed.items ?? [], total, paymentMethod: pm, clientName, fecha, surcharge: sr };
+
+        showSuccess(card, total, pm, clientName, changeMsg, td);
+
+        } catch (err: any) {
+        errorEl.textContent = err?.message ?? "Error al procesar el cobro.";
+        errorEl.classList.remove("hidden");
+        cobrarBtn.disabled = false; cobTxt.textContent = "Confirmar cobro"; spinner.classList.add("hidden");
+        }
+    });
+    });
+
     document.getElementById("mark-all-read")?.addEventListener("click", async () => {
-        await supabase.from("notifications").update({ read: true }).eq("type", "nueva_venta");
-        window.location.reload();
-    });
-
-    // Confirmar cobro
-    document.querySelectorAll<HTMLButtonElement>(".cobrar-btn").forEach((btn) => {
-        btn.addEventListener("click", async () => {
-            const card           = btn.closest<HTMLElement>(".bg-white.border")!;
-            const notificationId = btn.dataset.notificationId!;
-            const saleId         = btn.dataset.saleId!;
-            const baseTotal      = Number(btn.dataset.baseTotal ?? 0);
-
-            const paymentMethodInput = card.querySelector<HTMLInputElement>(".payment-method-value")!;
-            const surchargeInput     = card.querySelector<HTMLInputElement>(".surcharge-value")!;
-            const clientSelect       = card.querySelector<HTMLSelectElement>(".client-select")!;
-            const transferAccount    = card.querySelector<HTMLInputElement>(".transfer-account")?.value?.trim() || null;
-            const errorEl            = card.querySelector<HTMLElement>(".cobro-error")!;
-            const cobrarText         = btn.querySelector<HTMLElement>(".cobrar-text")!;
-            const cobrarSpinner      = btn.querySelector<HTMLElement>(".cobrar-spinner")!;
-
-            const paymentMethod = paymentMethodInput?.value ?? "";
-            const surcharge     = Number(surchargeInput?.value ?? 0);
-            const clientId      = clientSelect?.value || null;
-            const surchargeAmt  = baseTotal * (surcharge / 100);
-            const total         = baseTotal + surchargeAmt;
-
-            errorEl.classList.add("hidden");
-
-            if (!paymentMethod) {
-                errorEl.textContent = "Seleccioná un método de pago.";
-                errorEl.classList.remove("hidden");
-                return;
-            }
-
-            if (paymentMethod === "deudor" && !clientId) {
-                errorEl.textContent = "Para registrar una deuda debés seleccionar un cliente.";
-                errorEl.classList.remove("hidden");
-                clientSelect?.focus();
-                return;
-            }
-
-            // Validar que el monto entregado sea suficiente si es efectivo
-            if (paymentMethod === "efectivo") {
-                const cashInput = card.querySelector<HTMLInputElement>(".cash-received");
-                const received  = parseFloat(cashInput?.value ?? "");
-                if (!isNaN(received) && received < total) {
-                    errorEl.textContent = "El monto entregado es menor al total a cobrar.";
-                    errorEl.classList.remove("hidden");
-                    return;
-                }
-            }
-
-            btn.disabled = true;
-            cobrarText.textContent = "Procesando...";
-            cobrarSpinner.classList.remove("hidden");
-
-            try {
-                let clientName = null;
-                if (clientId) {
-                    const { data: clientData } = await supabase.from("clients").select("name").eq("id", clientId).single();
-                    clientName = clientData?.name ?? null;
-                }
-
-                const { error: updateError } = await supabase
-                    .from("sales")
-                    .update({
-                        client_id:      clientId,
-                        client_name:    clientName,
-                        final_total:    total,
-                        payment_method: paymentMethod,
-                        surcharge,
-                        note:           transferAccount ? `Transferencia a: ${transferAccount}` : null,
-                        status:         paymentMethod === "deudor" ? "deuda" : "pagado",
-                    })
-                    .eq("id", saleId);
-
-                if (updateError) throw updateError;
-
-                if (paymentMethod === "deudor" && clientId) {
-                    const { data: clientData } = await supabase.from("clients").select("debt").eq("id", clientId).single();
-                    const currentDebt = clientData?.debt ?? 0;
-                    await supabase.from("clients").update({ debt: currentDebt + total }).eq("id", clientId);
-                    await supabase.from("debts").insert([{
-                        client_id:      clientId,
-                        sale_id:        saleId,
-                        original_total: total,
-                        current_total:  total,
-                        paid:           false,
-                    }]);
-                }
-
-                await supabase.from("notifications").update({ read: true }).eq("id", notificationId);
-
-                // Calcular vuelto para mostrar en el mensaje de éxito
-                let changeMsg = "";
-                if (paymentMethod === "efectivo") {
-                    const cashInput = card.querySelector<HTMLInputElement>(".cash-received");
-                    const received  = parseFloat(cashInput?.value ?? "");
-                    if (!isNaN(received) && received >= total) {
-                        const change = received - total;
-                        changeMsg = ` — Vuelto: <span class="font-bold text-emerald-700">${formatARS(change)}</span>`;
-                    }
-                }
-
-                card.innerHTML = `
-                    <div class="flex items-center gap-3 px-5 py-4">
-                        <div class="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                            </svg>
-                        </div>
-                        <div>
-                            <p class="text-sm font-semibold text-slate-800">Cobro registrado por ${formatARS(total)}${changeMsg}</p>
-                            <p class="text-xs text-slate-400">${paymentMethod}${clientName ? ` — ${clientName}` : ""}</p>
-                        </div>
-                    </div>
-                `;
-
-                setTimeout(() => {
-                    const remaining = document.querySelectorAll(".cobrar-btn:not([disabled])").length;
-                    if (remaining === 0) window.location.reload();
-                }, 1500);
-
-            } catch (err: any) {
-                errorEl.textContent = err?.message ?? "Error al procesar el cobro.";
-                errorEl.classList.remove("hidden");
-                btn.disabled = false;
-                cobrarText.textContent = "Confirmar cobro";
-                cobrarSpinner.classList.add("hidden");
-            }
-        });
+    await supabase.from("notifications").update({ read: true }).eq("type", "nueva_venta").eq("read", false);
+    document.querySelectorAll<HTMLElement>(".sale-card").forEach(c => c.remove());
+    updateLabel();
     });
 </script>
