@@ -1,0 +1,106 @@
+---
+interface Report {
+    id?: string;
+    created_at: string | null;
+    total: number | null;
+    payment_method: string | null;
+    client_name?: string | null;
+}
+
+interface Props {
+    reports: Report[];
+}
+
+const { reports } = Astro.props;
+
+const formatMoney = (amount: number | null) => {
+    if (amount == null) return "—";
+    return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(amount);
+};
+
+const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return "—";
+    return new Date(dateStr).toLocaleString("es-AR", {
+        day: "2-digit", month: "2-digit", year: "numeric",
+        hour: "2-digit", minute: "2-digit",
+    });
+};
+
+const methodClass: Record<string, string> = {
+    efectivo:      "bg-emerald-50 text-emerald-700",
+    tarjeta:       "bg-blue-50 text-blue-700",
+    transferencia: "bg-violet-50 text-violet-700",
+};
+
+const rows = reports.map((r) => ({
+    ...r,
+    dateFormatted:  formatDate(r.created_at),
+    totalFormatted: formatMoney(r.total),
+    method:         r.payment_method ?? "Sin especificar",
+    methodClass:    methodClass[r.payment_method ?? ""] ?? "bg-slate-100 text-slate-600",
+}));
+
+const total = reports.reduce((acc, r) => acc + (r.total ?? 0), 0);
+---
+
+{rows.length > 0 ? (
+    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+
+        <!-- Totalizador -->
+        <div class="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-slate-50">
+        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+            {rows.length} {rows.length === 1 ? "registro" : "registros"}
+        </span>
+        <span class="text-sm font-bold text-slate-800">{formatMoney(total)}</span>
+        </div>
+
+        <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+            <tr class="border-b border-slate-100">
+                <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Fecha</th>
+                <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Cliente</th>
+                <th class="text-center px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Método</th>
+                <th class="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Total</th>
+            </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+            {rows.map((r) => (
+                <tr class="hover:bg-slate-50 transition-colors">
+                <td class="px-5 py-3.5 text-xs text-slate-500 whitespace-nowrap">{r.dateFormatted}</td>
+                <td class="px-5 py-3.5 font-medium text-slate-800">
+                    {r.client_name ?? <span class="text-slate-400 font-normal">Cliente general</span>}
+                </td>
+                <td class="px-5 py-3.5 text-center">
+                    <span class={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${r.methodClass}`}>
+                    {r.method}
+                    </span>
+                </td>
+                <td class="px-5 py-3.5 text-right font-bold text-slate-800 whitespace-nowrap">
+                    {r.totalFormatted}
+                </td>
+                </tr>
+            ))}
+            </tbody>
+            <!-- Footer con suma -->
+            <tfoot>
+            <tr class="border-t-2 border-slate-200 bg-slate-50">
+                <td class="px-5 py-3 text-xs font-semibold text-slate-500" colspan="3">Total</td>
+                <td class="px-5 py-3 text-right font-bold text-slate-800">{formatMoney(total)}</td>
+            </tr>
+            </tfoot>
+        </table>
+        </div>
+
+    </div>
+) : (
+    <div class="flex flex-col items-center justify-center py-16 bg-white border border-slate-200 rounded-2xl text-center">
+        <div class="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+        </div>
+        <p class="text-slate-500 text-sm font-medium">Sin reportes para mostrar</p>
+        <p class="text-slate-400 text-xs mt-1">Los registros aparecerán acá cuando haya ventas</p>
+    </div>
+)}

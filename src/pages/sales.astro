@@ -1,0 +1,544 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { supabase } from "../lib/supabaseClient.js";
+
+const { data: clients } = await supabase.from("clients").select("id, name").order("name");
+const { data: notifications } = await supabase
+    .from("notifications")
+    .select("*")
+    .eq("read", false)
+    .eq("type", "nueva_venta")
+    .order("created_at", { ascending: false });
+
+const formatMoney = (amount: number | null) => {
+    if (amount == null) return "—";
+    return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(amount);
+};
+
+const pendingCount = notifications?.length ?? 0;
+---
+
+<Layout>
+    <div class="min-h-screen bg-slate-50 px-6 py-8">
+        <div class="max-w-3xl mx-auto">
+
+            <!-- Header -->
+            <div class="flex items-center gap-4 mb-8">
+                <div class="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-800 leading-tight">Cobros</h1>
+                    <p class="text-sm text-slate-500">Procesá los cobros de las ventas pendientes</p>
+                </div>
+            </div>
+
+            <!-- Sin pendientes -->
+            {pendingCount === 0 && (
+                <div class="bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col items-center justify-center py-16 text-center">
+                    <div class="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center mb-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                    </div>
+                    <p class="text-slate-700 font-semibold text-sm">Todo al día</p>
+                    <p class="text-slate-400 text-xs mt-1">No hay ventas pendientes de cobro</p>
+                </div>
+            )}
+
+            <!-- Lista de ventas pendientes -->
+            {pendingCount > 0 && (
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-sm font-semibold text-slate-600">
+                            {pendingCount} {pendingCount === 1 ? "venta pendiente" : "ventas pendientes"}
+                        </p>
+                        <button id="mark-all-read" class="text-xs text-slate-400 hover:text-red-500 transition-colors">
+                            Descartar todas
+                        </button>
+                    </div>
+
+                    {notifications?.map((n) => {
+                        let parsed: any = null;
+                        try { parsed = JSON.parse(n.data ?? "{}"); } catch {}
+                        return (
+                            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden" data-notification-id={n.id}>
+
+                                <!-- Cabecera -->
+                                <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+                                    <div>
+                                        <p class="text-sm font-semibold text-slate-800">{n.message}</p>
+                                        <p class="text-xs text-slate-400 mt-0.5">
+                                            {new Date(n.created_at).toLocaleString("es-AR", {
+                                                day: "2-digit", month: "2-digit", year: "numeric",
+                                                hour: "2-digit", minute: "2-digit"
+                                            })}
+                                        </p>
+                                    </div>
+                                    <span class="text-lg font-bold text-emerald-600">
+                                        {formatMoney(parsed?.total ?? 0)}
+                                    </span>
+                                </div>
+
+                                <!-- Items -->
+                                <div class="px-5 py-3 border-b border-slate-100 space-y-1.5">
+                                    {parsed?.items?.map((item: any) => (
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-xs text-slate-600">{item.name} × {item.qty}</span>
+                                            <span class="text-xs font-medium text-slate-700">{formatMoney(item.subtotal)}</span>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <!-- Formulario de cobro -->
+                                <div class="px-5 py-4 space-y-3">
+
+                                    <!-- Cliente -->
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                                            Cliente <span class="client-required hidden text-red-500">*</span>
+                                        </label>
+                                        <select class="client-select w-full py-2 pl-3 pr-8 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition appearance-none">
+                                            <option value="">Cliente general</option>
+                                            {clients?.map((c) => (
+                                                <option value={c.id}>{c.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <!-- Método de pago -->
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Método de pago</label>
+                                        <div class="grid grid-cols-2 gap-2">
+                                            {[
+                                                { value: "efectivo",      label: "Efectivo",      surcharge: "0",  span: false },
+                                                { value: "transferencia", label: "Transferencia", surcharge: "0",  span: false },
+                                                { value: "debito",        label: "Débito +8%",    surcharge: "8",  span: false },
+                                                { value: "credito",       label: "Crédito +15%",  surcharge: "15", span: false },
+                                                { value: "deudor",        label: "Deudor",        surcharge: "0",  span: true  },
+                                            ].map((m) => (
+                                                <button
+                                                    type="button"
+                                                    class={`payment-btn py-2 rounded-xl text-xs font-semibold border transition-all
+                                                        ${m.span ? "col-span-2" : ""}
+                                                        ${m.value === "deudor"
+                                                            ? "border-red-200 text-red-500 hover:bg-red-50 hover:border-red-400"
+                                                            : "border-slate-200 text-slate-600 hover:border-emerald-400 hover:text-emerald-700 hover:bg-emerald-50"
+                                                        }`}
+                                                    data-method={m.value}
+                                                    data-surcharge={m.surcharge}
+                                                >
+                                                    {m.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <input type="hidden" class="payment-method-value" value="" />
+                                        <input type="hidden" class="surcharge-value" value="0" />
+                                    </div>
+
+                                    <!-- CBU/Alias -->
+                                    <div class="transfer-info hidden">
+                                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">CBU / Alias</label>
+                                        <input type="text" placeholder="Ej: mi.alias"
+                                            class="transfer-account w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+                                        />
+                                    </div>
+
+                                    <!-- Recargo -->
+                                    <div class="surcharge-info hidden px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl">
+                                        <p class="surcharge-label text-xs text-amber-700 font-medium"></p>
+                                    </div>
+
+                                    <!-- Deudor -->
+                                    <div class="debtor-info hidden px-3 py-2 bg-red-50 border border-red-200 rounded-xl">
+                                        <p class="text-xs text-red-700 font-medium">Se registrará como deuda. Seleccioná un cliente.</p>
+                                    </div>
+
+                                    <!-- Totales -->
+                                    <div class="bg-slate-50 rounded-xl px-4 py-3 space-y-1">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-xs text-slate-400">Subtotal</span>
+                                            <span class="subtotal-display text-xs text-slate-600">{formatMoney(parsed?.total ?? 0)}</span>
+                                        </div>
+                                        <div class="surcharge-row hidden flex items-center justify-between">
+                                            <span class="surcharge-row-label text-xs text-amber-600"></span>
+                                            <span class="surcharge-amount text-xs font-medium text-amber-600"></span>
+                                        </div>
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-sm font-semibold text-slate-700">Total</span>
+                                            <span class="total-display text-base font-bold text-slate-800">{formatMoney(parsed?.total ?? 0)}</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Efectivo entregado + vuelto (solo efectivo) -->
+                                    <div class="cash-section hidden space-y-2">
+                                        <div class="flex items-center gap-3">
+                                            <div class="flex-1 space-y-1">
+                                                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Entregado</label>
+                                                <div class="relative">
+                                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none font-medium">$</span>
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        step="1"
+                                                        placeholder="0"
+                                                        class="cash-received w-full pl-6 pr-3 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div class="flex-1 space-y-1">
+                                                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Vuelto</label>
+                                                <div class="change-display flex items-center justify-center py-2 px-3 rounded-xl bg-emerald-50 border border-emerald-100 min-h-[38px]">
+                                                    <span class="change-amount text-sm font-bold text-emerald-700">—</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <!-- Alerta si el monto es insuficiente -->
+                                        <div class="insufficient-alert hidden px-3 py-1.5 rounded-lg bg-red-50 border border-red-200">
+                                            <p class="text-xs text-red-600 font-medium">El monto entregado es menor al total.</p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Error -->
+                                    <div class="cobro-error hidden px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs"></div>
+
+                                    <!-- Botones -->
+                                    <div class="flex gap-2">
+                                        <button
+                                            type="button"
+                                            class="discard-btn flex-none px-3 py-2.5 rounded-xl text-xs font-semibold border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
+                                            data-notification-id={n.id}
+                                        >
+                                            Descartar
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="cobrar-btn flex-1 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors flex items-center justify-center gap-2 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
+                                            data-notification-id={n.id}
+                                            data-sale-id={parsed?.sale_id}
+                                            data-base-total={parsed?.total}
+                                            data-items={n.data}
+                                        >
+                                            <span class="cobrar-text">Confirmar cobro</span>
+                                            <svg class="cobrar-spinner hidden w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 12 0 12 0v4a8 8 0 00-8 8H0z"></path>
+                                            </svg>
+                                        </button>
+                                    </div>
+
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+
+        </div>
+    </div>
+</Layout>
+
+<script>
+    import { supabase } from "../lib/supabaseClient.js";
+
+    const formatARS = (n: number) =>
+        new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(n);
+
+    // Para cada tarjeta de venta
+    document.querySelectorAll<HTMLElement>(".bg-white.border.border-slate-200.rounded-2xl").forEach((card) => {
+        const paymentBtns        = card.querySelectorAll<HTMLButtonElement>(".payment-btn");
+        const paymentMethodInput = card.querySelector<HTMLInputElement>(".payment-method-value")!;
+        const surchargeInput     = card.querySelector<HTMLInputElement>(".surcharge-value")!;
+        const transferInfo       = card.querySelector<HTMLElement>(".transfer-info")!;
+        const surchargeInfo      = card.querySelector<HTMLElement>(".surcharge-info")!;
+        const surchargeLabel     = card.querySelector<HTMLElement>(".surcharge-label")!;
+        const debtorInfo         = card.querySelector<HTMLElement>(".debtor-info")!;
+        const clientSelect       = card.querySelector<HTMLSelectElement>(".client-select")!;
+        const clientRequired     = card.querySelector<HTMLElement>(".client-required")!;
+        const surchargeRow       = card.querySelector<HTMLElement>(".surcharge-row")!;
+        const surchargeRowLabel  = card.querySelector<HTMLElement>(".surcharge-row-label")!;
+        const surchargeAmount    = card.querySelector<HTMLElement>(".surcharge-amount")!;
+        const totalDisplay       = card.querySelector<HTMLElement>(".total-display")!;
+        const cobrarBtn          = card.querySelector<HTMLButtonElement>(".cobrar-btn")!;
+
+        // Sección vuelto
+        const cashSection        = card.querySelector<HTMLElement>(".cash-section")!;
+        const cashReceivedInput  = card.querySelector<HTMLInputElement>(".cash-received")!;
+        const changeAmountEl     = card.querySelector<HTMLElement>(".change-amount")!;
+        const changeDisplay      = card.querySelector<HTMLElement>(".change-display")!;
+        const insufficientAlert  = card.querySelector<HTMLElement>(".insufficient-alert")!;
+
+        const baseTotal = Number(cobrarBtn?.dataset.baseTotal ?? 0);
+
+        // Devuelve el total actual (con recargo si aplica)
+        function getCurrentTotal(): number {
+            const surcharge = Number(surchargeInput?.value ?? 0);
+            return baseTotal + baseTotal * (surcharge / 100);
+        }
+
+        function updateCardTotal() {
+            const surcharge    = Number(surchargeInput?.value ?? 0);
+            const surchargeAmt = baseTotal * (surcharge / 100);
+            const total        = baseTotal + surchargeAmt;
+
+            if (surcharge > 0) {
+                surchargeRow?.classList.remove("hidden");
+                if (surchargeRowLabel) surchargeRowLabel.textContent = `Recargo ${surcharge}%`;
+                if (surchargeAmount)   surchargeAmount.textContent   = `+ ${formatARS(surchargeAmt)}`;
+            } else {
+                surchargeRow?.classList.add("hidden");
+            }
+
+            if (totalDisplay) totalDisplay.textContent = formatARS(total);
+
+            // Recalcular vuelto si ya hay monto ingresado
+            updateChange();
+        }
+
+        function updateChange() {
+            const total    = getCurrentTotal();
+            const received = parseFloat(cashReceivedInput?.value ?? "");
+
+            if (isNaN(received) || cashReceivedInput?.value === "") {
+                changeAmountEl.textContent = "—";
+                changeDisplay.className    = "change-display flex items-center justify-center py-2 px-3 rounded-xl bg-emerald-50 border border-emerald-100 min-h-[38px]";
+                insufficientAlert.classList.add("hidden");
+                return;
+            }
+
+            const change = received - total;
+
+            if (change < 0) {
+                // Monto insuficiente
+                changeAmountEl.textContent = formatARS(change);
+                changeDisplay.className    = "change-display flex items-center justify-center py-2 px-3 rounded-xl bg-red-50 border border-red-200 min-h-[38px]";
+                changeAmountEl.className   = "change-amount text-sm font-bold text-red-600";
+                insufficientAlert.classList.remove("hidden");
+            } else {
+                changeAmountEl.textContent = formatARS(change);
+                changeDisplay.className    = "change-display flex items-center justify-center py-2 px-3 rounded-xl bg-emerald-50 border border-emerald-100 min-h-[38px]";
+                changeAmountEl.className   = "change-amount text-sm font-bold text-emerald-700";
+                insufficientAlert.classList.add("hidden");
+            }
+        }
+
+        // Métodos de pago
+        paymentBtns.forEach((btn) => {
+            btn.addEventListener("click", () => {
+                // Reset todos a estado inactivo
+                paymentBtns.forEach((b) => {
+                    const isDeudor = b.dataset.method === "deudor";
+                    b.classList.remove(
+                        "bg-emerald-600", "border-emerald-600", "text-white",
+                        "bg-red-600",     "border-red-600",
+                        "bg-emerald-50",  "border-emerald-500", "text-emerald-700",
+                        "bg-red-50",      "border-red-400",     "text-red-600",
+                        "shadow-sm"
+                    );
+                    b.classList.add(isDeudor ? "border-red-200" : "border-slate-200");
+                    b.classList.add(isDeudor ? "text-red-500"   : "text-slate-600");
+                });
+
+                const method    = btn.dataset.method!;
+                const surcharge = btn.dataset.surcharge ?? "0";
+
+                // Estado activo: fondo sólido + texto blanco
+                if (method === "deudor") {
+                    btn.classList.remove("border-red-200", "text-red-500");
+                    btn.classList.add("bg-red-600", "border-red-600", "text-white", "shadow-sm");
+                } else {
+                    btn.classList.remove("border-slate-200", "text-slate-600");
+                    btn.classList.add("bg-emerald-600", "border-emerald-600", "text-white", "shadow-sm");
+                }
+
+                if (paymentMethodInput) paymentMethodInput.value = method;
+                if (surchargeInput)     surchargeInput.value     = surcharge;
+
+                transferInfo?.classList.toggle("hidden", method !== "transferencia");
+                surchargeInfo?.classList.toggle("hidden", surcharge === "0");
+                debtorInfo?.classList.toggle("hidden", method !== "deudor");
+                clientRequired?.classList.toggle("hidden", method !== "deudor");
+
+                // Mostrar/ocultar sección de vuelto solo para efectivo
+                const isEfectivo = method === "efectivo";
+                cashSection?.classList.toggle("hidden", !isEfectivo);
+                if (isEfectivo) {
+                    cashReceivedInput.value = "";
+                    changeAmountEl.textContent = "—";
+                    changeAmountEl.className   = "change-amount text-sm font-bold text-emerald-700";
+                    changeDisplay.className    = "change-display flex items-center justify-center py-2 px-3 rounded-xl bg-emerald-50 border border-emerald-100 min-h-[38px]";
+                    insufficientAlert.classList.add("hidden");
+                    setTimeout(() => cashReceivedInput.focus(), 50);
+                }
+
+                if (surcharge !== "0" && surchargeLabel) {
+                    surchargeLabel.textContent = `Se aplica un recargo del ${surcharge}%`;
+                }
+
+                if (clientSelect) {
+                    if (method === "deudor") {
+                        clientSelect.classList.add("border-red-400");
+                        clientSelect.classList.remove("border-slate-200");
+                    } else {
+                        clientSelect.classList.remove("border-red-400");
+                        clientSelect.classList.add("border-slate-200");
+                    }
+                }
+
+                updateCardTotal();
+            });
+        });
+
+        // Calcular vuelto al escribir
+        cashReceivedInput?.addEventListener("input", updateChange);
+    });
+
+    // Descartar venta
+    document.querySelectorAll<HTMLButtonElement>(".discard-btn").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+            const notificationId = btn.dataset.notificationId!;
+            await supabase.from("notifications").update({ read: true }).eq("id", notificationId);
+            const card = btn.closest<HTMLElement>(".bg-white");
+            card?.remove();
+            const remaining = document.querySelectorAll(".cobrar-btn").length;
+            if (remaining === 0) window.location.reload();
+        });
+    });
+
+    // Descartar todas
+    document.getElementById("mark-all-read")?.addEventListener("click", async () => {
+        await supabase.from("notifications").update({ read: true }).eq("type", "nueva_venta");
+        window.location.reload();
+    });
+
+    // Confirmar cobro
+    document.querySelectorAll<HTMLButtonElement>(".cobrar-btn").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+            const card           = btn.closest<HTMLElement>(".bg-white.border")!;
+            const notificationId = btn.dataset.notificationId!;
+            const saleId         = btn.dataset.saleId!;
+            const baseTotal      = Number(btn.dataset.baseTotal ?? 0);
+
+            const paymentMethodInput = card.querySelector<HTMLInputElement>(".payment-method-value")!;
+            const surchargeInput     = card.querySelector<HTMLInputElement>(".surcharge-value")!;
+            const clientSelect       = card.querySelector<HTMLSelectElement>(".client-select")!;
+            const transferAccount    = card.querySelector<HTMLInputElement>(".transfer-account")?.value?.trim() || null;
+            const errorEl            = card.querySelector<HTMLElement>(".cobro-error")!;
+            const cobrarText         = btn.querySelector<HTMLElement>(".cobrar-text")!;
+            const cobrarSpinner      = btn.querySelector<HTMLElement>(".cobrar-spinner")!;
+
+            const paymentMethod = paymentMethodInput?.value ?? "";
+            const surcharge     = Number(surchargeInput?.value ?? 0);
+            const clientId      = clientSelect?.value || null;
+            const surchargeAmt  = baseTotal * (surcharge / 100);
+            const total         = baseTotal + surchargeAmt;
+
+            errorEl.classList.add("hidden");
+
+            if (!paymentMethod) {
+                errorEl.textContent = "Seleccioná un método de pago.";
+                errorEl.classList.remove("hidden");
+                return;
+            }
+
+            if (paymentMethod === "deudor" && !clientId) {
+                errorEl.textContent = "Para registrar una deuda debés seleccionar un cliente.";
+                errorEl.classList.remove("hidden");
+                clientSelect?.focus();
+                return;
+            }
+
+            // Validar que el monto entregado sea suficiente si es efectivo
+            if (paymentMethod === "efectivo") {
+                const cashInput = card.querySelector<HTMLInputElement>(".cash-received");
+                const received  = parseFloat(cashInput?.value ?? "");
+                if (!isNaN(received) && received < total) {
+                    errorEl.textContent = "El monto entregado es menor al total a cobrar.";
+                    errorEl.classList.remove("hidden");
+                    return;
+                }
+            }
+
+            btn.disabled = true;
+            cobrarText.textContent = "Procesando...";
+            cobrarSpinner.classList.remove("hidden");
+
+            try {
+                let clientName = null;
+                if (clientId) {
+                    const { data: clientData } = await supabase.from("clients").select("name").eq("id", clientId).single();
+                    clientName = clientData?.name ?? null;
+                }
+
+                const { error: updateError } = await supabase
+                    .from("sales")
+                    .update({
+                        client_id:      clientId,
+                        client_name:    clientName,
+                        final_total:    total,
+                        payment_method: paymentMethod,
+                        surcharge,
+                        note:           transferAccount ? `Transferencia a: ${transferAccount}` : null,
+                        status:         paymentMethod === "deudor" ? "deuda" : "pagado",
+                    })
+                    .eq("id", saleId);
+
+                if (updateError) throw updateError;
+
+                if (paymentMethod === "deudor" && clientId) {
+                    const { data: clientData } = await supabase.from("clients").select("debt").eq("id", clientId).single();
+                    const currentDebt = clientData?.debt ?? 0;
+                    await supabase.from("clients").update({ debt: currentDebt + total }).eq("id", clientId);
+                    await supabase.from("debts").insert([{
+                        client_id:      clientId,
+                        sale_id:        saleId,
+                        original_total: total,
+                        current_total:  total,
+                        paid:           false,
+                    }]);
+                }
+
+                await supabase.from("notifications").update({ read: true }).eq("id", notificationId);
+
+                // Calcular vuelto para mostrar en el mensaje de éxito
+                let changeMsg = "";
+                if (paymentMethod === "efectivo") {
+                    const cashInput = card.querySelector<HTMLInputElement>(".cash-received");
+                    const received  = parseFloat(cashInput?.value ?? "");
+                    if (!isNaN(received) && received >= total) {
+                        const change = received - total;
+                        changeMsg = ` — Vuelto: <span class="font-bold text-emerald-700">${formatARS(change)}</span>`;
+                    }
+                }
+
+                card.innerHTML = `
+                    <div class="flex items-center gap-3 px-5 py-4">
+                        <div class="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-slate-800">Cobro registrado por ${formatARS(total)}${changeMsg}</p>
+                            <p class="text-xs text-slate-400">${paymentMethod}${clientName ? ` — ${clientName}` : ""}</p>
+                        </div>
+                    </div>
+                `;
+
+                setTimeout(() => {
+                    const remaining = document.querySelectorAll(".cobrar-btn:not([disabled])").length;
+                    if (remaining === 0) window.location.reload();
+                }, 1500);
+
+            } catch (err: any) {
+                errorEl.textContent = err?.message ?? "Error al procesar el cobro.";
+                errorEl.classList.remove("hidden");
+                btn.disabled = false;
+                cobrarText.textContent = "Confirmar cobro";
+                cobrarSpinner.classList.add("hidden");
+            }
+        });
+    });
+</script>

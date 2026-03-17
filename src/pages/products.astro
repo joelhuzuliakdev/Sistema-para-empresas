@@ -1,0 +1,676 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { supabase } from "../lib/supabaseClient.js";
+
+const { data: products } = await supabase.from("products").select("*");
+const { data: allDiscounts } = await supabase.from("product_discounts").select("*");
+
+const formatMoney = (amount: number | null) => {
+    if (amount == null) return "—";
+    return new Intl.NumberFormat("es-AR", {
+        style: "currency",
+        currency: "ARS",
+    }).format(amount);
+};
+
+// Agrupar descuentos por product_id
+const discountsByProduct: Record<string, any[]> = {};
+allDiscounts?.forEach((d) => {
+    if (!discountsByProduct[d.product_id]) discountsByProduct[d.product_id] = [];
+    discountsByProduct[d.product_id].push(d);
+});
+// Ordenar por min_qty dentro de cada producto
+Object.values(discountsByProduct).forEach((arr) =>
+    arr.sort((a, b) => a.min_qty - b.min_qty)
+);
+
+const totalProductos = products?.length ?? 0;
+const sinStock = products?.filter((p) => (p.stock ?? 0) === 0).length ?? 0;
+const stockBajo = products?.filter((p) => (p.stock ?? 0) > 0 && (p.stock ?? 0) <= 5).length ?? 0;
+const categorias = [...new Set(products?.map((p) => p.category).filter(Boolean))];
+
+const rows = products?.map((p) => {
+    const stock = p.stock ?? 0;
+    const stockStatus = stock === 0 ? "out" : stock <= 5 ? "low" : "ok";
+    const badgeLabel = stock === 0 ? "Sin stock" : stock <= 5 ? "Stock bajo" : "Disponible";
+    const badgeClass = stock === 0
+        ? "bg-red-50 text-red-600"
+        : stock <= 5
+        ? "bg-orange-50 text-orange-600"
+        : "bg-emerald-50 text-emerald-700";
+    const discounts = discountsByProduct[p.id] ?? [];
+    return { ...p, stockStatus, badgeLabel, badgeClass, discounts };
+}) ?? [];
+---
+
+<Layout>
+    <div class="min-h-screen bg-slate-50 px-6 py-8">
+        <div class="max-w-6xl mx-auto">
+
+            <!-- Header -->
+            <div class="flex items-center justify-between mb-8">
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold text-slate-800 leading-tight">Productos</h1>
+                        <p class="text-sm text-slate-500">Catálogo y estado de stock</p>
+                    </div>
+                </div>
+                <button
+                    id="open-modal-btn"
+                    class="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-all"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Nuevo producto
+                </button>
+            </div>
+
+            <!-- Stats -->
+            <div class="grid grid-cols-3 gap-4 mb-6">
+                <div class="bg-white border border-slate-200 rounded-xl px-5 py-4">
+                    <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-1">Total productos</p>
+                    <p class="text-2xl font-bold text-slate-800">{totalProductos}</p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-xl px-5 py-4">
+                    <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-1">Stock bajo</p>
+                    <p class="text-2xl font-bold text-orange-500">{stockBajo}</p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-xl px-5 py-4">
+                    <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-1">Sin stock</p>
+                    <p class="text-2xl font-bold text-red-600">{sinStock}</p>
+                </div>
+            </div>
+
+            <!-- Filtros -->
+            <div class="flex items-center gap-3 mb-4">
+                <div class="relative flex-1">
+                    <span class="absolute inset-y-0 left-3 flex items-center text-slate-400 pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </span>
+                    <input
+                        id="search"
+                        type="text"
+                        placeholder="Buscar por nombre..."
+                        class="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition"
+                    />
+                </div>
+                <select id="category-filter" class="py-2.5 pl-3 pr-8 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500 transition appearance-none">
+                    <option value="">Todas las categorías</option>
+                    {categorias.map((cat) => <option value={cat}>{cat}</option>)}
+                </select>
+                <select id="stock-filter" class="py-2.5 pl-3 pr-8 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500 transition appearance-none">
+                    <option value="">Todo el stock</option>
+                    <option value="low">Stock bajo (≤5)</option>
+                    <option value="out">Sin stock</option>
+                    <option value="ok">Disponible</option>
+                </select>
+            </div>
+
+            <!-- Tabla -->
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+                {rows.length > 0 ? (
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b border-slate-100 bg-slate-50">
+                                    <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Nombre</th>
+                                    <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Categoría</th>
+                                    <th class="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Precio</th>
+                                    <th class="text-center px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Stock</th>
+                                    <th class="text-center px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Estado</th>
+                                    <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Descuentos</th>
+                                    <th class="px-5 py-3"></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100" id="products-tbody">
+                                {rows.map((p) => (
+                                    <tr
+                                        class="hover:bg-slate-50 transition-colors product-row"
+                                        data-name={p.name?.toLowerCase()}
+                                        data-category={p.category ?? ""}
+                                        data-stock-status={p.stockStatus}
+                                    >
+                                        <td class="px-5 py-3.5">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                                    </svg>
+                                                </div>
+                                                <span class="font-medium text-slate-800">{p.name}</span>
+                                            </div>
+                                        </td>
+                                        <td class="px-5 py-3.5">
+                                            {p.category
+                                                ? <span class="inline-block px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-600">{p.category}</span>
+                                                : <span class="text-slate-400">—</span>
+                                            }
+                                        </td>
+                                        <td class="px-5 py-3.5 text-right font-semibold text-slate-800">{formatMoney(p.price)}</td>
+                                        <td class="px-5 py-3.5 text-center font-medium text-slate-700">{p.stock ?? 0}</td>
+                                        <td class="px-5 py-3.5 text-center">
+                                            <span class={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ${p.badgeClass}`}>
+                                                {p.badgeLabel}
+                                            </span>
+                                        </td>
+                                        <!-- Columna descuentos -->
+                                        <td class="px-5 py-3.5">
+                                            {p.discounts.length > 0 ? (
+                                                <div class="flex flex-wrap gap-1.5">
+                                                    {p.discounts.map((d: any) => (
+                                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-50 text-violet-700 border border-violet-100">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                                            </svg>
+                                                            {d.label ? d.label : `x${d.min_qty}`} − {d.discount_pct}%
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <span class="text-slate-300 text-xs">Sin descuentos</span>
+                                            )}
+                                        </td>
+                                        <td class="px-5 py-3.5 text-right">
+                                            <button
+                                                class="edit-btn text-xs text-slate-400 hover:text-indigo-600 font-medium transition-colors"
+                                                data-id={p.id}
+                                                data-name={p.name}
+                                                data-price={p.price}
+                                                data-stock={p.stock}
+                                                data-category={p.category ?? ""}
+                                                data-discounts={JSON.stringify(p.discounts)}
+                                            >
+                                                Editar
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <div class="flex flex-col items-center justify-center py-16 text-center">
+                        <div class="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                            </svg>
+                        </div>
+                        <p class="text-slate-500 text-sm">No hay productos cargados todavía</p>
+                    </div>
+                )}
+            </div>
+
+            {rows.length > 0 && (
+                <p class="text-xs text-slate-400 mt-3 text-right" id="footer-count">
+                    {totalProductos} {totalProductos === 1 ? "producto" : "productos"} en total
+                </p>
+            )}
+
+        </div>
+    </div>
+
+    <!-- Modal overlay -->
+    <div id="modal-overlay" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
+
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+                <h2 id="modal-title" class="text-base font-semibold text-slate-800">Nuevo producto</h2>
+                <button id="close-modal-btn" class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="px-6 py-5 space-y-4 overflow-y-auto flex-1">
+
+                <div id="modal-error" class="hidden px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs"></div>
+
+                <input type="hidden" id="modal-product-id" value="" />
+
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Nombre *</label>
+                    <input
+                        id="modal-name"
+                        type="text"
+                        placeholder="Nombre del producto"
+                        class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition"
+                    />
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Precio *</label>
+                        <input
+                            id="modal-price"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="0.00"
+                            class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition"
+                        />
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Stock</label>
+                        <input
+                            id="modal-stock"
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition"
+                        />
+                    </div>
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Categoría</label>
+                    <input
+                        id="modal-category"
+                        type="text"
+                        placeholder="Ej: Bebidas, Ropa, Electrónica..."
+                        class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition"
+                    />
+                </div>
+
+                <!-- Sección descuentos -->
+                <div class="space-y-3 pt-1">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Descuentos por cantidad</label>
+                    </div>
+
+                    <!-- Encabezado columnas (solo visible cuando hay filas) -->
+                    <div id="discounts-header" class="hidden grid grid-cols-[1fr_90px_90px_32px] gap-2 px-1">
+                        <span class="text-xs text-slate-400 font-medium">Etiqueta (opcional)</span>
+                        <span class="text-xs text-slate-400 font-medium text-center">Cant. mín.</span>
+                        <span class="text-xs text-slate-400 font-medium text-center">% descuento</span>
+                        <span></span>
+                    </div>
+
+                    <div id="discounts-list" class="space-y-0">
+                        <!-- Filas dinámicas de descuentos -->
+                    </div>
+
+                    <!-- Estado vacío con botón para agregar el primero -->
+                    <button
+                        id="add-discount-btn"
+                        type="button"
+                        class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-slate-200 text-xs font-semibold text-slate-400 hover:text-violet-600 hover:border-violet-300 hover:bg-violet-50 transition-all"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Agregar descuento por cantidad
+                    </button>
+                </div>
+
+            </div>
+
+            <div class="px-6 py-4 border-t border-slate-100 flex gap-3 shrink-0">
+                <button
+                    id="cancel-modal-btn"
+                    class="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                >
+                    Cancelar
+                </button>
+                <button
+                    id="delete-product-btn"
+                    class="hidden py-2.5 px-4 rounded-xl text-sm font-semibold bg-red-50 hover:bg-red-100 text-red-600 transition-colors"
+                >
+                    Eliminar
+                </button>
+                <button
+                    id="save-product-btn"
+                    class="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-amber-500 hover:bg-amber-600 text-white transition-colors flex items-center justify-center gap-2 disabled:bg-amber-300 disabled:cursor-not-allowed"
+                >
+                    <span id="save-product-text">Guardar</span>
+                    <svg id="save-product-spinner" class="hidden w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 12 0 12 0v4a8 8 0 00-8 8H0z"></path>
+                    </svg>
+                </button>
+            </div>
+
+        </div>
+    </div>
+</Layout>
+
+<script>
+    import { supabase } from "../lib/supabaseClient.js";
+
+    // --- Filtros ---
+    const searchInput    = document.getElementById("search")          as HTMLInputElement;
+    const categoryFilter = document.getElementById("category-filter") as HTMLSelectElement;
+    const stockFilter    = document.getElementById("stock-filter")    as HTMLSelectElement;
+    const productRows    = document.querySelectorAll<HTMLTableRowElement>(".product-row");
+    const footerCount    = document.getElementById("footer-count");
+
+    function applyFilters() {
+        const q     = searchInput.value.toLowerCase();
+        const cat   = categoryFilter.value.toLowerCase();
+        const stock = stockFilter.value;
+        let visible = 0;
+        productRows.forEach((row) => {
+            const matchName  = (row.dataset.name ?? "").includes(q);
+            const matchCat   = cat === "" || (row.dataset.category ?? "").toLowerCase() === cat;
+            const matchStock = stock === "" || row.dataset.stockStatus === stock;
+            const show = matchName && matchCat && matchStock;
+            row.style.display = show ? "" : "none";
+            if (show) visible++;
+        });
+        if (footerCount) {
+            const filtered = q || cat || stock;
+            footerCount.textContent = `${visible} ${visible === 1 ? "producto" : "productos"} ${filtered ? "encontrados" : "en total"}`;
+        }
+    }
+
+    searchInput?.addEventListener("input", applyFilters);
+    categoryFilter?.addEventListener("change", applyFilters);
+    stockFilter?.addEventListener("change", applyFilters);
+
+    // --- Modal ---
+    const overlay       = document.getElementById("modal-overlay")!;
+    const modalTitle    = document.getElementById("modal-title")!;
+    const modalError    = document.getElementById("modal-error")!;
+    const modalId       = document.getElementById("modal-product-id") as HTMLInputElement;
+    const modalName     = document.getElementById("modal-name")       as HTMLInputElement;
+    const modalPrice    = document.getElementById("modal-price")      as HTMLInputElement;
+    const modalStock    = document.getElementById("modal-stock")      as HTMLInputElement;
+    const modalCategory = document.getElementById("modal-category")   as HTMLInputElement;
+    const saveBtn       = document.getElementById("save-product-btn") as HTMLButtonElement;
+    const saveText      = document.getElementById("save-product-text")!;
+    const saveSpinner   = document.getElementById("save-product-spinner")!;
+    const deleteBtn     = document.getElementById("delete-product-btn") as HTMLButtonElement;
+
+    // --- Descuentos dinámicos ---
+    const discountsList   = document.getElementById("discounts-list")!;
+    const discountsHeader = document.getElementById("discounts-header")!;
+    const addDiscountBtn  = document.getElementById("add-discount-btn")!;
+
+    function updateDiscountsUI() {
+        const rows = discountsList.querySelectorAll(".discount-row-wrap");
+        const hasRows = rows.length > 0;
+        discountsHeader.classList.toggle("hidden", !hasRows);
+        // El botón dashed grande se oculta cuando ya hay al menos una fila
+        addDiscountBtn.classList.toggle("hidden", hasRows);
+        // Solo el último "agregar otro" es visible
+        discountsList.querySelectorAll<HTMLElement>(".add-another-btn").forEach((btn, i, all) => {
+            btn.classList.toggle("hidden", i < all.length - 1);
+        });
+    }
+
+    function createDiscountRow(d?: { id?: string; label?: string; min_qty?: number; discount_pct?: number }) {
+        // Wrapper: contiene la fila de inputs + el botón "agregar otro" debajo
+        const wrap = document.createElement("div");
+        wrap.className = "discount-row-wrap";
+
+        const row = document.createElement("div");
+        row.className = "discount-row grid grid-cols-[1fr_90px_90px_32px] gap-2 items-center py-1.5";
+        row.innerHTML = `
+            <input
+                type="text"
+                placeholder="Ej: Bulto, x50..."
+                value="${d?.label ?? ""}"
+                data-field="label"
+                class="discount-label px-2.5 py-2 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition"
+            />
+            <input
+                type="number"
+                min="1"
+                placeholder="50"
+                value="${d?.min_qty ?? ""}"
+                data-field="min_qty"
+                class="discount-qty px-2.5 py-2 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition text-center"
+            />
+            <div class="relative">
+                <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    step="0.01"
+                    placeholder="10"
+                    value="${d?.discount_pct ?? ""}"
+                    data-field="discount_pct"
+                    class="discount-pct w-full px-2.5 py-2 pr-6 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition text-center"
+                />
+                <span class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">%</span>
+            </div>
+            <button type="button" class="remove-discount-btn w-8 h-8 flex items-center justify-center rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+            </button>
+        `;
+        if (d?.id) row.dataset.discountId = d.id;
+
+        // Botón "agregar otro nivel" debajo de esta fila
+        const addAnother = document.createElement("button");
+        addAnother.type = "button";
+        addAnother.className = "add-another-btn flex items-center gap-1.5 text-xs text-violet-500 hover:text-violet-700 font-medium py-1 pl-1 transition-colors";
+        addAnother.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Agregar otro nivel
+        `;
+        addAnother.addEventListener("click", () => {
+            discountsList.appendChild(createDiscountRow());
+            updateDiscountsUI();
+        });
+
+        row.querySelector(".remove-discount-btn")!.addEventListener("click", () => {
+            wrap.remove();
+            updateDiscountsUI();
+        });
+
+        wrap.appendChild(row);
+        wrap.appendChild(addAnother);
+        return wrap;
+    }
+
+    function getDiscountRows(): { id?: string; label: string; min_qty: number; discount_pct: number }[] {
+        const result: any[] = [];
+        discountsList.querySelectorAll<HTMLDivElement>(".discount-row").forEach((row) => {
+            const label        = (row.querySelector("[data-field='label']") as HTMLInputElement).value.trim();
+            const min_qty      = parseInt((row.querySelector("[data-field='min_qty']") as HTMLInputElement).value);
+            const discount_pct = parseFloat((row.querySelector("[data-field='discount_pct']") as HTMLInputElement).value);
+            result.push({ id: row.dataset.discountId, label, min_qty, discount_pct });
+        });
+        return result;
+    }
+
+    addDiscountBtn.addEventListener("click", () => {
+        discountsList.appendChild(createDiscountRow());
+        updateDiscountsUI();
+    });
+
+    // --- Abrir/cerrar modal ---
+    function openModal(product?: any) {
+        modalError.classList.add("hidden");
+        discountsList.innerHTML = "";
+
+        if (product) {
+            modalTitle.textContent = "Editar producto";
+            modalId.value          = product.id ?? "";
+            modalName.value        = product.name ?? "";
+            modalPrice.value       = product.price ?? "";
+            modalStock.value       = product.stock ?? "";
+            modalCategory.value    = product.category ?? "";
+            deleteBtn.classList.remove("hidden");
+
+            // Cargar descuentos existentes
+            const discounts: any[] = product.discounts ?? [];
+            discounts.forEach((d) => discountsList.appendChild(createDiscountRow(d)));
+        } else {
+            modalTitle.textContent = "Nuevo producto";
+            modalId.value          = "";
+            modalName.value        = "";
+            modalPrice.value       = "";
+            modalStock.value       = "";
+            modalCategory.value    = "";
+            deleteBtn.classList.add("hidden");
+        }
+
+        updateDiscountsUI();
+        overlay.classList.remove("hidden");
+        modalName.focus();
+    }
+
+    function closeModal() {
+        overlay.classList.add("hidden");
+    }
+
+    function setLoading(loading: boolean) {
+        saveBtn.disabled = loading;
+        saveText.textContent = loading ? "Guardando..." : "Guardar";
+        saveSpinner.classList.toggle("hidden", !loading);
+    }
+
+    document.getElementById("open-modal-btn")?.addEventListener("click", () => openModal());
+    document.getElementById("close-modal-btn")?.addEventListener("click", closeModal);
+    document.getElementById("cancel-modal-btn")?.addEventListener("click", closeModal);
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) closeModal(); });
+
+    document.querySelectorAll<HTMLButtonElement>(".edit-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            let discounts: any[] = [];
+            try { discounts = JSON.parse(btn.dataset.discounts ?? "[]"); } catch {}
+            openModal({
+                id:        btn.dataset.id,
+                name:      btn.dataset.name,
+                price:     btn.dataset.price,
+                stock:     btn.dataset.stock,
+                category:  btn.dataset.category,
+                discounts,
+            });
+        });
+    });
+
+    // --- Guardar producto ---
+    saveBtn.addEventListener("click", async () => {
+        modalError.classList.add("hidden");
+
+        const id       = modalId.value.trim();
+        const name     = modalName.value.trim();
+        const price    = parseFloat(modalPrice.value);
+        const stock    = parseInt(modalStock.value) || 0;
+        const category = modalCategory.value.trim() || null;
+
+        if (!name) {
+            modalError.textContent = "El nombre es obligatorio.";
+            modalError.classList.remove("hidden");
+            return;
+        }
+        if (isNaN(price) || price < 0) {
+            modalError.textContent = "Ingresá un precio válido.";
+            modalError.classList.remove("hidden");
+            return;
+        }
+
+        // Validar descuentos
+        const discountRows = getDiscountRows();
+        for (const d of discountRows) {
+            if (!d.min_qty || isNaN(d.min_qty) || d.min_qty < 1) {
+                modalError.textContent = "Cada descuento debe tener una cantidad mínima válida.";
+                modalError.classList.remove("hidden");
+                return;
+            }
+            if (!d.discount_pct || isNaN(d.discount_pct) || d.discount_pct <= 0 || d.discount_pct > 100) {
+                modalError.textContent = "El porcentaje de descuento debe estar entre 1 y 100.";
+                modalError.classList.remove("hidden");
+                return;
+            }
+        }
+
+        setLoading(true);
+
+        try {
+            let productId = id;
+
+            if (id) {
+                const { error } = await supabase
+                    .from("products")
+                    .update({ name, price, stock, category })
+                    .eq("id", id);
+                if (error) throw error;
+            } else {
+                const { data, error } = await supabase
+                    .from("products")
+                    .insert([{ name, price, stock, category }])
+                    .select("id")
+                    .single();
+                if (error) throw error;
+                productId = data.id;
+            }
+
+            // Sincronizar descuentos: borrar todos los existentes y reinsertar
+            const { error: delErr } = await supabase
+                .from("product_discounts")
+                .delete()
+                .eq("product_id", productId);
+            if (delErr) throw delErr;
+
+            if (discountRows.length > 0) {
+                const toInsert = discountRows.map((d) => ({
+                    product_id:   productId,
+                    label:        d.label || null,
+                    min_qty:      d.min_qty,
+                    discount_pct: d.discount_pct,
+                }));
+                const { error: insErr } = await supabase
+                    .from("product_discounts")
+                    .insert(toInsert);
+                if (insErr) throw insErr;
+            }
+
+            closeModal();
+            window.location.reload();
+
+        } catch (err: any) {
+            modalError.textContent = err?.message ?? "Error al guardar el producto.";
+            modalError.classList.remove("hidden");
+        } finally {
+            setLoading(false);
+        }
+    });
+
+    // --- Eliminar producto ---
+    deleteBtn.addEventListener("click", async () => {
+        const id = modalId.value.trim();
+        if (!id) return;
+        if (!confirm("¿Eliminar este producto? Esta acción no se puede deshacer.")) return;
+
+        deleteBtn.disabled = true;
+        deleteBtn.textContent = "Eliminando...";
+
+        try {
+            // Los descuentos se eliminan en cascada por la FK
+            const { error } = await supabase
+                .from("products")
+                .delete()
+                .eq("id", id);
+            if (error) throw error;
+            closeModal();
+            window.location.reload();
+        } catch (err: any) {
+            modalError.textContent = err?.message ?? "Error al eliminar el producto.";
+            modalError.classList.remove("hidden");
+            deleteBtn.disabled = false;
+            deleteBtn.textContent = "Eliminar";
+        }
+    });
+
+    // Enter para guardar
+    [modalName, modalPrice, modalStock, modalCategory].forEach((input) => {
+        input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") saveBtn.click();
+        });
+    });
+</script>

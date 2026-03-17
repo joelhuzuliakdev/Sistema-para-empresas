@@ -1,0 +1,292 @@
+---
+import { supabase } from "../lib/supabaseClient.js";
+
+const { data: products } = await supabase.from("products").select("id, name, price, stock").order("name");
+const { data: clients } = await supabase.from("clients").select("id, name").order("name");
+
+const formatMoney = (amount: number | null) => {
+    if (amount == null) return "—";
+    return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(amount);
+};
+---
+
+<div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+
+    <div class="flex items-center gap-3 px-5 py-4 border-b border-slate-100">
+        <div class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+        </svg>
+        </div>
+        <h3 class="text-sm font-semibold text-slate-800">Registrar Venta</h3>
+    </div>
+
+    <div class="px-5 py-4 space-y-4">
+
+        <!-- Error / éxito -->
+        <div id="venta-error" class="hidden px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs"></div>
+        <div id="venta-success" class="hidden px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium"></div>
+
+        <!-- Producto -->
+        <div class="space-y-1.5">
+        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Producto *</label>
+        <select
+            id="product-select"
+            class="w-full py-2.5 pl-3 pr-8 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition appearance-none"
+        >
+            <option value="">Seleccioná un producto</option>
+            {products?.map((p) => (
+            <option value={p.id} data-price={p.price} data-stock={p.stock ?? 999}>
+                {p.name} — {formatMoney(p.price)}
+            </option>
+            ))}
+        </select>
+        <p id="stock-hint" class="text-xs text-slate-400 hidden"></p>
+        </div>
+
+        <!-- Cantidad -->
+        <div class="space-y-1.5">
+        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Cantidad *</label>
+        <div class="flex items-center gap-3">
+            <button type="button" id="qty-dec"
+            class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-lg flex items-center justify-center transition-colors shrink-0">
+            −
+            </button>
+            <input
+            id="qty-input"
+            type="number"
+            min="1"
+            value="1"
+            class="flex-1 text-center py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+            />
+            <button type="button" id="qty-inc"
+            class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-lg flex items-center justify-center transition-colors shrink-0">
+            +
+            </button>
+        </div>
+        </div>
+
+        <!-- Cliente -->
+        <div class="space-y-1.5">
+        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Cliente</label>
+        <select
+            id="client-select"
+            class="w-full py-2.5 pl-3 pr-8 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition appearance-none"
+        >
+            <option value="">Cliente general</option>
+            {clients?.map((c) => (
+            <option value={c.id}>{c.name}</option>
+            ))}
+        </select>
+        </div>
+
+        <!-- Método de pago -->
+        <div class="space-y-1.5">
+        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Método de pago *</label>
+        <div class="grid grid-cols-3 gap-2" id="payment-btns">
+            {[
+            { value: "efectivo",       label: "Efectivo" },
+            { value: "tarjeta",        label: "Tarjeta" },
+            { value: "transferencia",  label: "Transfer." },
+            ].map((m) => (
+            <button
+                type="button"
+                class="pay-btn py-2 rounded-xl text-xs font-semibold border border-slate-200 text-slate-600 hover:border-emerald-400 hover:text-emerald-700 hover:bg-emerald-50 transition-all"
+                data-method={m.value}
+            >
+                {m.label}
+            </button>
+            ))}
+        </div>
+        <input type="hidden" id="payment-value" value="" />
+        </div>
+
+        <!-- Subtotal -->
+        <div class="flex items-center justify-between px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl">
+        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Subtotal</span>
+        <span id="subtotal" class="text-base font-bold text-slate-800">$ 0,00</span>
+        </div>
+
+        <!-- Botón -->
+        <button
+        id="submit-venta"
+        class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-xl transition-all text-sm flex items-center justify-center gap-2"
+        >
+        <span id="submit-text">Finalizar venta</span>
+        <svg id="submit-spinner" class="hidden w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 12 0 12 0v4a8 8 0 00-8 8H0z"></path>
+        </svg>
+        </button>
+
+    </div>
+</div>
+
+<script>
+    import { supabase } from "../lib/supabaseClient.js";
+
+    const productSelect  = document.getElementById("product-select")  as HTMLSelectElement;
+    const clientSelect   = document.getElementById("client-select")   as HTMLSelectElement;
+    const qtyInput       = document.getElementById("qty-input")       as HTMLInputElement;
+    const paymentInput   = document.getElementById("payment-value")   as HTMLInputElement;
+    const subtotalEl     = document.getElementById("subtotal")!;
+    const stockHint      = document.getElementById("stock-hint")!;
+    const errorEl        = document.getElementById("venta-error")!;
+    const successEl      = document.getElementById("venta-success")!;
+    const submitBtn      = document.getElementById("submit-venta")    as HTMLButtonElement;
+    const submitText     = document.getElementById("submit-text")!;
+    const submitSpinner  = document.getElementById("submit-spinner")!;
+
+    const formatARS = (n: number) =>
+        new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(n);
+
+    function getSelectedPrice(): number {
+        const opt = productSelect.options[productSelect.selectedIndex];
+        return Number(opt?.dataset.price ?? 0);
+    }
+
+    function getSelectedStock(): number {
+        const opt = productSelect.options[productSelect.selectedIndex];
+        return Number(opt?.dataset.stock ?? 999);
+    }
+
+    function updateSubtotal() {
+        const qty = Math.max(1, Number(qtyInput.value) || 1);
+        const price = getSelectedPrice();
+        subtotalEl.textContent = formatARS(price * qty);
+    }
+
+    function updateStockHint() {
+        const stock = getSelectedStock();
+        if (!productSelect.value) {
+        stockHint.classList.add("hidden");
+        return;
+        }
+        stockHint.classList.remove("hidden");
+        if (stock === 0) {
+        stockHint.textContent = "Sin stock disponible";
+        stockHint.className = "text-xs text-red-500";
+        } else if (stock <= 5) {
+        stockHint.textContent = `Stock disponible: ${stock} unidades`;
+        stockHint.className = "text-xs text-orange-500";
+        } else {
+        stockHint.textContent = `Stock disponible: ${stock} unidades`;
+        stockHint.className = "text-xs text-slate-400";
+        }
+        qtyInput.max = String(stock);
+    }
+
+    function showError(msg: string) {
+        errorEl.textContent = msg;
+        errorEl.classList.remove("hidden");
+        successEl.classList.add("hidden");
+    }
+
+    function showSuccess(msg: string) {
+        successEl.textContent = msg;
+        successEl.classList.remove("hidden");
+        errorEl.classList.add("hidden");
+    }
+
+    function setLoading(loading: boolean) {
+        submitBtn.disabled = loading;
+        submitText.textContent = loading ? "Registrando..." : "Finalizar venta";
+        submitSpinner.classList.toggle("hidden", !loading);
+    }
+
+    function resetForm() {
+        productSelect.value = "";
+        qtyInput.value = "1";
+        clientSelect.value = "";
+        paymentInput.value = "";
+        subtotalEl.textContent = formatARS(0);
+        stockHint.classList.add("hidden");
+        document.querySelectorAll(".pay-btn").forEach((b) => {
+        b.classList.remove("border-emerald-500", "bg-emerald-50", "text-emerald-700");
+        b.classList.add("border-slate-200", "text-slate-600");
+        });
+    }
+
+    // Producto cambia
+    productSelect.addEventListener("change", () => {
+        updateSubtotal();
+        updateStockHint();
+    });
+
+    // Cantidad
+    qtyInput.addEventListener("input", updateSubtotal);
+
+    document.getElementById("qty-dec")?.addEventListener("click", () => {
+        const val = Math.max(1, Number(qtyInput.value) - 1);
+        qtyInput.value = String(val);
+        updateSubtotal();
+    });
+
+    document.getElementById("qty-inc")?.addEventListener("click", () => {
+        const max = getSelectedStock();
+        const val = Math.min(max, Number(qtyInput.value) + 1);
+        qtyInput.value = String(val);
+        updateSubtotal();
+    });
+
+    // Método de pago
+    document.getElementById("payment-btns")?.addEventListener("click", (e) => {
+        const btn = (e.target as HTMLElement).closest(".pay-btn") as HTMLElement | null;
+        if (!btn) return;
+        document.querySelectorAll(".pay-btn").forEach((b) => {
+        b.classList.remove("border-emerald-500", "bg-emerald-50", "text-emerald-700");
+        b.classList.add("border-slate-200", "text-slate-600");
+        });
+        btn.classList.add("border-emerald-500", "bg-emerald-50", "text-emerald-700");
+        btn.classList.remove("border-slate-200", "text-slate-600");
+        paymentInput.value = btn.dataset.method ?? "";
+    });
+
+    // Submit
+    submitBtn.addEventListener("click", async () => {
+        errorEl.classList.add("hidden");
+        successEl.classList.add("hidden");
+
+        const productId = productSelect.value;
+        const qty       = Number(qtyInput.value) || 1;
+        const clientId  = clientSelect.value || null;
+        const method    = paymentInput.value;
+        const price     = getSelectedPrice();
+        const stock     = getSelectedStock();
+        const total     = price * qty;
+
+        if (!productId)  return showError("Seleccioná un producto.");
+        if (stock === 0) return showError("Este producto no tiene stock disponible.");
+        if (qty > stock) return showError(`Solo hay ${stock} unidades disponibles.`);
+        if (!method)     return showError("Seleccioná un método de pago.");
+
+        setLoading(true);
+
+        try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const userId = sessionData?.session?.user?.id;
+
+        const { data: sale, error: saleError } = await supabase
+            .from("sales")
+            .insert([{ user_id: userId, client_id: clientId, total, payment_method: method }])
+            .select()
+            .single();
+
+        if (saleError) throw saleError;
+
+        const { error: itemError } = await supabase
+            .from("sale_items")
+            .insert([{ sale_id: sale.id, product_id: productId, quantity: qty, price }]);
+
+        if (itemError) throw itemError;
+
+        showSuccess(`Venta registrada por ${formatARS(total)} ✓`);
+        resetForm();
+
+        } catch (err: any) {
+        showError(err?.message ?? "Error al registrar la venta.");
+        } finally {
+        setLoading(false);
+        }
+    });
+</script>

@@ -1,0 +1,182 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { supabase } from "../lib/supabaseClient.js";
+
+const { data: sales } = await supabase.from("sales").select("*");
+const { data: clients } = await supabase.from("clients").select("*");
+const { data: products } = await supabase.from("products").select("*");
+const { data: cash } = await supabase.from("cash_register").select("*").order("opened_at", { ascending: false }).limit(5);
+
+const totalVentas = sales?.reduce((acc, s) => acc + (s.total ?? 0), 0) ?? 0;
+const totalClientes = clients?.length ?? 0;
+const totalProductos = products?.length ?? 0;
+const cajaAbierta = cash?.find((c) => !c.closed_at);
+
+const formatMoney = (amount: number) =>
+    new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(amount);
+
+const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return "—";
+    return new Date(dateStr).toLocaleString("es-AR", {
+        day: "2-digit", month: "2-digit", year: "numeric",
+        hour: "2-digit", minute: "2-digit",
+    });
+};
+
+const ventasHoy = sales?.filter((s) => {
+    if (!s.created_at) return false;
+    const hoy = new Date().toDateString();
+    return new Date(s.created_at).toDateString() === hoy;
+}) ?? [];
+const totalHoy = ventasHoy.reduce((acc, s) => acc + (s.total ?? 0), 0);
+---
+
+<Layout>
+    <div class="min-h-screen bg-slate-50 px-6 py-8">
+        <div class="max-w-5xl mx-auto">
+
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-8">
+            <div>
+            <h1 class="text-2xl font-bold text-slate-800">Dashboard</h1>
+            <p class="text-sm text-slate-500 mt-0.5">
+                {new Date().toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+            </p>
+            </div>
+            {cajaAbierta ? (
+            <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block"></span>
+                Caja abierta
+            </span>
+            ) : (
+            <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200">
+                <span class="w-2 h-2 rounded-full bg-slate-400 inline-block"></span>
+                Caja cerrada
+            </span>
+            )}
+        </div>
+
+        <!-- KPI cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Ventas totales</p>
+                <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+                </div>
+            </div>
+            <p class="text-xl font-bold text-slate-800">{formatMoney(totalVentas)}</p>
+            <p class="text-xs text-slate-400 mt-1">{sales?.length ?? 0} transacciones</p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Ventas hoy</p>
+                <div class="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                </div>
+            </div>
+            <p class="text-xl font-bold text-slate-800">{formatMoney(totalHoy)}</p>
+            <p class="text-xs text-slate-400 mt-1">{ventasHoy.length} ventas</p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Clientes</p>
+                <div class="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                </div>
+            </div>
+            <p class="text-xl font-bold text-slate-800">{totalClientes}</p>
+            <p class="text-xs text-slate-400 mt-1">registrados</p>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Productos</p>
+                <div class="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+                </div>
+            </div>
+            <p class="text-xl font-bold text-slate-800">{totalProductos}</p>
+            <p class="text-xs text-slate-400 mt-1">en catálogo</p>
+            </div>
+
+        </div>
+
+        <!-- Bottom grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            <!-- Últimas ventas -->
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+                <h2 class="font-semibold text-slate-800 text-sm">Últimas ventas</h2>
+                <a href="/sales" class="text-xs text-blue-600 hover:underline">Ver todas →</a>
+            </div>
+            {sales && sales.length > 0 ? (
+                <ul class="divide-y divide-slate-100">
+                {sales.slice(-5).reverse().map((s) => (
+                    <li class="flex items-center justify-between px-5 py-3">
+                    <div>
+                        <p class="text-sm font-medium text-slate-700">{s.client_name ?? "Cliente general"}</p>
+                        <p class="text-xs text-slate-400">{formatDate(s.created_at)}</p>
+                    </div>
+                    <span class="text-sm font-semibold text-slate-800">{formatMoney(s.total)}</span>
+                    </li>
+                ))}
+                </ul>
+            ) : (
+                <p class="text-sm text-slate-400 text-center py-8">Sin ventas registradas</p>
+            )}
+            </div>
+
+            <!-- Accesos rápidos -->
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-100">
+                <h2 class="font-semibold text-slate-800 text-sm">Accesos rápidos</h2>
+            </div>
+            <div class="p-4 grid grid-cols-2 gap-3">
+
+                <a href="/clients" class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all group">
+                <div class="w-9 h-9 rounded-lg bg-violet-50 flex items-center justify-center group-hover:bg-violet-100 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </div>
+                <span class="text-sm font-medium text-slate-700">Clientes</span>
+                </a>
+
+                <a href="/products" class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all group">
+                <div class="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center group-hover:bg-amber-100 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                </div>
+                <span class="text-sm font-medium text-slate-700">Productos</span>
+                </a>
+
+                <a href="/cash" class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all group">
+                <div class="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                </div>
+                <span class="text-sm font-medium text-slate-700">Caja</span>
+                </a>
+
+            </div>
+            </div>
+
+        </div>
+        </div>
+    </div>
+</Layout>

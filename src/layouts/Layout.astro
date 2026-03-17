@@ -1,23 +1,24 @@
-<!doctype html>
-<html lang="en">
+---
+import '../styles/global.css'
+import Sidebar from "../components/Sidebar.astro";
+const { pathname } = Astro.url;
+const hideSidebar = pathname === "/" || pathname === "/login" || pathname === "/register";
+---
+
+<html lang="es">
 	<head>
 		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro Basics</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>NexoPOS</title>
+		<link rel="icon" type="image/png" href="/logoJoel.webp" />
 	</head>
-	<body>
+	<body class={`${hideSidebar ? "" : "flex"} bg-slate-50 min-h-screen`}>
+
+		{!hideSidebar && <Sidebar />}
+
+		<main class="flex-1 overflow-y-auto">
 		<slot />
+		</main>
+
 	</body>
 </html>
-
-<style>
-	html,
-	body {
-		margin: 0;
-		width: 100%;
-		height: 100%;
-	}
-</style>

@@ -1,0 +1,227 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { supabase } from "../lib/supabaseClient.js";
+
+const { data: salesRaw } = await supabase
+    .from("sales")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+const formatMoney = (amount: number | null) => {
+    if (amount == null) return "—";
+    return new Intl.NumberFormat("es-AR", {
+        style: "currency",
+        currency: "ARS",
+    }).format(amount);
+};
+
+const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return "—";
+    return new Date(dateStr).toLocaleString("es-AR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+};
+
+// Métricas generales
+const totalVentas = salesRaw?.reduce((acc, s) => acc + (s.final_total ?? s.total ?? 0), 0) ?? 0;
+const cantVentas = salesRaw?.length ?? 0;
+const ticketPromedio = cantVentas > 0 ? totalVentas / cantVentas : 0;
+
+// Ventas de hoy
+const hoy = new Date().toDateString();
+const ventasHoy = salesRaw?.filter((s) => s.created_at && new Date(s.created_at).toDateString() === hoy) ?? [];
+const totalHoy = ventasHoy.reduce((acc, s) => acc + (s.final_total ?? s.total ?? 0), 0);
+
+// Métodos de pago
+const metodos = salesRaw?.reduce((acc, s) => {
+    const m = s.payment_method ?? "Sin especificar";
+    acc[m] = (acc[m] ?? 0) + 1;
+    return acc;
+}, {} as Record<string, number>) ?? {};
+
+const metodosUnicos = Object.keys(metodos);
+
+// Pre-procesamos filas
+const rows = salesRaw?.map((s) => {
+    const method = s.payment_method ?? "Sin especificar";
+    const methodClass =
+        method === "efectivo"
+        ? "bg-emerald-50 text-emerald-700"
+        : method === "tarjeta"
+        ? "bg-blue-50 text-blue-700"
+        : method === "transferencia"
+        ? "bg-violet-50 text-violet-700"
+        : "bg-slate-100 text-slate-600";
+
+    return { ...s, methodClass, methodLabel: method };
+}) ?? [];
+---
+
+<Layout>
+    <div class="min-h-screen bg-slate-50 px-6 py-8">
+        <div class="max-w-5xl mx-auto">
+
+        <!-- Header -->
+        <div class="flex items-center gap-4 mb-8">
+            <div class="w-10 h-10 rounded-xl bg-violet-600 flex items-center justify-center shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            </div>
+            <div>
+            <h1 class="text-2xl font-bold text-slate-800 leading-tight">Reportes</h1>
+            <p class="text-sm text-slate-500">Historial y resumen de ventas</p>
+            </div>
+        </div>
+
+        <!-- KPIs -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white border border-slate-200 rounded-xl px-5 py-4">
+            <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-1">Total acumulado</p>
+            <p class="text-xl font-bold text-slate-800">{formatMoney(totalVentas)}</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-xl px-5 py-4">
+            <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-1">Ventas hoy</p>
+            <p class="text-xl font-bold text-emerald-600">{formatMoney(totalHoy)}</p>
+            <p class="text-xs text-slate-400 mt-0.5">{ventasHoy.length} transacciones</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-xl px-5 py-4">
+            <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-1">Ticket promedio</p>
+            <p class="text-xl font-bold text-slate-800">{formatMoney(ticketPromedio)}</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-xl px-5 py-4">
+            <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-1">Total ventas</p>
+            <p class="text-xl font-bold text-slate-800">{cantVentas}</p>
+            <p class="text-xs text-slate-400 mt-0.5">transacciones</p>
+            </div>
+        </div>
+
+        <!-- Métodos de pago -->
+        {metodosUnicos.length > 0 && (
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            {metodosUnicos.map((m) => (
+                <div class="bg-white border border-slate-200 rounded-xl px-4 py-3 flex items-center justify-between">
+                <span class="text-sm text-slate-600 capitalize">{m}</span>
+                <span class="text-sm font-bold text-slate-800">{metodos[m]}</span>
+                </div>
+            ))}
+            </div>
+        )}
+
+        <!-- Filtros -->
+        <div class="flex items-center gap-3 mb-4">
+            <div class="relative flex-1">
+            <span class="absolute inset-y-0 left-3 flex items-center text-slate-400 pointer-events-none">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </span>
+            <input
+                id="search"
+                type="text"
+                placeholder="Buscar por cliente o método..."
+                class="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition"
+            />
+            </div>
+            <select
+            id="method-filter"
+            class="py-2.5 pl-3 pr-8 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500 transition appearance-none"
+            >
+            <option value="">Todos los métodos</option>
+            {metodosUnicos.map((m) => (
+                <option value={m}>{m}</option>
+            ))}
+            </select>
+        </div>
+
+        <!-- Tabla -->
+        <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+            {rows.length > 0 ? (
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-slate-100 bg-slate-50">
+                    <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Fecha</th>
+                    <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Cliente</th>
+                    <th class="text-center px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Método de pago</th>
+                    <th class="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Total</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {rows.map((s) => (
+                    <tr
+                        class="hover:bg-slate-50 transition-colors sale-row"
+                        data-search={`${(s.client_name ?? "").toLowerCase()} ${s.methodLabel.toLowerCase()}`}
+                        data-method={s.methodLabel}
+                    >
+                        <td class="px-5 py-3.5 text-slate-500 text-xs">{formatDate(s.created_at)}</td>
+                        <td class="px-5 py-3.5 font-medium text-slate-800">
+                        {s.client_name ?? <span class="text-slate-400">Cliente general</span>}
+                        </td>
+                        <td class="px-5 py-3.5 text-center">
+                        <span class={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${s.methodClass}`}>
+                            {s.methodLabel}
+                        </span>
+                        </td>
+                        <td class="px-5 py-3.5 text-right font-bold text-slate-800">
+                            {formatMoney(s.final_total ?? s.total)}
+                        </td>
+                    </tr>
+                    ))}
+                </tbody>
+                </table>
+            </div>
+            ) : (
+            <div class="flex flex-col items-center justify-center py-16 text-center">
+                <div class="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                </div>
+                <p class="text-slate-500 text-sm">No hay ventas registradas todavía</p>
+            </div>
+            )}
+        </div>
+
+        {rows.length > 0 && (
+            <p class="text-xs text-slate-400 mt-3 text-right" id="footer-count">
+            {cantVentas} {cantVentas === 1 ? "venta" : "ventas"} en total
+            </p>
+        )}
+
+        </div>
+    </div>
+</Layout>
+
+<script>
+    const searchInput = document.getElementById("search") as HTMLInputElement;
+    const methodFilter = document.getElementById("method-filter") as HTMLSelectElement;
+    const rows = document.querySelectorAll<HTMLTableRowElement>(".sale-row");
+    const footerCount = document.getElementById("footer-count");
+
+    function applyFilters() {
+        const q = searchInput.value.toLowerCase();
+        const method = methodFilter.value.toLowerCase();
+        let visible = 0;
+
+        rows.forEach((row) => {
+        const matchSearch = (row.dataset.search ?? "").includes(q);
+        const matchMethod = method === "" || (row.dataset.method ?? "").toLowerCase() === method;
+        const show = matchSearch && matchMethod;
+        row.style.display = show ? "" : "none";
+        if (show) visible++;
+        });
+
+        if (footerCount) {
+        const filtered = q || method;
+        footerCount.textContent = `${visible} ${visible === 1 ? "venta" : "ventas"} ${filtered ? "encontradas" : "en total"}`;
+        }
+    }
+
+    searchInput?.addEventListener("input", applyFilters);
+    methodFilter?.addEventListener("change", applyFilters);
+</script>

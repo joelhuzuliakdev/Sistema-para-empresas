@@ -1,0 +1,182 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { supabase } from "../lib/supabaseClient.js";
+
+const { data: settings } = await supabase
+    .from("settings")
+    .select("*")
+    .single();
+---
+
+<Layout>
+    <div class="min-h-screen bg-slate-50 px-6 py-8">
+        <div class="max-w-2xl mx-auto space-y-6">
+
+            <!-- Header -->
+            <div class="flex items-center gap-4 mb-8">
+                <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-800 leading-tight">Configuración</h1>
+                    <p class="text-sm text-slate-500">Personalizá tu empresa</p>
+                </div>
+            </div>
+
+            <!-- Card -->
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 space-y-6">
+
+                <div id="settings-error" class="hidden px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs"></div>
+                <div id="settings-success" class="hidden px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium"></div>
+
+                <!-- Nombre empresa -->
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Nombre de la empresa</label>
+                    <input
+                        id="company-name"
+                        type="text"
+                        value={settings?.company_name ?? ""}
+                        placeholder="Ej: Mi Tienda"
+                        class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                    />
+                </div>
+
+                <!-- Logo -->
+                <div class="space-y-3">
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Logo</label>
+
+                    <!-- Preview -->
+                    <div class="flex items-center gap-4">
+                        <div id="logo-preview-wrapper" class="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center shrink-0">
+                            {settings?.logo_url ? (
+                                <img id="logo-preview" src={settings.logo_url} class="w-full h-full object-cover" />
+                            ) : (
+                                <svg id="logo-placeholder" xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                            )}
+                        </div>
+                        <div class="space-y-1">
+                            <label class="cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                </svg>
+                                Subir imagen
+                                <input id="logo-input" type="file" accept="image/*" class="hidden" />
+                            </label>
+                            <p class="text-xs text-slate-400">PNG, JPG. Máx 2MB.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botón guardar -->
+                <div class="pt-2">
+                    <button
+                        id="save-settings-btn"
+                        class="w-full py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors flex items-center justify-center gap-2 disabled:bg-indigo-300 disabled:cursor-not-allowed"
+                    >
+                        <span id="save-settings-text">Guardar cambios</span>
+                        <svg id="save-settings-spinner" class="hidden w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 12 0 12 0v4a8 8 0 00-8 8H0z"></path>
+                        </svg>
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</Layout>
+
+<script>
+    import { supabase } from "../lib/supabaseClient.js";
+
+    const saveBtn     = document.getElementById("save-settings-btn") as HTMLButtonElement;
+    const saveText    = document.getElementById("save-settings-text")!;
+    const saveSpinner = document.getElementById("save-settings-spinner")!;
+    const errorEl     = document.getElementById("settings-error")!;
+    const successEl   = document.getElementById("settings-success")!;
+    const logoInput   = document.getElementById("logo-input") as HTMLInputElement;
+
+    // Preview del logo al seleccionar archivo
+    logoInput.addEventListener("change", () => {
+        const file = logoInput.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const wrapper = document.getElementById("logo-preview-wrapper")!;
+            wrapper.innerHTML = `<img id="logo-preview" src="${e.target?.result}" class="w-full h-full object-cover" />`;
+        };
+        reader.readAsDataURL(file);
+    });
+
+    function setLoading(loading: boolean) {
+        saveBtn.disabled = loading;
+        saveText.textContent = loading ? "Guardando..." : "Guardar cambios";
+        saveSpinner.classList.toggle("hidden", !loading);
+    }
+
+    saveBtn.addEventListener("click", async () => {
+        errorEl.classList.add("hidden");
+        successEl.classList.add("hidden");
+
+        const companyName = (document.getElementById("company-name") as HTMLInputElement).value.trim();
+        if (!companyName) {
+            errorEl.textContent = "El nombre de la empresa es obligatorio.";
+            errorEl.classList.remove("hidden");
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+            let logoUrl: string | null = null;
+
+            // Subir logo si hay archivo seleccionado
+            const file = logoInput.files?.[0];
+            if (file) {
+                if (file.size > 2 * 1024 * 1024) throw new Error("La imagen no puede superar 2MB.");
+
+                const ext = file.name.split(".").pop();
+                const path = `logo/company-logo.${ext}`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from("settings")
+                    .upload(path, file, { upsert: true });
+
+                if (uploadError) throw new Error("Error al subir el logo: " + uploadError.message);
+
+                const { data: urlData } = supabase.storage
+                    .from("settings")
+                    .getPublicUrl(path);
+
+                logoUrl = urlData.publicUrl + "?t=" + Date.now(); // evitar cache
+            }
+
+            // Guardar en tabla settings
+            const updateData: any = { company_name: companyName, updated_at: new Date().toISOString() };
+            if (logoUrl) updateData.logo_url = logoUrl;
+
+            const { error } = await supabase
+                .from("settings")
+                .update(updateData)
+                .neq("id", "00000000-0000-0000-0000-000000000000"); // actualiza la única fila
+
+            if (error) throw new Error(error.message);
+
+            successEl.textContent = "Cambios guardados correctamente ✓";
+            successEl.classList.remove("hidden");
+            setTimeout(() => window.location.reload(), 1200);
+
+        } catch (err: any) {
+            errorEl.textContent = err?.message ?? "Error al guardar.";
+            errorEl.classList.remove("hidden");
+        } finally {
+            setLoading(false);
+        }
+    });
+</script>

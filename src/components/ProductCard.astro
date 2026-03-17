@@ -1,0 +1,108 @@
+---
+interface Props {
+    id: string;
+    name: string;
+    price: number;
+    stock?: number | null;
+    category?: string | null;
+}
+
+const { id, name, price, stock, category } = Astro.props;
+
+const formatMoney = (amount: number) =>
+    new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(amount);
+
+const stockStatus =
+    stock == null ? "unknown"
+    : stock === 0 ? "out"
+    : stock <= 5  ? "low"
+    : "ok";
+
+const stockLabel =
+    stockStatus === "out"     ? "Sin stock"
+    : stockStatus === "low"   ? `Stock: ${stock}`
+    : stockStatus === "unknown" ? null
+    : `Stock: ${stock}`;
+
+const stockClass =
+    stockStatus === "out" ? "text-red-500"
+    : stockStatus === "low" ? "text-orange-500"
+    : "text-slate-400";
+
+const disabled = stockStatus === "out";
+---
+
+<div
+    class={`relative bg-white border rounded-2xl p-4 flex flex-col gap-3 transition-all duration-150
+        ${disabled
+        ? "border-slate-200 opacity-50 cursor-not-allowed"
+        : "border-slate-200 hover:border-emerald-400 hover:shadow-md"
+        }`}
+    >
+
+    <!-- Categoría badge -->
+    {category && (
+        <span class="absolute top-3 right-3 px-2 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-500">
+        {category}
+        </span>
+    )}
+
+    <!-- Ícono -->
+    <div class="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+        </svg>
+    </div>
+
+    <!-- Info -->
+    <div class="flex-1 min-w-0">
+        <p class="font-semibold text-slate-800 text-sm leading-tight truncate pr-12">{name}</p>
+        <p class="text-base font-bold text-emerald-600 mt-0.5">{formatMoney(price)}</p>
+        {stockLabel && (
+        <p class={`text-xs font-medium mt-1 ${stockClass}`}>{stockLabel}</p>
+        )}
+    </div>
+
+    <!-- Botón -->
+    <button
+        type="button"
+        disabled={disabled}
+        data-id={id}
+        data-name={name}
+        data-price={price}
+        data-stock={stock ?? 999}
+        class={`product-add-btn w-full py-2 rounded-xl text-sm font-semibold transition-all active:scale-95
+        ${disabled
+            ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+            : "bg-emerald-600 hover:bg-emerald-700 text-white"
+        }`}
+    >
+        {disabled ? "Sin stock" : "Agregar"}
+    </button>
+
+</div>
+
+<script>
+    document.querySelectorAll<HTMLButtonElement>(".product-add-btn:not([disabled])").forEach((btn) => {
+        btn.addEventListener("click", () => {
+        const detail = {
+            id:    btn.dataset.id,
+            name:  btn.dataset.name,
+            price: Number(btn.dataset.price),
+            stock: Number(btn.dataset.stock),
+        };
+
+        // Dispara evento global para que el carrito lo escuche
+        window.dispatchEvent(new CustomEvent("product:add", { detail }));
+
+        // Feedback visual breve
+        const original = btn.textContent;
+        btn.textContent = "✓ Agregado";
+        btn.classList.add("bg-emerald-700");
+        setTimeout(() => {
+            btn.textContent = original;
+            btn.classList.remove("bg-emerald-700");
+        }, 800);
+        });
+    });
+</script>

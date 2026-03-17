@@ -1,0 +1,161 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout>
+    <div class="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 flex items-center justify-center px-4">
+        <div class="w-full max-w-md">
+
+        <!-- Logo / Header -->
+        <div class="mb-8 text-center">
+            <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600 mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            </div>
+            <h1 class="text-2xl font-bold text-slate-800">Bienvenido</h1>
+            <p class="text-slate-500 text-sm mt-1">Ingresá a tu cuenta para continuar</p>
+        </div>
+
+        <!-- Card -->
+        <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-8">
+
+            <!-- Error message -->
+            <div id="error-msg" class="hidden mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span id="error-text"></span>
+            </div>
+
+            <div class="space-y-5">
+
+            <div class="space-y-1.5">
+                <label class="block text-sm font-medium text-slate-700">Email</label>
+                <div class="relative">
+                <span class="absolute inset-y-0 left-3 flex items-center text-slate-400 pointer-events-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                </span>
+                <input
+                    id="email"
+                    type="email"
+                    placeholder="admin@minegocio.com"
+                    class="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                />
+                </div>
+            </div>
+
+            <div class="space-y-1.5">
+                <div class="flex items-center justify-between">
+                <label class="block text-sm font-medium text-slate-700">Contraseña</label>
+                <a href="/forgot-password" class="text-xs text-indigo-600 hover:underline">¿Olvidaste tu contraseña?</a>
+                </div>
+                <div class="relative">
+                <span class="absolute inset-y-0 left-3 flex items-center text-slate-400 pointer-events-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                </span>
+                <input
+                    id="password"
+                    type="password"
+                    placeholder="Tu contraseña"
+                    class="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                />
+                </div>
+            </div>
+
+            <button
+                id="login-btn"
+                class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] disabled:bg-indigo-300 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-xl transition-all duration-150 text-sm flex items-center justify-center gap-2"
+            >
+                <span id="btn-text">Ingresar</span>
+                <svg id="btn-spinner" class="hidden w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 14.627 0 12 0v4a8 8 0 00-8 8H0z"></path>
+                </svg>
+            </button>
+
+            </div>
+        </div>
+
+        <p class="text-center text-sm text-slate-500 mt-6">
+            ¿No tenés cuenta?
+            <a href="/" class="text-indigo-600 font-medium hover:underline">Registrate</a>
+        </p>
+
+        </div>
+    </div>
+</Layout>
+
+<script>
+    import { supabase } from "../lib/supabaseClient.js";
+
+    const emailInput = document.getElementById("email") as HTMLInputElement;
+    const passwordInput = document.getElementById("password") as HTMLInputElement;
+    const loginBtn = document.getElementById("login-btn") as HTMLButtonElement;
+    const btnText = document.getElementById("btn-text")!;
+    const btnSpinner = document.getElementById("btn-spinner")!;
+    const errorMsg = document.getElementById("error-msg")!;
+    const errorText = document.getElementById("error-text")!;
+
+    function showError(msg: string) {
+        errorText.textContent = msg;
+        errorMsg.classList.remove("hidden");
+    }
+
+    function hideError() {
+        errorMsg.classList.add("hidden");
+    }
+
+    function setLoading(loading: boolean) {
+        loginBtn.disabled = loading;
+        btnText.textContent = loading ? "Ingresando..." : "Ingresar";
+        btnSpinner.classList.toggle("hidden", !loading);
+    }
+
+    loginBtn.addEventListener("click", async () => {
+        hideError();
+
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+
+        if (!email || !password) {
+            showError("Completá todos los campos.");
+            return;
+        }
+
+        setLoading(true);
+
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+        setLoading(false);
+
+        if (error) {
+            showError(error.message);
+            return;
+        }
+
+        // Guardar sesión en cookies para que el middleware pueda leerla
+        if (data.session) {
+            const session = JSON.stringify(data.session);
+            document.cookie = `sb-access-token=${data.session.access_token};path=/;max-age=604800;SameSite=Lax`;
+            document.cookie = `sb-refresh-token=${data.session.refresh_token};path=/;max-age=604800;SameSite=Lax`;
+
+            // También guardar la sesión completa para que supabase-js la encuentre
+            const storageKey = `sb-${new URL(import.meta.env.PUBLIC_SUPABASE_URL).hostname.split('.')[0]}-auth-token`;
+            localStorage.setItem(storageKey, session);
+        }
+
+        window.location.href = "/dashboard";
+    });
+
+    // Submit con Enter
+    [emailInput, passwordInput].forEach((input) => {
+        input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") loginBtn.click();
+        });
+    });
+</script>

@@ -1,0 +1,503 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { supabase } from "../lib/supabaseClient.js";
+
+const { data: products } = await supabase.from("products").select("*");
+const { data: allDiscounts } = await supabase.from("product_discounts").select("*");
+const { data: clients } = await supabase
+    .from("clients")
+    .select("id, name, special_discount")
+    .order("name");
+
+// Agrupar descuentos por product_id, ordenados desc por min_qty
+const discountsByProduct: Record<string, any[]> = {};
+allDiscounts?.forEach((d) => {
+    if (!discountsByProduct[d.product_id]) discountsByProduct[d.product_id] = [];
+    discountsByProduct[d.product_id].push(d);
+});
+Object.values(discountsByProduct).forEach((arr) =>
+    arr.sort((a, b) => b.min_qty - a.min_qty)
+);
+
+const formatMoney = (amount: number | null) => {
+    if (amount == null) return "—";
+    return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(amount);
+};
+---
+
+<Layout>
+    <div class="min-h-screen bg-slate-50 px-6 py-8">
+        <div class="max-w-5xl mx-auto">
+
+        <!-- Header -->
+        <div class="flex items-center gap-4 mb-8">
+            <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+            </svg>
+            </div>
+            <div>
+            <h1 class="text-2xl font-bold text-slate-800 leading-tight">Panel Empleado</h1>
+            <p class="text-sm text-slate-500">Seleccioná productos para registrar una venta</p>
+            </div>
+        </div>
+
+        <div class="flex gap-6">
+
+            <!-- Productos -->
+            <div class="flex-1">
+
+            <!-- Buscador -->
+            <div class="relative mb-5">
+                <span class="absolute inset-y-0 left-3 flex items-center text-slate-400 pointer-events-none">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                </span>
+                <input
+                id="search"
+                type="text"
+                placeholder="Buscar producto..."
+                class="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                />
+            </div>
+
+            <!-- Grid de productos -->
+            {products && products.length > 0 ? (
+                <div id="products-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {products.map((p) => {
+                    const discounts = discountsByProduct[p.id] ?? [];
+                    return (
+                        <button
+                        type="button"
+                        class="product-card text-left bg-white border border-slate-200 rounded-2xl p-4 hover:border-indigo-400 hover:shadow-md active:scale-95 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        data-id={p.id}
+                        data-name={p.name}
+                        data-price={p.price}
+                        data-discounts={JSON.stringify(discounts)}
+                        >
+                        <div class="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center mb-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                            </svg>
+                        </div>
+                        <p class="text-sm font-semibold text-slate-800 leading-tight mb-1 truncate">{p.name}</p>
+                        <p class="text-sm font-bold text-indigo-600">{formatMoney(p.price)}</p>
+                        {p.stock != null && (
+                            <p class={`text-xs mt-1.5 font-medium ${p.stock <= 5 ? "text-red-500" : "text-slate-400"}`}>
+                            Stock: {p.stock}
+                            </p>
+                        )}
+                        {discounts.length > 0 && (
+                            <div class="flex flex-wrap gap-1 mt-2">
+                            {discounts.slice().reverse().map((d: any) => (
+                                <span class="text-xs px-1.5 py-0.5 rounded-md bg-violet-50 text-violet-600 font-medium">
+                                    {d.label || `x${d.min_qty}`} -{d.discount_pct}%
+                                </span>
+                            ))}
+                            </div>
+                        )}
+                        </button>
+                    );
+                })}
+                </div>
+            ) : (
+                <div class="flex flex-col items-center justify-center py-16 text-center bg-white border border-slate-200 rounded-2xl">
+                <p class="text-slate-400 text-sm">No hay productos disponibles</p>
+                </div>
+            )}
+            </div>
+
+            <!-- Carrito -->
+            <div class="w-72 shrink-0">
+                <div class="bg-white border border-slate-200 rounded-2xl shadow-sm sticky top-6">
+
+                    <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+                        <h2 class="font-semibold text-slate-800 text-sm">Venta actual</h2>
+                        <button id="clear-cart" class="text-xs text-slate-400 hover:text-red-500 transition-colors">Limpiar</button>
+                    </div>
+
+                    <!-- Selector de cliente -->
+                    <div class="px-5 pt-4 pb-3 border-b border-slate-100">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Cliente</label>
+                        <select
+                            id="client-select"
+                            class="w-full py-2 pl-3 pr-8 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition appearance-none"
+                        >
+                            <option value="">— Sin cliente —</option>
+                            {clients?.map((c) => (
+                                <option
+                                    value={c.id}
+                                    data-special-discount={c.special_discount ?? ""}
+                                >
+                                    {c.name}{c.special_discount ? ` (−${c.special_discount}%)` : ""}
+                                </option>
+                            ))}
+                        </select>
+                        <!-- Badge descuento especial activo -->
+                        <div id="special-discount-badge" class="hidden mt-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-violet-50 border border-violet-100">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-violet-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                            </svg>
+                            <span id="special-discount-text" class="text-xs font-semibold text-violet-700"></span>
+                        </div>
+                    </div>
+
+                    <div id="cart-items" class="divide-y divide-slate-100 min-h-[120px]">
+                        <p id="cart-empty" class="text-sm text-slate-400 text-center py-8">El carrito está vacío</p>
+                    </div>
+
+                    <div class="px-5 py-4 border-t border-slate-100 space-y-2">
+                        <!-- Desglose subtotal + descuento especial -->
+                        <div id="subtotal-row" class="hidden items-center justify-between">
+                            <span class="text-xs text-slate-400">Subtotal</span>
+                            <span id="cart-subtotal" class="text-xs font-medium text-slate-600">$ 0,00</span>
+                        </div>
+                        <div id="special-discount-row" class="hidden items-center justify-between">
+                            <span id="special-discount-label" class="text-xs text-violet-600 font-medium">Descuento especial</span>
+                            <span id="cart-discount-amount" class="text-xs font-semibold text-violet-600"></span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-slate-500">Total</span>
+                            <span id="cart-total" class="text-lg font-bold text-slate-800">$ 0,00</span>
+                        </div>
+                        <button
+                            id="confirm-sale"
+                            disabled
+                            class="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-xl transition-all text-sm flex items-center justify-center gap-2"
+                        >
+                            <span id="confirm-text">Confirmar venta</span>
+                            <svg id="confirm-spinner" class="hidden w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 12 0 12 0v4a8 8 0 00-8 8H0z"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+        </div>
+    </div>
+</Layout>
+
+<script>
+    import { supabase } from "../lib/supabaseClient.js";
+
+    interface Discount {
+        id: string;
+        min_qty: number;
+        discount_pct: number;
+        label?: string;
+    }
+
+    interface CartItem {
+        id: string;
+        name: string;
+        basePrice: number;
+        discounts: Discount[];
+        qty: number;
+        appliedDiscount: number;
+    }
+
+    const cart: CartItem[] = [];
+
+    let activeClientId: string | null = null;
+    let activeSpecialDiscount: number = 0;
+
+    const formatARS = (n: number) =>
+        new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(n);
+
+    function getApplicableDiscount(discounts: Discount[], qty: number): number {
+        for (const d of discounts) {
+            if (qty >= d.min_qty) return d.discount_pct;
+        }
+        return 0;
+    }
+
+    // Precio unitario efectivo por ítem
+    // Si hay cliente especial → precio base (el descuento va sobre el total, no por ítem)
+    function effectiveUnitPrice(item: CartItem): number {
+        if (activeSpecialDiscount > 0) return item.basePrice;
+        return item.basePrice * (1 - item.appliedDiscount / 100);
+    }
+
+    function calcSubtotal(): number {
+        return cart.reduce((acc, c) => acc + effectiveUnitPrice(c) * c.qty, 0);
+    }
+
+    function calcTotal(): number {
+        const sub = calcSubtotal();
+        if (activeSpecialDiscount > 0) return sub * (1 - activeSpecialDiscount / 100);
+        return sub;
+    }
+
+    function updateTotal() {
+        const subtotal = calcSubtotal();
+        const total    = calcTotal();
+
+        document.getElementById("cart-total")!.textContent = formatARS(total);
+
+        const subtotalRow      = document.getElementById("subtotal-row")!;
+        const specialDiscRow   = document.getElementById("special-discount-row")!;
+        const cartSubtotalEl   = document.getElementById("cart-subtotal")!;
+        const discountAmountEl = document.getElementById("cart-discount-amount")!;
+        const discountLabelEl  = document.getElementById("special-discount-label")!;
+
+        if (activeSpecialDiscount > 0 && cart.length > 0) {
+            subtotalRow.classList.remove("hidden");
+            subtotalRow.classList.add("flex");
+            specialDiscRow.classList.remove("hidden");
+            specialDiscRow.classList.add("flex");
+            cartSubtotalEl.textContent   = formatARS(subtotal);
+            discountAmountEl.textContent = `−${formatARS(subtotal - total)}`;
+            discountLabelEl.textContent  = `Desc. especial (${activeSpecialDiscount}%)`;
+        } else {
+            subtotalRow.classList.add("hidden");
+            subtotalRow.classList.remove("flex");
+            specialDiscRow.classList.add("hidden");
+            specialDiscRow.classList.remove("flex");
+        }
+
+        const confirmBtn = document.getElementById("confirm-sale") as HTMLButtonElement;
+        if (!confirmBtn.textContent?.includes("Procesando")) {
+            confirmBtn.disabled = cart.length === 0;
+        }
+    }
+
+    function refreshCartRow(item: CartItem) {
+        const row = document.querySelector<HTMLElement>(`[data-row-id="${item.id}"]`);
+        if (!row) return;
+
+        const unitPrice = effectiveUnitPrice(item);
+        const unitLabel = row.querySelector<HTMLElement>(".unit-price-label")!;
+
+        // Mostrar tachado solo si hay descuento por cantidad Y no hay cliente especial
+        if (item.appliedDiscount > 0 && activeSpecialDiscount === 0) {
+            unitLabel.innerHTML = `
+                <span class="line-through text-slate-300">${formatARS(item.basePrice)}</span>
+                <span class="text-emerald-600 font-semibold">${formatARS(unitPrice)}</span>
+                <span class="ml-1 px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-600 text-xs font-bold">-${item.appliedDiscount}%</span>
+            `;
+        } else {
+            unitLabel.innerHTML = `<span class="text-slate-400">${formatARS(item.basePrice)} c/u</span>`;
+        }
+
+        row.querySelector<HTMLElement>(".subtotal-label")!.textContent = formatARS(unitPrice * item.qty);
+    }
+
+    function refreshAllCartRows() {
+        cart.forEach(refreshCartRow);
+    }
+
+    function addCartRow(item: CartItem) {
+        document.getElementById("cart-empty")!.style.display = "none";
+
+        const row = document.createElement("div");
+        row.className = "px-5 py-3";
+        row.dataset.rowId = item.id;
+
+        const unitPrice = effectiveUnitPrice(item);
+
+        row.innerHTML = `
+            <div class="flex items-center justify-between mb-1.5">
+                <p class="text-xs font-semibold text-slate-700 truncate flex-1 pr-2">${item.name}</p>
+                <button class="remove-btn w-5 h-5 rounded-md bg-red-50 hover:bg-red-100 text-red-400 hover:text-red-600 text-xs flex items-center justify-center transition-colors shrink-0">✕</button>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+                <div class="unit-price-label flex items-center gap-1 text-xs shrink-0">
+                    <span class="text-slate-400">${formatARS(item.basePrice)} c/u</span>
+                </div>
+                <div class="flex-1"></div>
+                <input
+                    type="number" min="1" value="${item.qty}" data-id="${item.id}"
+                    class="qty-input w-16 text-center py-1 px-1 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+                />
+                <span class="text-xs font-bold text-indigo-600 w-20 text-right subtotal-label">${formatARS(unitPrice * item.qty)}</span>
+            </div>
+        `;
+
+        row.querySelector<HTMLInputElement>(".qty-input")!.addEventListener("input", (e) => {
+            const val = parseInt((e.target as HTMLInputElement).value);
+            if (isNaN(val) || val < 1) return;
+            const cartItem = cart.find((c) => c.id === item.id);
+            if (!cartItem) return;
+            cartItem.qty = val;
+            cartItem.appliedDiscount = getApplicableDiscount(cartItem.discounts, val);
+            refreshCartRow(cartItem);
+            updateTotal();
+        });
+
+        row.querySelector<HTMLButtonElement>(".remove-btn")!.addEventListener("click", () => {
+            const idx = cart.findIndex((c) => c.id === item.id);
+            if (idx !== -1) cart.splice(idx, 1);
+            row.remove();
+            if (cart.length === 0) {
+                const empty = document.getElementById("cart-empty");
+                if (empty) empty.style.display = "block";
+            }
+            updateTotal();
+        });
+
+        document.getElementById("cart-items")!.appendChild(row);
+    }
+
+    function clearCart() {
+        cart.length = 0;
+        document.getElementById("cart-items")!.innerHTML = `<p id="cart-empty" class="text-sm text-slate-400 text-center py-8">El carrito está vacío</p>`;
+        document.getElementById("cart-total")!.textContent = formatARS(0);
+        document.getElementById("subtotal-row")?.classList.add("hidden");
+        document.getElementById("special-discount-row")?.classList.add("hidden");
+        const confirmBtn = document.getElementById("confirm-sale") as HTMLButtonElement;
+        confirmBtn.disabled = true;
+    }
+
+    // --- Selector de cliente ---
+    const clientSelect = document.getElementById("client-select") as HTMLSelectElement;
+    const specialBadge = document.getElementById("special-discount-badge")!;
+    const specialText  = document.getElementById("special-discount-text")!;
+
+    clientSelect.addEventListener("change", () => {
+        const selected = clientSelect.options[clientSelect.selectedIndex];
+        const rawDiscount = selected.dataset.specialDiscount ?? "";
+        activeClientId        = clientSelect.value || null;
+        activeSpecialDiscount = rawDiscount !== "" ? parseFloat(rawDiscount) : 0;
+
+        if (activeSpecialDiscount > 0) {
+            specialBadge.classList.remove("hidden");
+            specialText.textContent = `−${activeSpecialDiscount}% sobre el total`;
+        } else {
+            specialBadge.classList.add("hidden");
+        }
+
+        refreshAllCartRows();
+        updateTotal();
+    });
+
+    // --- Agregar producto ---
+    document.getElementById("products-grid")?.addEventListener("click", (e) => {
+        const btn = (e.target as HTMLElement).closest(".product-card") as HTMLElement | null;
+        if (!btn) return;
+
+        const id        = btn.dataset.id!;
+        const name      = btn.dataset.name!;
+        const basePrice = Number(btn.dataset.price);
+        let discounts: Discount[] = [];
+        try { discounts = JSON.parse(btn.dataset.discounts ?? "[]"); } catch {}
+
+        const existing = cart.find((c) => c.id === id);
+        if (existing) {
+            existing.qty++;
+            existing.appliedDiscount = getApplicableDiscount(existing.discounts, existing.qty);
+            const input = document.querySelector<HTMLInputElement>(`.qty-input[data-id="${id}"]`);
+            if (input) input.value = String(existing.qty);
+            refreshCartRow(existing);
+            updateTotal();
+        } else {
+            const newItem: CartItem = {
+                id, name, basePrice, discounts,
+                qty: 1,
+                appliedDiscount: getApplicableDiscount(discounts, 1),
+            };
+            cart.push(newItem);
+            addCartRow(newItem);
+            updateTotal();
+        }
+    });
+
+    document.getElementById("clear-cart")?.addEventListener("click", clearCart);
+
+    document.getElementById("search")?.addEventListener("input", (e) => {
+        const q = (e.target as HTMLInputElement).value.toLowerCase();
+        document.querySelectorAll<HTMLElement>(".product-card").forEach((card) => {
+            const name = (card.dataset.name ?? "").toLowerCase();
+            card.style.display = name.includes(q) ? "" : "none";
+        });
+    });
+
+    // --- Confirmar venta ---
+    document.getElementById("confirm-sale")?.addEventListener("click", async () => {
+        if (cart.length === 0) return;
+
+        const confirmBtn     = document.getElementById("confirm-sale") as HTMLButtonElement;
+        const confirmText    = document.getElementById("confirm-text")!;
+        const confirmSpinner = document.getElementById("confirm-spinner")!;
+
+        confirmBtn.disabled = true;
+        confirmText.textContent = "Procesando...";
+        confirmSpinner.classList.remove("hidden");
+
+        try {
+            const subtotal = calcSubtotal();
+            const total    = calcTotal();
+
+            const { data: sessionData } = await supabase.auth.getSession();
+            const userId = sessionData?.session?.user?.id;
+
+            const { data: sale, error: saleError } = await supabase
+                .from("sales")
+                .insert([{
+                    user_id:        userId,
+                    total,
+                    payment_method: "pendiente",
+                    client_id:      activeClientId || null,
+                }])
+                .select()
+                .single();
+
+            if (saleError) throw saleError;
+
+            const items = cart.map((c) => ({
+                sale_id:      sale.id,
+                product_id:   c.id,
+                quantity:     c.qty,
+                price:        activeSpecialDiscount > 0 ? c.basePrice : effectiveUnitPrice(c),
+                discount_pct: activeSpecialDiscount > 0 ? 0 : c.appliedDiscount,
+            }));
+
+            const { error: itemsError } = await supabase.from("sale_items").insert(items);
+            if (itemsError) throw itemsError;
+
+            await supabase.from("notifications").insert([{
+                user_id: userId,
+                type:    "nueva_venta",
+                message: `Nueva venta por ${formatARS(total)} — ${cart.length} producto${cart.length > 1 ? "s" : ""}`,
+                data: JSON.stringify({
+                    sale_id:              sale.id,
+                    total,
+                    subtotal,
+                    client_id:            activeClientId,
+                    special_discount_pct: activeSpecialDiscount,
+                    items: cart.map(c => ({
+                        name:     c.name,
+                        qty:      c.qty,
+                        subtotal: effectiveUnitPrice(c) * c.qty,
+                    }))
+                }),
+                read: false,
+            }]);
+
+            for (const item of cart) {
+                const { error: stockError } = await supabase.rpc("decrement_stock", {
+                    product_id: item.id,
+                    quantity:   item.qty,
+                });
+                if (stockError) console.error("Error al descontar stock:", stockError.message);
+            }
+
+            clearCart();
+            clientSelect.value    = "";
+            activeClientId        = null;
+            activeSpecialDiscount = 0;
+            specialBadge.classList.add("hidden");
+
+        } catch (err: any) {
+            alert("Error al confirmar la venta: " + (err?.message ?? "Error desconocido"));
+        } finally {
+            confirmText.textContent = "Confirmar venta";
+            confirmSpinner.classList.add("hidden");
+            confirmBtn.disabled = cart.length === 0;
+        }
+    });
+</script>
