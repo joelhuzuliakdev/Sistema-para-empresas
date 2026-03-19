@@ -27,14 +27,14 @@ const formatDate = (dateStr: string | null) => {
 };
 
 // Métricas generales
-const totalVentas = salesRaw?.reduce((acc, s) => acc + (s.final_total ?? s.total ?? 0), 0) ?? 0;
-const cantVentas = salesRaw?.length ?? 0;
+const totalVentas    = salesRaw?.reduce((acc, s) => acc + (s.final_total ?? s.total ?? 0), 0) ?? 0;
+const cantVentas     = salesRaw?.length ?? 0;
 const ticketPromedio = cantVentas > 0 ? totalVentas / cantVentas : 0;
 
 // Ventas de hoy
-const hoy = new Date().toDateString();
+const hoy       = new Date().toDateString();
 const ventasHoy = salesRaw?.filter((s) => s.created_at && new Date(s.created_at).toDateString() === hoy) ?? [];
-const totalHoy = ventasHoy.reduce((acc, s) => acc + (s.final_total ?? s.total ?? 0), 0);
+const totalHoy  = ventasHoy.reduce((acc, s) => acc + (s.final_total ?? s.total ?? 0), 0);
 
 // Métodos de pago
 const metodos = salesRaw?.reduce((acc, s) => {
@@ -42,21 +42,31 @@ const metodos = salesRaw?.reduce((acc, s) => {
     acc[m] = (acc[m] ?? 0) + 1;
     return acc;
 }, {} as Record<string, number>) ?? {};
-
 const metodosUnicos = Object.keys(metodos);
 
-// Pre-procesamos filas
+// ── Ventas por vendedor ───────────────────────────────────────────────────────
+type SellerStat = { nombre: string; cantidad: number; total: number };
+const sellerMap: Record<string, SellerStat> = {};
+
+salesRaw?.forEach((s) => {
+    const nombre = s.seller_name?.trim() || "Sin asignar";
+    if (!sellerMap[nombre]) sellerMap[nombre] = { nombre, cantidad: 0, total: 0 };
+    sellerMap[nombre].cantidad++;
+    sellerMap[nombre].total += s.final_total ?? s.total ?? 0;
+});
+
+// Ordenar por total descendente
+const sellerStats: SellerStat[] = Object.values(sellerMap).sort((a, b) => b.total - a.total);
+const hayVendedores = sellerStats.some((s) => s.nombre !== "Sin asignar");
+
+// Filas de la tabla
 const rows = salesRaw?.map((s) => {
     const method = s.payment_method ?? "Sin especificar";
     const methodClass =
-        method === "efectivo"
-        ? "bg-emerald-50 text-emerald-700"
-        : method === "tarjeta"
-        ? "bg-blue-50 text-blue-700"
-        : method === "transferencia"
-        ? "bg-violet-50 text-violet-700"
+        method === "efectivo"      ? "bg-emerald-50 text-emerald-700"
+        : method === "tarjeta"     ? "bg-blue-50 text-blue-700"
+        : method === "transferencia" ? "bg-violet-50 text-violet-700"
         : "bg-slate-100 text-slate-600";
-
     return { ...s, methodClass, methodLabel: method };
 }) ?? [];
 ---
@@ -65,163 +75,270 @@ const rows = salesRaw?.map((s) => {
     <div class="min-h-screen bg-slate-50 px-6 py-8">
         <div class="max-w-5xl mx-auto">
 
-        <!-- Header -->
-        <div class="flex items-center gap-4 mb-8">
-            <div class="w-10 h-10 rounded-xl bg-violet-600 flex items-center justify-center shrink-0">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            </div>
-            <div>
-            <h1 class="text-2xl font-bold text-slate-800 leading-tight">Reportes</h1>
-            <p class="text-sm text-slate-500">Historial y resumen de ventas</p>
-            </div>
-        </div>
-
-        <!-- KPIs -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div class="bg-white border border-slate-200 rounded-xl px-5 py-4">
-            <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-1">Total acumulado</p>
-            <p class="text-xl font-bold text-slate-800">{formatMoney(totalVentas)}</p>
-            </div>
-            <div class="bg-white border border-slate-200 rounded-xl px-5 py-4">
-            <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-1">Ventas hoy</p>
-            <p class="text-xl font-bold text-emerald-600">{formatMoney(totalHoy)}</p>
-            <p class="text-xs text-slate-400 mt-0.5">{ventasHoy.length} transacciones</p>
-            </div>
-            <div class="bg-white border border-slate-200 rounded-xl px-5 py-4">
-            <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-1">Ticket promedio</p>
-            <p class="text-xl font-bold text-slate-800">{formatMoney(ticketPromedio)}</p>
-            </div>
-            <div class="bg-white border border-slate-200 rounded-xl px-5 py-4">
-            <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-1">Total ventas</p>
-            <p class="text-xl font-bold text-slate-800">{cantVentas}</p>
-            <p class="text-xs text-slate-400 mt-0.5">transacciones</p>
-            </div>
-        </div>
-
-        <!-- Métodos de pago -->
-        {metodosUnicos.length > 0 && (
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-            {metodosUnicos.map((m) => (
-                <div class="bg-white border border-slate-200 rounded-xl px-4 py-3 flex items-center justify-between">
-                <span class="text-sm text-slate-600 capitalize">{m}</span>
-                <span class="text-sm font-bold text-slate-800">{metodos[m]}</span>
+            <!-- Header -->
+            <div class="flex items-center gap-4 mb-8">
+                <div class="w-10 h-10 rounded-xl bg-violet-600 flex items-center justify-center shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
                 </div>
-            ))}
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-800 leading-tight">Reportes</h1>
+                    <p class="text-sm text-slate-500">Historial y resumen de ventas</p>
+                </div>
             </div>
-        )}
 
-        <!-- Filtros -->
-        <div class="flex items-center gap-3 mb-4">
-            <div class="relative flex-1">
-            <span class="absolute inset-y-0 left-3 flex items-center text-slate-400 pointer-events-none">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-            </span>
-            <input
-                id="search"
-                type="text"
-                placeholder="Buscar por cliente o método..."
-                class="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition"
-            />
+            <!-- KPIs -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-white border border-slate-200 rounded-xl px-5 py-4">
+                    <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-1">Total acumulado</p>
+                    <p class="text-xl font-bold text-slate-800">{formatMoney(totalVentas)}</p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-xl px-5 py-4">
+                    <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-1">Ventas hoy</p>
+                    <p class="text-xl font-bold text-emerald-600">{formatMoney(totalHoy)}</p>
+                    <p class="text-xs text-slate-400 mt-0.5">{ventasHoy.length} transacciones</p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-xl px-5 py-4">
+                    <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-1">Ticket promedio</p>
+                    <p class="text-xl font-bold text-slate-800">{formatMoney(ticketPromedio)}</p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-xl px-5 py-4">
+                    <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-1">Total ventas</p>
+                    <p class="text-xl font-bold text-slate-800">{cantVentas}</p>
+                    <p class="text-xs text-slate-400 mt-0.5">transacciones</p>
+                </div>
             </div>
-            <select
-            id="method-filter"
-            class="py-2.5 pl-3 pr-8 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500 transition appearance-none"
-            >
-            <option value="">Todos los métodos</option>
-            {metodosUnicos.map((m) => (
-                <option value={m}>{m}</option>
-            ))}
-            </select>
-        </div>
 
-        <!-- Tabla -->
-        <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-            {rows.length > 0 ? (
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                <thead>
-                    <tr class="border-b border-slate-100 bg-slate-50">
-                    <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Fecha</th>
-                    <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Cliente</th>
-                    <th class="text-center px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Método de pago</th>
-                    <th class="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Total</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100">
-                    {rows.map((s) => (
-                    <tr
-                        class="hover:bg-slate-50 transition-colors sale-row"
-                        data-search={`${(s.client_name ?? "").toLowerCase()} ${s.methodLabel.toLowerCase()}`}
-                        data-method={s.methodLabel}
-                    >
-                        <td class="px-5 py-3.5 text-slate-500 text-xs">{formatDate(s.created_at)}</td>
-                        <td class="px-5 py-3.5 font-medium text-slate-800">
-                        {s.client_name ?? <span class="text-slate-400">Cliente general</span>}
-                        </td>
-                        <td class="px-5 py-3.5 text-center">
-                        <span class={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${s.methodClass}`}>
-                            {s.methodLabel}
-                        </span>
-                        </td>
-                        <td class="px-5 py-3.5 text-right font-bold text-slate-800">
-                            {formatMoney(s.final_total ?? s.total)}
-                        </td>
-                    </tr>
+            <!-- Métodos de pago -->
+            {metodosUnicos.length > 0 && (
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                    {metodosUnicos.map((m) => (
+                        <div class="bg-white border border-slate-200 rounded-xl px-4 py-3 flex items-center justify-between">
+                            <span class="text-sm text-slate-600 capitalize">{m}</span>
+                            <span class="text-sm font-bold text-slate-800">{metodos[m]}</span>
+                        </div>
                     ))}
-                </tbody>
-                </table>
-            </div>
-            ) : (
-            <div class="flex flex-col items-center justify-center py-16 text-center">
-                <div class="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
                 </div>
-                <p class="text-slate-500 text-sm">No hay ventas registradas todavía</p>
-            </div>
             )}
-        </div>
 
-        {rows.length > 0 && (
-            <p class="text-xs text-slate-400 mt-3 text-right" id="footer-count">
-            {cantVentas} {cantVentas === 1 ? "venta" : "ventas"} en total
-            </p>
-        )}
+            <!-- ── Ventas por empleado ──────────────────────────────────────── -->
+            {sellerStats.length > 0 && (
+                <div class="mb-6">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-6 h-6 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                        </div>
+                        <h2 class="text-sm font-semibold text-slate-700">Ventas por empleado</h2>
+                    </div>
+
+                    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b border-slate-100 bg-slate-50">
+                                    <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Empleado</th>
+                                    <th class="text-center px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Cantidad</th>
+                                    <th class="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Total vendido</th>
+                                    <th class="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide w-36">% del total</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                {sellerStats.map((s, i) => {
+                                    const pct = totalVentas > 0 ? (s.total / totalVentas) * 100 : 0;
+                                    const isSinAsignar = s.nombre === "Sin asignar";
+                                    return (
+                                        <tr class="hover:bg-slate-50 transition-colors">
+                                            <td class="px-5 py-3.5">
+                                                <div class="flex items-center gap-2.5">
+                                                    {/* Medalla para el top 3 */}
+                                                    {i === 0 && !isSinAsignar && (
+                                                        <span class="text-base leading-none">🥇</span>
+                                                    )}
+                                                    {i === 1 && !isSinAsignar && (
+                                                        <span class="text-base leading-none">🥈</span>
+                                                    )}
+                                                    {i === 2 && !isSinAsignar && (
+                                                        <span class="text-base leading-none">🥉</span>
+                                                    )}
+                                                    {(i > 2 || isSinAsignar) && (
+                                                        <div class="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                            </svg>
+                                                        </div>
+                                                    )}
+                                                    <span class={`font-medium text-sm ${isSinAsignar ? "text-slate-400 italic" : "text-slate-800"}`}>
+                                                        {s.nombre}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td class="px-5 py-3.5 text-center">
+                                                <span class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700">
+                                                    {s.cantidad} {s.cantidad === 1 ? "venta" : "ventas"}
+                                                </span>
+                                            </td>
+                                            <td class="px-5 py-3.5 text-right font-bold text-slate-800">
+                                                {formatMoney(s.total)}
+                                            </td>
+                                            <td class="px-5 py-3.5">
+                                                <div class="flex items-center gap-2 justify-end">
+                                                    <div class="w-20 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                                                        <div
+                                                            class="h-full rounded-full bg-indigo-500"
+                                                            style={`width: ${pct.toFixed(1)}%`}
+                                                        ></div>
+                                                    </div>
+                                                    <span class="text-xs text-slate-400 w-10 text-right">{pct.toFixed(1)}%</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                            <!-- Footer con totales -->
+                            <tfoot>
+                                <tr class="border-t border-slate-200 bg-slate-50">
+                                    <td class="px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Total</td>
+                                    <td class="px-5 py-3 text-center">
+                                        <span class="text-xs font-bold text-slate-700">{cantVentas} ventas</span>
+                                    </td>
+                                    <td class="px-5 py-3 text-right font-bold text-slate-800">{formatMoney(totalVentas)}</td>
+                                    <td class="px-5 py-3 text-right text-xs text-slate-400">100%</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            <!-- Filtros -->
+            <div class="flex items-center gap-3 mb-4">
+                <div class="relative flex-1">
+                    <span class="absolute inset-y-0 left-3 flex items-center text-slate-400 pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </span>
+                    <input id="search" type="text" placeholder="Buscar por cliente, método o vendedor..."
+                        class="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition"
+                    />
+                </div>
+                <select id="method-filter"
+                    class="py-2.5 pl-3 pr-8 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500 transition appearance-none">
+                    <option value="">Todos los métodos</option>
+                    {metodosUnicos.map((m) => <option value={m}>{m}</option>)}
+                </select>
+                <select id="seller-filter"
+                    class="py-2.5 pl-3 pr-8 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500 transition appearance-none">
+                    <option value="">Todos los empleados</option>
+                    {sellerStats.filter(s => s.nombre !== "Sin asignar").map((s) => (
+                        <option value={s.nombre.toLowerCase()}>{s.nombre}</option>
+                    ))}
+                </select>
+            </div>
+
+            <!-- Tabla historial -->
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+                {rows.length > 0 ? (
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b border-slate-100 bg-slate-50">
+                                    <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Fecha</th>
+                                    <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Cliente</th>
+                                    <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Vendedor</th>
+                                    <th class="text-center px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Método</th>
+                                    <th class="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                {rows.map((s) => (
+                                    <tr class="hover:bg-slate-50 transition-colors sale-row"
+                                        data-search={`${(s.client_name ?? "").toLowerCase()} ${s.methodLabel.toLowerCase()} ${(s.seller_name ?? "").toLowerCase()}`}
+                                        data-method={s.methodLabel}
+                                        data-seller={(s.seller_name ?? "").toLowerCase()}
+                                    >
+                                        <td class="px-5 py-3.5 text-slate-500 text-xs whitespace-nowrap">{formatDate(s.created_at)}</td>
+                                        <td class="px-5 py-3.5 font-medium text-slate-800">
+                                            {s.client_name ?? <span class="text-slate-400">Cliente general</span>}
+                                        </td>
+                                        <td class="px-5 py-3.5">
+                                            {s.seller_name
+                                                ? <span class="inline-flex items-center gap-1 text-xs font-medium text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                    </svg>
+                                                    {s.seller_name}
+                                                  </span>
+                                                : <span class="text-slate-300 text-xs">—</span>
+                                            }
+                                        </td>
+                                        <td class="px-5 py-3.5 text-center">
+                                            <span class={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${s.methodClass}`}>
+                                                {s.methodLabel}
+                                            </span>
+                                        </td>
+                                        <td class="px-5 py-3.5 text-right font-bold text-slate-800">
+                                            {formatMoney(s.final_total ?? s.total)}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <div class="flex flex-col items-center justify-center py-16 text-center">
+                        <div class="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                        </div>
+                        <p class="text-slate-500 text-sm">No hay ventas registradas todavía</p>
+                    </div>
+                )}
+            </div>
+
+            {rows.length > 0 && (
+                <p class="text-xs text-slate-400 mt-3 text-right" id="footer-count">
+                    {cantVentas} {cantVentas === 1 ? "venta" : "ventas"} en total
+                </p>
+            )}
 
         </div>
     </div>
 </Layout>
 
 <script>
-    const searchInput = document.getElementById("search") as HTMLInputElement;
+    const searchInput  = document.getElementById("search")        as HTMLInputElement;
     const methodFilter = document.getElementById("method-filter") as HTMLSelectElement;
-    const rows = document.querySelectorAll<HTMLTableRowElement>(".sale-row");
-    const footerCount = document.getElementById("footer-count");
+    const sellerFilter = document.getElementById("seller-filter") as HTMLSelectElement;
+    const rows         = document.querySelectorAll<HTMLTableRowElement>(".sale-row");
+    const footerCount  = document.getElementById("footer-count");
 
     function applyFilters() {
-        const q = searchInput.value.toLowerCase();
+        const q      = searchInput.value.toLowerCase();
         const method = methodFilter.value.toLowerCase();
-        let visible = 0;
+        const seller = sellerFilter.value.toLowerCase();
+        let visible  = 0;
 
         rows.forEach((row) => {
-        const matchSearch = (row.dataset.search ?? "").includes(q);
-        const matchMethod = method === "" || (row.dataset.method ?? "").toLowerCase() === method;
-        const show = matchSearch && matchMethod;
-        row.style.display = show ? "" : "none";
-        if (show) visible++;
+            const matchSearch = (row.dataset.search ?? "").includes(q);
+            const matchMethod = method === "" || (row.dataset.method ?? "").toLowerCase() === method;
+            const matchSeller = seller === "" || (row.dataset.seller ?? "").includes(seller);
+            const show = matchSearch && matchMethod && matchSeller;
+            row.style.display = show ? "" : "none";
+            if (show) visible++;
         });
 
         if (footerCount) {
-        const filtered = q || method;
-        footerCount.textContent = `${visible} ${visible === 1 ? "venta" : "ventas"} ${filtered ? "encontradas" : "en total"}`;
+            const filtered = q || method || seller;
+            footerCount.textContent = `${visible} ${visible === 1 ? "venta" : "ventas"} ${filtered ? "encontradas" : "en total"}`;
         }
     }
 
     searchInput?.addEventListener("input", applyFilters);
     methodFilter?.addEventListener("change", applyFilters);
+    sellerFilter?.addEventListener("change", applyFilters);
 </script>
