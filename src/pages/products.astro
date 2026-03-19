@@ -24,13 +24,13 @@ Object.values(discountsByProduct).forEach((arr) =>
 
 const totalProductos = products?.length ?? 0;
 const sinStock = products?.filter((p) => (p.stock ?? 0) === 0).length ?? 0;
-const stockBajo = products?.filter((p) => (p.stock ?? 0) > 0 && (p.stock ?? 0) <= 5).length ?? 0;
+const stockBajo = products?.filter((p) => (p.stock ?? 0) > 0 && (p.stock ?? 0) <= 200).length ?? 0;
 const categorias = [...new Set(products?.map((p) => p.category).filter(Boolean))];
 
 const rows = products?.map((p) => {
     const stock = p.stock ?? 0;
-    const stockStatus = stock === 0 ? "out" : stock <= 5 ? "low" : "ok";
-    const badgeLabel = stock === 0 ? "Sin stock" : stock <= 5 ? "Stock bajo" : "Disponible";
+    const stockStatus = stock === 0 ? "out" : stock <= 200 ? "low" : "ok";
+    const badgeLabel = stock === 0 ? "Sin stock" : stock <= 200 ? "Stock bajo" : "Disponible";
     const badgeClass = stock === 0
         ? "bg-red-50 text-red-600"
         : stock <= 5
