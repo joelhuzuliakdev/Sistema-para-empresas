@@ -45,36 +45,26 @@ const formatMoney = (amount: number | null) => {
 
                 <!-- Productos -->
                 <div class="flex-1">
-
-                    <!-- Buscador -->
                     <div class="relative mb-5">
                         <span class="absolute inset-y-0 left-3 flex items-center text-slate-400 pointer-events-none">
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
                         </span>
-                        <input
-                            id="search"
-                            type="text"
-                            placeholder="Buscar producto..."
+                        <input id="search" type="text" placeholder="Buscar producto..."
                             class="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
                         />
                     </div>
 
-                    <!-- Grid de productos -->
                     {products && products.length > 0 ? (
                         <div id="products-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                             {products.map((p) => {
                                 const discounts = discountsByProduct[p.id] ?? [];
                                 return (
-                                    <button
-                                        type="button"
+                                    <button type="button"
                                         class="product-card text-left bg-white border border-slate-200 rounded-2xl p-4 hover:border-indigo-400 hover:shadow-md active:scale-95 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                        data-id={p.id}
-                                        data-name={p.name}
-                                        data-price={p.price}
-                                        data-discounts={JSON.stringify(discounts)}
-                                    >
+                                        data-id={p.id} data-name={p.name} data-price={p.price}
+                                        data-discounts={JSON.stringify(discounts)}>
                                         <div class="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center mb-3">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
@@ -116,21 +106,51 @@ const formatMoney = (amount: number | null) => {
                             <button id="clear-cart" class="text-xs text-slate-400 hover:text-red-500 transition-colors">Limpiar</button>
                         </div>
 
-                        <!-- Selector de cliente -->
-                        <div class="px-5 pt-4 pb-3 border-b border-slate-100">
-                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Cliente</label>
-                            <select
-                                id="client-select"
-                                class="w-full py-2 pl-3 pr-8 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition appearance-none"
-                            >
-                                <option value="">— Sin cliente —</option>
-                                {clients?.map((c) => (
-                                    <option value={c.id} data-special-discount={c.special_discount ?? ""}>
-                                        {c.name}{c.special_discount ? ` (−${c.special_discount}%)` : ""}
-                                    </option>
-                                ))}
-                            </select>
-                            <div id="special-discount-badge" class="hidden mt-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-violet-50 border border-violet-100">
+                        <!-- ── Selector de cliente (combo) ───────────────── -->
+                        <div class="px-5 pt-4 pb-3 border-b border-slate-100 space-y-2">
+                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Cliente</label>
+
+                            <!-- Modo selector: elegir de la lista -->
+                            <div id="client-select-mode">
+                                <div class="relative">
+                                    <select id="client-select"
+                                        class="w-full py-2 pl-3 pr-8 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition appearance-none">
+                                        <option value="">— Sin cliente —</option>
+                                        {clients?.map((c) => (
+                                            <option value={c.id} data-name={c.name} data-special-discount={c.special_discount ?? ""}>
+                                                {c.name}{c.special_discount ? ` (−${c.special_discount}%)` : ""}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <button id="switch-to-manual" type="button"
+                                    class="mt-1.5 text-xs text-indigo-500 hover:text-indigo-700 font-medium transition-colors">
+                                    + Escribir nombre nuevo
+                                </button>
+                            </div>
+
+                            <!-- Modo manual: escribir nombre -->
+                            <div id="client-manual-mode" class="hidden">
+                                <div class="relative">
+                                    <input id="client-manual-input" type="text"
+                                        placeholder="Nombre del cliente..."
+                                        class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+                                    />
+                                    <button id="clear-manual-input" type="button"
+                                        class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors hidden">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <button id="switch-to-select" type="button"
+                                    class="mt-1.5 text-xs text-indigo-500 hover:text-indigo-700 font-medium transition-colors">
+                                    ← Elegir de la lista
+                                </button>
+                            </div>
+
+                            <!-- Badge descuento especial -->
+                            <div id="special-discount-badge" class="hidden flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-violet-50 border border-violet-100">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-violet-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                                 </svg>
@@ -155,11 +175,8 @@ const formatMoney = (amount: number | null) => {
                                 <span class="text-sm text-slate-500">Total</span>
                                 <span id="cart-total" class="text-lg font-bold text-slate-800">$ 0,00</span>
                             </div>
-                            <button
-                                id="confirm-sale"
-                                disabled
-                                class="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-xl transition-all text-sm flex items-center justify-center gap-2"
-                            >
+                            <button id="confirm-sale" disabled
+                                class="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-xl transition-all text-sm flex items-center justify-center gap-2">
                                 <span id="confirm-text">Confirmar venta</span>
                                 <svg id="confirm-spinner" class="hidden w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -175,11 +192,9 @@ const formatMoney = (amount: number | null) => {
         </div>
     </div>
 
-    <!-- ── Modal: quién vende ─────────────────────────────────────────────── -->
-    <div id="seller-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+    <!-- ── Modal vendedor ──────────────────────────────────────────────────── -->
+    <div id="seller-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-5">
-
-            <!-- Ícono + título -->
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -191,23 +206,15 @@ const formatMoney = (amount: number | null) => {
                     <p class="text-xs text-slate-400">Ingresá tu nombre antes de confirmar</p>
                 </div>
             </div>
-
-            <!-- Input -->
             <div class="space-y-1.5">
                 <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Tu nombre</label>
-                <input
-                    id="seller-name-input"
-                    type="text"
-                    placeholder="Ej: María, Juan, Vendedor 1..."
+                <input id="seller-name-input" type="text" placeholder="Ej: María, Juan..."
                     class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
-                    autocomplete="off"
-                />
+                    autocomplete="off" />
                 <div id="seller-modal-error" class="hidden text-xs text-red-600 font-medium pt-0.5">
                     Ingresá tu nombre para continuar.
                 </div>
             </div>
-
-            <!-- Botones -->
             <div class="flex gap-2 pt-1">
                 <button id="seller-cancel-btn" type="button"
                     class="flex-none px-4 py-2.5 rounded-xl text-xs font-semibold border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
@@ -228,56 +235,35 @@ const formatMoney = (amount: number | null) => {
 <script>
     import { supabase } from "../lib/supabaseClient.js";
 
-    interface Discount {
-        id: string;
-        min_qty: number;
-        discount_pct: number;
-        label?: string;
-    }
-
-    interface CartItem {
-        id: string;
-        name: string;
-        basePrice: number;
-        discounts: Discount[];
-        qty: number;
-        appliedDiscount: number;
-    }
+    interface Discount { id: string; min_qty: number; discount_pct: number; label?: string; }
+    interface CartItem  { id: string; name: string; basePrice: number; discounts: Discount[]; qty: number; appliedDiscount: number; }
 
     const cart: CartItem[] = [];
-
-    let activeClientId: string | null = null;
-    let activeSpecialDiscount: number = 0;
+    let activeClientId:       string | null = null;
+    let activeClientName:     string | null = null; // ← nombre final que va a sales
+    let activeSpecialDiscount: number       = 0;
+    let isManualMode = false;
 
     const formatARS = (n: number) =>
         new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(n);
 
     function getApplicableDiscount(discounts: Discount[], qty: number): number {
-        for (const d of discounts) {
-            if (qty >= d.min_qty) return d.discount_pct;
-        }
+        for (const d of discounts) { if (qty >= d.min_qty) return d.discount_pct; }
         return 0;
     }
-
     function effectiveUnitPrice(item: CartItem): number {
         if (activeSpecialDiscount > 0) return item.basePrice;
         return item.basePrice * (1 - item.appliedDiscount / 100);
     }
-
-    function calcSubtotal(): number {
-        return cart.reduce((acc, c) => acc + effectiveUnitPrice(c) * c.qty, 0);
-    }
-
-    function calcTotal(): number {
+    function calcSubtotal() { return cart.reduce((acc, c) => acc + effectiveUnitPrice(c) * c.qty, 0); }
+    function calcTotal() {
         const sub = calcSubtotal();
-        if (activeSpecialDiscount > 0) return sub * (1 - activeSpecialDiscount / 100);
-        return sub;
+        return activeSpecialDiscount > 0 ? sub * (1 - activeSpecialDiscount / 100) : sub;
     }
 
     function updateTotal() {
         const subtotal = calcSubtotal();
         const total    = calcTotal();
-
         document.getElementById("cart-total")!.textContent = formatARS(total);
 
         const subtotalRow      = document.getElementById("subtotal-row")!;
@@ -298,9 +284,7 @@ const formatMoney = (amount: number | null) => {
         }
 
         const confirmBtn = document.getElementById("confirm-sale") as HTMLButtonElement;
-        if (!confirmBtn.textContent?.includes("Procesando")) {
-            confirmBtn.disabled = cart.length === 0;
-        }
+        if (!confirmBtn.textContent?.includes("Procesando")) confirmBtn.disabled = cart.length === 0;
     }
 
     function refreshCartRow(item: CartItem) {
@@ -324,9 +308,9 @@ const formatMoney = (amount: number | null) => {
     function addCartRow(item: CartItem) {
         document.getElementById("cart-empty")!.style.display = "none";
         const row = document.createElement("div");
-        row.className = "px-5 py-3";
+        row.className    = "px-5 py-3";
         row.dataset.rowId = item.id;
-        const unitPrice = effectiveUnitPrice(item);
+        const unitPrice  = effectiveUnitPrice(item);
         row.innerHTML = `
             <div class="flex items-center justify-between mb-1.5">
                 <p class="text-xs font-semibold text-slate-700 truncate flex-1 pr-2">${item.name}</p>
@@ -377,27 +361,85 @@ const formatMoney = (amount: number | null) => {
         (document.getElementById("confirm-sale") as HTMLButtonElement).disabled = true;
     }
 
-    // --- Selector de cliente ---
-    const clientSelect = document.getElementById("client-select") as HTMLSelectElement;
-    const specialBadge = document.getElementById("special-discount-badge")!;
-    const specialText  = document.getElementById("special-discount-text")!;
+    // ── Selector de cliente (combo) ───────────────────────────────────────────
+    const clientSelect      = document.getElementById("client-select")       as HTMLSelectElement;
+    const clientManualInput = document.getElementById("client-manual-input") as HTMLInputElement;
+    const clearManualBtn    = document.getElementById("clear-manual-input")!;
+    const selectMode        = document.getElementById("client-select-mode")!;
+    const manualMode        = document.getElementById("client-manual-mode")!;
+    const specialBadge      = document.getElementById("special-discount-badge")!;
+    const specialText       = document.getElementById("special-discount-text")!;
+    const switchToManual    = document.getElementById("switch-to-manual")!;
+    const switchToSelect    = document.getElementById("switch-to-select")!;
 
-    clientSelect.addEventListener("change", () => {
-        const selected        = clientSelect.options[clientSelect.selectedIndex];
-        const rawDiscount     = selected.dataset.specialDiscount ?? "";
-        activeClientId        = clientSelect.value || null;
-        activeSpecialDiscount = rawDiscount !== "" ? parseFloat(rawDiscount) : 0;
-        if (activeSpecialDiscount > 0) {
+    function setSpecialDiscount(pct: number) {
+        activeSpecialDiscount = pct;
+        if (pct > 0) {
             specialBadge.classList.remove("hidden");
-            specialText.textContent = `−${activeSpecialDiscount}% sobre el total`;
+            specialText.textContent = `−${pct}% sobre el total`;
         } else {
             specialBadge.classList.add("hidden");
         }
         refreshAllCartRows();
         updateTotal();
+    }
+
+    function resetClient() {
+        activeClientId        = null;
+        activeClientName      = null;
+        activeSpecialDiscount = 0;
+        specialBadge.classList.add("hidden");
+        refreshAllCartRows();
+        updateTotal();
+    }
+
+    // Cambiar a modo manual
+    switchToManual.addEventListener("click", () => {
+        isManualMode = true;
+        selectMode.classList.add("hidden");
+        manualMode.classList.remove("hidden");
+        clientSelect.value = "";
+        resetClient();
+        setTimeout(() => clientManualInput.focus(), 50);
     });
 
-    // --- Agregar producto ---
+    // Volver al modo selector
+    switchToSelect.addEventListener("click", () => {
+        isManualMode = false;
+        manualMode.classList.add("hidden");
+        selectMode.classList.remove("hidden");
+        clientManualInput.value = "";
+        clearManualBtn.classList.add("hidden");
+        resetClient();
+    });
+
+    // Cuando eligen de la lista
+    clientSelect.addEventListener("change", () => {
+        const selected    = clientSelect.options[clientSelect.selectedIndex];
+        activeClientId    = clientSelect.value || null;
+        activeClientName  = activeClientId ? (selected.dataset.name ?? selected.text.split(" (")[0]) : null;
+        const rawDiscount = selected.dataset.specialDiscount ?? "";
+        setSpecialDiscount(rawDiscount !== "" ? parseFloat(rawDiscount) : 0);
+    });
+
+    // Cuando escriben a mano
+    clientManualInput.addEventListener("input", () => {
+        const val        = clientManualInput.value.trim();
+        activeClientId   = null; // no tiene ID porque es nombre nuevo
+        activeClientName = val || null;
+        clearManualBtn.classList.toggle("hidden", !val);
+        // Sin descuento especial para clientes nuevos
+        setSpecialDiscount(0);
+    });
+
+    clearManualBtn.addEventListener("click", () => {
+        clientManualInput.value = "";
+        clearManualBtn.classList.add("hidden");
+        activeClientName = null;
+        setSpecialDiscount(0);
+    });
+
+    // ── Agregar producto ──────────────────────────────────────────────────────
     document.getElementById("products-grid")?.addEventListener("click", (e) => {
         const btn = (e.target as HTMLElement).closest(".product-card") as HTMLElement | null;
         if (!btn) return;
@@ -416,18 +458,16 @@ const formatMoney = (amount: number | null) => {
             refreshCartRow(existing);
             updateTotal();
         } else {
-            const newItem: CartItem = {
-                id, name, basePrice, discounts,
-                qty: 1,
-                appliedDiscount: getApplicableDiscount(discounts, 1),
-            };
+            const newItem: CartItem = { id, name, basePrice, discounts, qty: 1, appliedDiscount: getApplicableDiscount(discounts, 1) };
             cart.push(newItem);
             addCartRow(newItem);
             updateTotal();
         }
     });
 
-    document.getElementById("clear-cart")?.addEventListener("click", clearCart);
+    document.getElementById("clear-cart")?.addEventListener("click", () => {
+        clearCart();
+    });
 
     document.getElementById("search")?.addEventListener("input", (e) => {
         const q = (e.target as HTMLInputElement).value.toLowerCase();
@@ -436,18 +476,12 @@ const formatMoney = (amount: number | null) => {
         });
     });
 
-    // ── Modal de vendedor ────────────────────────────────────────────────────
+    // ── Modal vendedor ────────────────────────────────────────────────────────
     const sellerModal      = document.getElementById("seller-modal")!;
     const sellerInput      = document.getElementById("seller-name-input") as HTMLInputElement;
     const sellerError      = document.getElementById("seller-modal-error")!;
     const sellerConfirmBtn = document.getElementById("seller-confirm-btn")!;
     const sellerCancelBtn  = document.getElementById("seller-cancel-btn")!;
-
-    // El modal arranca visible (ya está en el HTML), pero se oculta si el usuario cancela
-    // Solo se muestra cuando el empleado toca "Confirmar venta"
-
-    // Ocultar modal al inicio (se muestra solo al confirmar)
-    sellerModal.classList.add("hidden");
 
     function openSellerModal() {
         sellerInput.value = "";
@@ -455,38 +489,28 @@ const formatMoney = (amount: number | null) => {
         sellerModal.classList.remove("hidden");
         setTimeout(() => sellerInput.focus(), 80);
     }
-
-    function closeSellerModal() {
-        sellerModal.classList.add("hidden");
-    }
+    function closeSellerModal() { sellerModal.classList.add("hidden"); }
 
     sellerCancelBtn.addEventListener("click", closeSellerModal);
-
     sellerInput.addEventListener("keydown", (e) => {
         if (e.key === "Enter")  sellerConfirmBtn.click();
         if (e.key === "Escape") closeSellerModal();
     });
 
-    // Confirmar venta desde el modal
     sellerConfirmBtn.addEventListener("click", async () => {
         const sellerName = sellerInput.value.trim();
-        if (!sellerName) {
-            sellerError.classList.remove("hidden");
-            sellerInput.focus();
-            return;
-        }
+        if (!sellerName) { sellerError.classList.remove("hidden"); sellerInput.focus(); return; }
         sellerError.classList.add("hidden");
         closeSellerModal();
         await processSale(sellerName);
     });
 
-    // Botón "Confirmar venta" del carrito → abre el modal
     document.getElementById("confirm-sale")?.addEventListener("click", () => {
         if (cart.length === 0) return;
         openSellerModal();
     });
 
-    // ── Lógica de la venta ───────────────────────────────────────────────────
+    // ── Procesar venta ────────────────────────────────────────────────────────
     async function processSale(sellerName: string) {
         const confirmBtn     = document.getElementById("confirm-sale") as HTMLButtonElement;
         const confirmText    = document.getElementById("confirm-text")!;
@@ -510,6 +534,7 @@ const formatMoney = (amount: number | null) => {
                     total,
                     payment_method: "pendiente",
                     client_id:      activeClientId || null,
+                    client_name:    activeClientName || null, // ← nombre llega al admin
                     seller_name:    sellerName,
                 }])
                 .select()
@@ -531,12 +556,13 @@ const formatMoney = (amount: number | null) => {
             await supabase.from("notifications").insert([{
                 user_id: userId,
                 type:    "nueva_venta",
-                message: `Nueva venta por ${formatARS(total)} — ${cart.length} producto${cart.length > 1 ? "s" : ""}`,
+                message: `Nueva venta por ${formatARS(total)} — ${cart.length} producto${cart.length > 1 ? "s" : ""}${activeClientName ? ` · ${activeClientName}` : ""}`,
                 data: JSON.stringify({
                     sale_id:              sale.id,
                     total,
                     subtotal,
                     client_id:            activeClientId,
+                    client_name:          activeClientName,
                     special_discount_pct: activeSpecialDiscount,
                     seller_name:          sellerName,
                     items: cart.map(c => ({
@@ -556,11 +582,14 @@ const formatMoney = (amount: number | null) => {
                 if (stockError) console.error("Error al descontar stock:", stockError.message);
             }
 
-            // Limpiar todo tras la venta exitosa
+            // Limpiar tras venta exitosa
             clearCart();
-            clientSelect.value    = "";
-            activeClientId        = null;
-            activeSpecialDiscount = 0;
+            clientSelect.value      = "";
+            clientManualInput.value = "";
+            clearManualBtn.classList.add("hidden");
+            activeClientId          = null;
+            activeClientName        = null;
+            activeSpecialDiscount   = 0;
             specialBadge.classList.add("hidden");
 
         } catch (err: any) {
