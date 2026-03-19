@@ -287,7 +287,7 @@ const pendingCount = notifications?.length ?? 0;
     import { supabase } from "../lib/supabaseClient.js";
 
     const EMPRESA_NOMBRE   = "El Mundo Del Descartable";
-    const EMPRESA_TELEFONO = "5493572599909";
+    const EMPRESA_TELEFONO = "5493XXXXXXXXXX"; // ← reemplazá con tu número real
     const METODOS: Record<string, string> = {
     efectivo:"Efectivo", transferencia:"Transferencia",
     debito:"Débito", credito:"Crédito", deudor:"Deuda",
@@ -301,6 +301,7 @@ const pendingCount = notifications?.length ?? 0;
     total: number;
     paymentMethod: string;
     clientName: string | null;
+    sellerName: string | null;
     fecha: string;
     surcharge: number;
     };
@@ -373,6 +374,7 @@ const pendingCount = notifications?.length ?? 0;
         Pago: ${METODOS[td.paymentMethod] ?? td.paymentMethod}
     </p>
     ${td.clientName ? `<p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">Cliente: ${td.clientName}</p>` : ""}
+    ${td.sellerName ? `<p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">Vendido por: <strong>${td.sellerName}</strong></p>` : ""}
 
     <div style="border-top:1px dashed #bbb;margin:10px 0 8px;"></div>
     <p style="text-align:center;font-size:11px;color:#aaa;font-style:italic;font-family:Arial,sans-serif;">
@@ -444,6 +446,7 @@ const pendingCount = notifications?.length ?? 0;
         `*TOTAL: ${fmt(td.total)}*`,
         `💳 Pago: ${METODOS[td.paymentMethod] ?? td.paymentMethod}`,
         td.clientName ? `👤 ${td.clientName}` : null,
+        td.sellerName ? `🧑‍💼 Vendido por: ${td.sellerName}` : null,
         ``,
         `📞 Consultas: +${EMPRESA_TELEFONO}`,
     ];
@@ -520,7 +523,7 @@ const pendingCount = notifications?.length ?? 0;
         </div>
         <div>
         <p class="text-sm font-semibold text-slate-800">Cobro registrado por ${fmt(total)}${changeMsg}</p>
-        <p class="text-xs text-slate-400">${METODOS[pm] ?? pm}${clientName ? ` — ${clientName}` : ""}</p>
+        <p class="text-xs text-slate-400">${METODOS[pm] ?? pm}${clientName ? ` — ${clientName}` : ""}${td.sellerName ? ` · Vendido por ${td.sellerName}` : ""}</p>
         </div>`;
 
     bindTicketButtons(card, td);
@@ -700,7 +703,7 @@ const pendingCount = notifications?.length ?? 0;
         try { parsed = JSON.parse(rawData); } catch {}
 
         const fecha = new Date().toLocaleString("es-AR", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
-        const td: TicketData = { items: parsed.items ?? [], total, paymentMethod: pm, clientName, fecha, surcharge: sr };
+        const td: TicketData = { items: parsed.items ?? [], total, paymentMethod: pm, clientName, sellerName: parsed.seller_name ?? null, fecha, surcharge: sr };
 
         showSuccess(card, total, pm, clientName, changeMsg, td);
 
