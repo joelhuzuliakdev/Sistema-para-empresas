@@ -218,8 +218,12 @@ import Layout from '../layouts/Layout.astro';
 				}]);
 			}
 
-			showSuccess("¡Cuenta creada! Revisá tu email y confirmá tu dirección para poder iniciar sesión.");
+			showSuccess("¡Cuenta creada! Redirigiendo al login...");
 			regBtn.disabled = true;
+
+			setTimeout(() => {
+				window.location.href = "/login";
+			}, 2000);
 
 		} catch (err: any) {
 			showError(err?.message ?? "Error al crear la cuenta.");
