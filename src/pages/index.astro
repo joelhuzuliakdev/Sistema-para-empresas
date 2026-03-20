@@ -203,27 +203,18 @@ import Layout from '../layouts/Layout.astro';
 					data: {
 						business_name: business,
 						phone: phoneInput.value.trim() || null,
-					}
+					},
+					// Al confirmar el email, Supabase redirige acá
+					emailRedirectTo: `${window.location.origin}/auth/callback`,
 				}
 			});
 
 			if (error) throw error;
 
-			if (data.user) {
-				await supabase.from("user_roles").insert([{
-					user_id: data.user.id,
-					role: "owner",
-					activo: true,
-					name: business
-				}]);
-			}
-
-			showSuccess("¡Cuenta creada! Redirigiendo al login...");
+			// No insertamos en user_roles acá — se hace en /auth/callback
+			// después de que el usuario confirme su email
+			showSuccess("¡Revisá tu email y confirmá tu cuenta para continuar!");
 			regBtn.disabled = true;
-
-			setTimeout(() => {
-				window.location.href = "/login";
-			}, 2000);
 
 		} catch (err: any) {
 			showError(err?.message ?? "Error al crear la cuenta.");

@@ -1,0 +1,27 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+<Layout>
+    <div>Verificando...</div>
+</Layout>
+
+<script>
+    import { supabase } from "../../lib/supabaseClient.js";
+
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (session?.user) {
+        const meta = session.user.user_metadata;
+
+        await supabase.from("user_roles").insert([{
+        user_id: session.user.id,
+        role: "owner",
+        activo: true,
+        name: meta.business_name ?? "",
+        }]);
+
+        window.location.href = "/dashboard";
+    } else {
+        window.location.href = "/login";
+    }
+</script>
