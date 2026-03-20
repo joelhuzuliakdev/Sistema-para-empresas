@@ -10,12 +10,19 @@ const { data: notifications } = await supabase
     .eq("type", "nueva_venta")
     .order("created_at", { ascending: false });
 
+// FIX $Â
 const formatMoney = (amount: number | null) => {
     if (amount == null) return "—";
-    return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(amount);
+    return "$ " + new Intl.NumberFormat("es-AR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    }).format(amount);
 };
 
 const pendingCount = notifications?.length ?? 0;
+
+// Cuentas de transferencia
+const CUENTAS = ["Descartable", "Librería", "Caramelos"];
 ---
 
 <Layout>
@@ -133,11 +140,15 @@ const pendingCount = notifications?.length ?? 0;
                                         <input type="hidden" class="surcharge-value" value="0"/>
                                     </div>
 
-                                    <!-- CBU/Alias transferencia -->
+                                    <!-- ── Dropdown cuenta transferencia (reemplaza el input de alias) ── -->
                                     <div class="transfer-info hidden">
-                                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">CBU / Alias</label>
-                                        <input type="text" placeholder="Ej: mi.alias"
-                                            class="transfer-account w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"/>
+                                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Cuenta destino</label>
+                                        <select class="transfer-account w-full py-2 pl-3 pr-8 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition appearance-none">
+                                            <option value="">— Seleccioná una cuenta —</option>
+                                            {CUENTAS.map((c) => (
+                                                <option value={c}>{c}</option>
+                                            ))}
+                                        </select>
                                     </div>
 
                                     <!-- Info recargo -->
@@ -302,8 +313,12 @@ const pendingCount = notifications?.length ?? 0;
         debito:"Débito", credito:"Crédito", deudor:"Deuda",
     };
 
+    // FIX $Â
     const fmt = (n: number) =>
-        new Intl.NumberFormat("es-AR", { style:"currency", currency:"ARS" }).format(n);
+        "$ " + new Intl.NumberFormat("es-AR", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }).format(n);
 
     type TicketData = {
         items: { name: string; qty: number; subtotal: number }[];
@@ -313,6 +328,7 @@ const pendingCount = notifications?.length ?? 0;
         sellerName: string | null;
         fecha: string;
         surcharge: number;
+        transferAccount: string | null;
     };
 
     function buildTicketHTML(td: TicketData): string {
@@ -330,6 +346,10 @@ const pendingCount = notifications?.length ?? 0;
             <td style="padding:3px 0;font-size:11px;color:#b45309;text-align:right;">+${fmt(td.total - base)}</td>
             </tr>`;
         })() : "";
+
+        const transferLine = td.paymentMethod === "transferencia" && td.transferAccount
+            ? `<p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">Cuenta: ${td.transferAccount}</p>`
+            : "";
 
         return `<!DOCTYPE html>
         <html lang="es">
@@ -367,6 +387,7 @@ const pendingCount = notifications?.length ?? 0;
             <span style="font-size:16px;font-weight:bold;color:#059669;font-family:Arial,sans-serif;">${fmt(td.total)}</span>
         </div>
         <p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">Pago: ${METODOS[td.paymentMethod] ?? td.paymentMethod}</p>
+        ${transferLine}
         ${td.clientName ? `<p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">Cliente: ${td.clientName}</p>` : ""}
         ${td.sellerName ? `<p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">Vendido por: <strong>${td.sellerName}</strong></p>` : ""}
         <div style="border-top:1px dashed #bbb;margin:10px 0 8px;"></div>
@@ -406,6 +427,7 @@ const pendingCount = notifications?.length ?? 0;
             td.surcharge > 0 ? `Recargo ${td.surcharge}%: incluido` : null,
             ``, `*TOTAL: ${fmt(td.total)}*`,
             `💳 Pago: ${METODOS[td.paymentMethod] ?? td.paymentMethod}`,
+            td.transferAccount ? `🏦 Cuenta: ${td.transferAccount}` : null,
             td.clientName ? `👤 ${td.clientName}` : null,
             td.sellerName ? `🧑‍💼 Vendido por: ${td.sellerName}` : null,
             ``, `📞 Consultas: +${EMPRESA_TELEFONO}`,
@@ -455,6 +477,7 @@ const pendingCount = notifications?.length ?? 0;
         card.querySelector(".cobro-form")?.classList.add("hidden");
         const panel = card.querySelector<HTMLElement>(".success-panel")!;
         panel.classList.remove("hidden");
+        const accountLine = td.transferAccount ? ` · ${td.transferAccount}` : "";
         panel.querySelector<HTMLElement>(".success-msg")!.innerHTML = `
             <div class="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -463,7 +486,7 @@ const pendingCount = notifications?.length ?? 0;
             </div>
             <div>
             <p class="text-sm font-semibold text-slate-800">Cobro registrado por ${fmt(total)}${changeMsg}</p>
-            <p class="text-xs text-slate-400">${METODOS[pm] ?? pm}${clientName ? ` — ${clientName}` : ""}${td.sellerName ? ` · Vendido por ${td.sellerName}` : ""}</p>
+            <p class="text-xs text-slate-400">${METODOS[pm] ?? pm}${accountLine}${clientName ? ` — ${clientName}` : ""}${td.sellerName ? ` · Vendido por ${td.sellerName}` : ""}</p>
             </div>`;
         bindTicketButtons(card, td);
         panel.querySelector(".done-btn")?.addEventListener("click", () => { card.remove(); updateLabel(); });
@@ -488,21 +511,22 @@ const pendingCount = notifications?.length ?? 0;
     }
 
     document.querySelectorAll<HTMLElement>(".sale-card").forEach(card => {
-        const pmInput   = card.querySelector<HTMLInputElement>(".payment-method-value")!;
-        const srInput   = card.querySelector<HTMLInputElement>(".surcharge-value")!;
-        const clientSel = card.querySelector<HTMLSelectElement>(".client-select")!;
-        const cobrarBtn = card.querySelector<HTMLButtonElement>(".cobrar-btn")!;
-        const totalDisp = card.querySelector<HTMLElement>(".total-display")!;
-        const srRow     = card.querySelector<HTMLElement>(".surcharge-row")!;
-        const srLbl     = card.querySelector<HTMLElement>(".surcharge-row-label")!;
-        const srAmt     = card.querySelector<HTMLElement>(".surcharge-amount")!;
-        const cashSec   = card.querySelector<HTMLElement>(".cash-section")!;
-        const cashIn    = card.querySelector<HTMLInputElement>(".cash-received")!;
-        const changeEl  = card.querySelector<HTMLElement>(".change-amount")!;
-        const changeDsp = card.querySelector<HTMLElement>(".change-display")!;
-        const insuf     = card.querySelector<HTMLElement>(".insufficient-alert")!;
-        const errorEl   = card.querySelector<HTMLElement>(".cobro-error")!;
-        const baseTotal = Number(cobrarBtn.dataset.baseTotal ?? 0);
+        const pmInput      = card.querySelector<HTMLInputElement>(".payment-method-value")!;
+        const srInput      = card.querySelector<HTMLInputElement>(".surcharge-value")!;
+        const clientSel    = card.querySelector<HTMLSelectElement>(".client-select")!;
+        const transferSel  = card.querySelector<HTMLSelectElement>(".transfer-account")!;
+        const cobrarBtn    = card.querySelector<HTMLButtonElement>(".cobrar-btn")!;
+        const totalDisp    = card.querySelector<HTMLElement>(".total-display")!;
+        const srRow        = card.querySelector<HTMLElement>(".surcharge-row")!;
+        const srLbl        = card.querySelector<HTMLElement>(".surcharge-row-label")!;
+        const srAmt        = card.querySelector<HTMLElement>(".surcharge-amount")!;
+        const cashSec      = card.querySelector<HTMLElement>(".cash-section")!;
+        const cashIn       = card.querySelector<HTMLInputElement>(".cash-received")!;
+        const changeEl     = card.querySelector<HTMLElement>(".change-amount")!;
+        const changeDsp    = card.querySelector<HTMLElement>(".change-display")!;
+        const insuf        = card.querySelector<HTMLElement>(".insufficient-alert")!;
+        const errorEl      = card.querySelector<HTMLElement>(".cobro-error")!;
+        const baseTotal    = Number(cobrarBtn.dataset.baseTotal ?? 0);
 
         const getTotal = () => baseTotal + baseTotal * (Number(srInput.value) / 100);
 
@@ -551,7 +575,9 @@ const pendingCount = notifications?.length ?? 0;
                     btn.classList.add("bg-emerald-600","border-emerald-600","text-white","shadow-sm");
                 }
                 pmInput.value = m; srInput.value = sr;
+                // Mostrar/ocultar dropdown de cuenta transferencia
                 card.querySelector(".transfer-info")?.classList.toggle("hidden", m !== "transferencia");
+                if (m !== "transferencia" && transferSel) transferSel.value = "";
                 card.querySelector(".surcharge-info")?.classList.toggle("hidden", sr === "0");
                 card.querySelector(".debtor-info")?.classList.toggle("hidden", m !== "deudor");
                 card.querySelector<HTMLElement>(".client-required")?.classList.toggle("hidden", m !== "deudor");
@@ -579,7 +605,8 @@ const pendingCount = notifications?.length ?? 0;
             const sr       = Number(srInput.value);
             const clientId = clientSel.value || null;
             const total    = getTotal();
-            const transfer = card.querySelector<HTMLInputElement>(".transfer-account")?.value?.trim() || null;
+            // Leer el dropdown en lugar del input de texto
+            const transferAccount = (pm === "transferencia" && transferSel?.value) ? transferSel.value : null;
             const cobTxt   = cobrarBtn.querySelector<HTMLElement>(".cobrar-text")!;
             const spinner  = cobrarBtn.querySelector<HTMLElement>(".cobrar-spinner")!;
 
@@ -602,7 +629,7 @@ const pendingCount = notifications?.length ?? 0;
                 const { error: upErr } = await supabase.from("sales").update({
                     client_id: clientId, client_name: clientName,
                     final_total: total, payment_method: pm, surcharge: sr,
-                    note: transfer ? `Transferencia a: ${transfer}` : null,
+                    note: transferAccount ? `Transferencia a: ${transferAccount}` : null,
                     status: pm === "deudor" ? "deuda" : "pagado",
                 }).eq("id", saleId);
                 if (upErr) throw upErr;
@@ -623,7 +650,16 @@ const pendingCount = notifications?.length ?? 0;
                 let parsed: any = {};
                 try { parsed = JSON.parse(rawData); } catch {}
                 const fecha = new Date().toLocaleString("es-AR", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
-                const td: TicketData = { items: parsed.items ?? [], total, paymentMethod: pm, clientName, sellerName: parsed.seller_name ?? null, fecha, surcharge: sr };
+                const td: TicketData = {
+                    items: parsed.items ?? [],
+                    total,
+                    paymentMethod: pm,
+                    clientName,
+                    sellerName: parsed.seller_name ?? null,
+                    fecha,
+                    surcharge: sr,
+                    transferAccount,
+                };
                 showSuccess(card, total, pm, clientName, changeMsg, td);
 
             } catch (err: any) {

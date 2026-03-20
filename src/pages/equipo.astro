@@ -51,11 +51,6 @@ const { data: roles } = await supabase
                                 <div class="flex-1 min-w-0">
                                     <p class="text-sm font-semibold text-slate-800 truncate">{r.name ?? "Sin nombre"}</p>
                                     <p class="text-xs text-slate-500 truncate mt-0.5">{r.email ?? "—"}</p>
-                                    {r.temp_password && (
-                                        <p class="text-xs text-slate-400 mt-0.5">
-                                            Contraseña: <span class="font-mono text-slate-600">{r.temp_password}</span>
-                                        </p>
-                                    )}
                                     <span class="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-600 mt-0.5">
                                         Empleado
                                     </span>
