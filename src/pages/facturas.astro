@@ -7,9 +7,19 @@ const { data: invoices } = await supabase
     .select("*")
     .order("date", { ascending: false });
 
+// Proveedores desde la tabla suppliers
+const { data: suppliers } = await supabase
+    .from("suppliers")
+    .select("id, name")
+    .order("name");
+
+// FIX $Â
 const formatMoney = (amount: number | null) => {
     if (amount == null) return "—";
-    return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(amount);
+    return "$ " + new Intl.NumberFormat("es-AR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    }).format(amount);
 };
 
 const formatDate = (d: string | null) => {
@@ -18,9 +28,11 @@ const formatDate = (d: string | null) => {
     return `${day}/${m}/${y}`;
 };
 
-const totalFacturas  = invoices?.length ?? 0;
-const totalGastado   = invoices?.reduce((acc, i) => acc + (i.total ?? 0), 0) ?? 0;
-const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boolean))];
+const totalFacturas = invoices?.length ?? 0;
+const totalGastado  = invoices?.reduce((acc, i) => acc + (i.total ?? 0), 0) ?? 0;
+
+// Proveedores únicos que aparecen en facturas (para el filtro)
+const proveedoresEnFacturas = [...new Set(invoices?.map((i) => i.supplier).filter(Boolean))];
 ---
 
 <Layout>
@@ -40,14 +52,24 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
                         <p class="text-xs sm:text-sm text-slate-500">Registro de compras y gastos</p>
                     </div>
                 </div>
-                <button id="open-modal-btn"
-                    class="inline-flex items-center gap-1.5 sm:gap-2 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-all shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                    </svg>
-                    <span class="hidden xs:inline">Nueva factura</span>
-                    <span class="xs:hidden">Nueva</span>
-                </button>
+                <div class="flex items-center gap-2">
+                    <!-- Shortcut a proveedores -->
+                    <a href="/proveedores"
+                        class="inline-flex items-center gap-1.5 border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold px-3 py-2 rounded-xl transition-colors shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                        <span class="hidden sm:inline">Proveedores</span>
+                    </a>
+                    <button id="open-modal-btn"
+                        class="inline-flex items-center gap-1.5 sm:gap-2 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-all shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span class="hidden xs:inline">Nueva factura</span>
+                        <span class="xs:hidden">Nueva</span>
+                    </button>
+                </div>
             </div>
 
             <!-- Stats -->
@@ -62,7 +84,7 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
                 </div>
                 <div class="bg-white border border-slate-200 rounded-xl px-3 sm:px-5 py-3 sm:py-4">
                     <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-1 leading-tight">Proveedores</p>
-                    <p class="text-xl sm:text-2xl font-bold text-slate-800">{proveedores.length}</p>
+                    <p class="text-xl sm:text-2xl font-bold text-slate-800">{suppliers?.length ?? 0}</p>
                 </div>
             </div>
 
@@ -78,10 +100,11 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
                         class="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition"
                     />
                 </div>
+                <!-- Filtro por proveedor (solo los que tienen facturas) -->
                 <select id="supplier-filter"
                     class="py-2.5 pl-3 pr-8 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-rose-500 transition appearance-none shrink-0">
                     <option value="">Todos los proveedores</option>
-                    {proveedores.map((s) => <option value={s}>{s}</option>)}
+                    {proveedoresEnFacturas.map((s) => <option value={s}>{s}</option>)}
                 </select>
             </div>
 
@@ -89,133 +112,152 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
             <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
                 {invoices && invoices.length > 0 ? (
                     <>
-                        {/* Tabla para sm en adelante */}
+                        {/* Tabla desktop */}
                         <div class="hidden sm:block overflow-x-auto">
                             <table class="w-full text-sm">
                                 <thead>
                                     <tr class="border-b border-slate-100 bg-slate-50">
-                                        <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Fecha</th>
-                                        <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">N° Factura</th>
-                                        <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Proveedor</th>
-                                        <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Lo que se compró</th>
-                                        <th class="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Total</th>
-                                        <th class="text-center px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Imagen</th>
-                                        <th class="px-5 py-3"></th>
+                                        <th class="w-6 px-3 py-3"></th>
+                                        <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Fecha</th>
+                                        <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">N° Factura</th>
+                                        <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Proveedor</th>
+                                        <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Detalle</th>
+                                        <th class="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Total</th>
+                                        <th class="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Imagen</th>
+                                        <th class="px-4 py-3"></th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-slate-100" id="invoices-tbody">
+                                <tbody id="invoices-tbody">
                                     {invoices.map((inv) => (
-                                        <tr class="invoice-row hover:bg-slate-50 transition-colors"
-                                            data-supplier={(inv.supplier ?? "").toLowerCase()}
-                                            data-number={(inv.invoice_number ?? "").toLowerCase()}
-                                            data-description={(inv.description ?? "").toLowerCase()}
-                                        >
-                                            <td class="px-5 py-3.5 text-slate-600 text-xs whitespace-nowrap">{formatDate(inv.date)}</td>
-                                            <td class="px-5 py-3.5">
-                                                {inv.invoice_number
-                                                    ? <span class="font-mono text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-1 rounded-lg">{inv.invoice_number}</span>
-                                                    : <span class="text-slate-300 text-xs">—</span>
-                                                }
-                                            </td>
-                                            <td class="px-5 py-3.5">
-                                                <div class="flex items-center gap-2">
-                                                    <div class="w-7 h-7 rounded-lg bg-rose-50 flex items-center justify-center shrink-0">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                                        </svg>
+                                        <>
+                                            <tr class="invoice-row border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer accordion-trigger"
+                                                data-target={`acc-${inv.id}`}
+                                                data-supplier={(inv.supplier ?? "").toLowerCase()}
+                                                data-number={(inv.invoice_number ?? "").toLowerCase()}
+                                                data-description={(inv.description ?? "").toLowerCase()}>
+                                                <td class="pl-4 pr-1 py-3.5">
+                                                    <svg class="accordion-arrow w-3.5 h-3.5 text-slate-400 transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                                    </svg>
+                                                </td>
+                                                <td class="px-4 py-3.5 text-slate-600 text-xs whitespace-nowrap">{formatDate(inv.date)}</td>
+                                                <td class="px-4 py-3.5">
+                                                    {inv.invoice_number
+                                                        ? <span class="font-mono text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-1 rounded-lg">{inv.invoice_number}</span>
+                                                        : <span class="text-slate-300 text-xs">—</span>}
+                                                </td>
+                                                <td class="px-4 py-3.5">
+                                                    <div class="flex items-center gap-2">
+                                                        <div class="w-7 h-7 rounded-lg bg-rose-50 flex items-center justify-center shrink-0">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                                            </svg>
+                                                        </div>
+                                                        <span class="font-medium text-slate-800 text-sm">{inv.supplier}</span>
                                                     </div>
-                                                    <span class="font-medium text-slate-800 text-sm">{inv.supplier}</span>
-                                                </div>
-                                            </td>
-                                            <td class="px-5 py-3.5 text-xs text-slate-500 max-w-[200px] truncate">
-                                                {inv.description ?? <span class="text-slate-300">—</span>}
-                                            </td>
-                                            <td class="px-5 py-3.5 text-right font-semibold text-slate-800">{formatMoney(inv.total)}</td>
-                                            <td class="px-5 py-3.5 text-center">
-                                                {inv.image_url
-                                                    ? <button class="view-image-btn inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
-                                                        data-url={inv.image_url} data-number={inv.invoice_number ?? ""} data-supplier={inv.supplier}>
-                                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                </td>
+                                                <td class="px-4 py-3.5 text-xs text-slate-400 italic">
+                                                    <span class="flex items-center gap-1">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-rose-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0"/>
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
                                                         </svg>
-                                                        Ver
-                                                      </button>
-                                                    : <span class="text-slate-300 text-xs">—</span>
-                                                }
-                                            </td>
-                                            <td class="px-5 py-3.5 text-right">
-                                                <button class="edit-btn text-xs text-slate-400 hover:text-indigo-600 font-medium transition-colors"
-                                                    data-id={inv.id}
-                                                    data-invoice-number={inv.invoice_number ?? ""}
-                                                    data-supplier={inv.supplier}
-                                                    data-date={inv.date}
-                                                    data-total={inv.total ?? ""}
-                                                    data-description={inv.description ?? ""}
-                                                    data-image-url={inv.image_url ?? ""}>
-                                                    Editar
-                                                </button>
-                                            </td>
-                                        </tr>
+                                                        Ver detalle
+                                                    </span>
+                                                </td>
+                                                <td class="px-4 py-3.5 text-right font-semibold text-slate-800 whitespace-nowrap">{formatMoney(inv.total)}</td>
+                                                <td class="px-4 py-3.5 text-center" onclick="event.stopPropagation()">
+                                                    {inv.image_url
+                                                        ? <button class="view-image-btn inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
+                                                            data-url={inv.image_url} data-number={inv.invoice_number ?? ""} data-supplier={inv.supplier}>
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                            </svg>
+                                                            Ver
+                                                          </button>
+                                                        : <span class="text-slate-300 text-xs">—</span>}
+                                                </td>
+                                                <td class="px-4 py-3.5 text-right" onclick="event.stopPropagation()">
+                                                    <button class="edit-btn text-xs text-slate-400 hover:text-indigo-600 font-medium transition-colors"
+                                                        data-id={inv.id}
+                                                        data-invoice-number={inv.invoice_number ?? ""}
+                                                        data-supplier={inv.supplier}
+                                                        data-date={inv.date}
+                                                        data-total={inv.total ?? ""}
+                                                        data-description={inv.description ?? ""}
+                                                        data-image-url={inv.image_url ?? ""}>
+                                                        Editar
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            <tr id={`acc-${inv.id}`} class="accordion-row hidden border-b border-slate-100 bg-rose-50/40">
+                                                <td colspan="8" class="px-6 py-0">
+                                                    <div class="accordion-content py-4"
+                                                        data-description={inv.description ?? ""}
+                                                        data-total={inv.total ?? ""}></div>
+                                                </td>
+                                            </tr>
+                                        </>
                                     ))}
                                 </tbody>
                             </table>
                         </div>
 
-                        {/* Cards para mobile */}
+                        {/* Cards mobile */}
                         <div class="sm:hidden divide-y divide-slate-100" id="invoices-cards">
                             {invoices.map((inv) => (
-                                <div class="invoice-row px-4 py-4"
+                                <div class="invoice-row"
                                     data-supplier={(inv.supplier ?? "").toLowerCase()}
                                     data-number={(inv.invoice_number ?? "").toLowerCase()}
-                                    data-description={(inv.description ?? "").toLowerCase()}
-                                >
-                                    <div class="flex items-start justify-between gap-2 mb-2">
-                                        <div class="flex items-center gap-2 min-w-0">
-                                            <div class="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center shrink-0">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                                </svg>
-                                            </div>
-                                            <div class="min-w-0">
-                                                <p class="font-semibold text-slate-800 text-sm truncate">{inv.supplier}</p>
-                                                <p class="text-xs text-slate-400">{formatDate(inv.date)}</p>
-                                            </div>
+                                    data-description={(inv.description ?? "").toLowerCase()}>
+                                    <div class="accordion-trigger flex items-center gap-3 px-4 py-4 cursor-pointer"
+                                        data-target={`mob-acc-${inv.id}`}>
+                                        <div class="w-9 h-9 rounded-xl bg-rose-50 flex items-center justify-center shrink-0">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                            </svg>
                                         </div>
-                                        <span class="text-sm font-bold text-slate-800 shrink-0">{formatMoney(inv.total)}</span>
+                                        <div class="flex-1 min-w-0">
+                                            <p class="font-semibold text-slate-800 text-sm truncate">{inv.supplier}</p>
+                                            <p class="text-xs text-slate-400">
+                                                {formatDate(inv.date)}
+                                                {inv.invoice_number && <span class="ml-1.5 font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-xs">{inv.invoice_number}</span>}
+                                            </p>
+                                        </div>
+                                        <div class="flex items-center gap-2 shrink-0">
+                                            <span class="text-sm font-bold text-slate-800">{formatMoney(inv.total)}</span>
+                                            <svg class="accordion-arrow w-4 h-4 text-slate-400 transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </div>
                                     </div>
-
-                                    {inv.invoice_number && (
-                                        <p class="text-xs text-slate-500 mb-1.5">
-                                            N° <span class="font-mono font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">{inv.invoice_number}</span>
-                                        </p>
-                                    )}
-
-                                    {inv.description && (
-                                        <p class="text-xs text-slate-500 truncate mb-2">{inv.description}</p>
-                                    )}
-
-                                    <div class="flex items-center gap-2 mt-2">
-                                        {inv.image_url && (
-                                            <button class="view-image-btn inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
-                                                data-url={inv.image_url} data-number={inv.invoice_number ?? ""} data-supplier={inv.supplier}>
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                                </svg>
-                                                Ver imagen
-                                            </button>
-                                        )}
-                                        <button class="edit-btn ml-auto text-xs text-slate-400 hover:text-indigo-600 font-medium transition-colors px-2.5 py-1 rounded-lg hover:bg-indigo-50"
-                                            data-id={inv.id}
-                                            data-invoice-number={inv.invoice_number ?? ""}
-                                            data-supplier={inv.supplier}
-                                            data-date={inv.date}
-                                            data-total={inv.total ?? ""}
+                                    <div id={`mob-acc-${inv.id}`} class="accordion-row hidden px-4 pb-4">
+                                        <div class="accordion-content bg-white rounded-xl border border-rose-100 overflow-hidden"
                                             data-description={inv.description ?? ""}
-                                            data-image-url={inv.image_url ?? ""}>
-                                            Editar
-                                        </button>
+                                            data-total={inv.total ?? ""}></div>
+                                        <div class="flex items-center gap-2 mt-3">
+                                            {inv.image_url && (
+                                                <button class="view-image-btn inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
+                                                    data-url={inv.image_url} data-number={inv.invoice_number ?? ""} data-supplier={inv.supplier}>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                    </svg>
+                                                    Ver imagen
+                                                </button>
+                                            )}
+                                            <button class="edit-btn ml-auto inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-indigo-600 border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-colors"
+                                                data-id={inv.id}
+                                                data-invoice-number={inv.invoice_number ?? ""}
+                                                data-supplier={inv.supplier}
+                                                data-date={inv.date}
+                                                data-total={inv.total ?? ""}
+                                                data-description={inv.description ?? ""}
+                                                data-image-url={inv.image_url ?? ""}>
+                                                Editar
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             ))}
@@ -239,11 +281,10 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
                     {totalFacturas} {totalFacturas === 1 ? "factura" : "facturas"} en total
                 </p>
             )}
-
         </div>
     </div>
 
-    <!-- ── Modal nueva/editar factura ── -->
+    <!-- Modal nueva / editar factura -->
     <div id="modal-overlay" class="hidden fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center sm:px-4">
         <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-lg max-h-[90vh] flex flex-col">
 
@@ -268,11 +309,22 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
                             class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm font-mono text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition"
                         />
                     </div>
+                    <!-- Proveedor como DROPDOWN desde tabla suppliers -->
                     <div class="space-y-1.5">
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Proveedor *</label>
-                        <input id="modal-supplier" type="text" placeholder="Nombre del proveedor"
-                            class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition"
-                        />
+                        <div class="flex items-center justify-between">
+                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Proveedor *</label>
+                            <a href="/proveedores" target="_blank"
+                                class="text-xs text-amber-600 hover:text-amber-700 font-medium transition-colors">
+                                + Nuevo
+                            </a>
+                        </div>
+                        <select id="modal-supplier"
+                            class="w-full py-2.5 pl-3 pr-8 border border-slate-200 rounded-xl text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition appearance-none">
+                            <option value="">— Seleccioná —</option>
+                            {suppliers?.map((s) => (
+                                <option value={s.name}>{s.name}</option>
+                            ))}
+                        </select>
                     </div>
                 </div>
 
@@ -291,13 +343,40 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
                     </div>
                 </div>
 
+                <!-- Productos estructurados -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Productos comprados</label>
+                        <button type="button" id="add-item-btn"
+                            class="inline-flex items-center gap-1 text-xs font-semibold text-rose-600 hover:text-rose-700 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                            </svg>
+                            Agregar producto
+                        </button>
+                    </div>
+                    <!-- Encabezados columnas -->
+                    <div id="items-header" class="hidden grid grid-cols-[1fr_80px_110px_32px] gap-2 px-0.5">
+                        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Producto</span>
+                        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wide text-center">Cant.</span>
+                        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wide">P. unit.</span>
+                        <span></span>
+                    </div>
+                    <div id="items-container" class="space-y-2"></div>
+                    <p id="items-empty-note" class="text-xs text-slate-400 italic">
+                        Agregá los productos para verlos en el detalle de la factura.
+                    </p>
+                </div>
+
+                <!-- Nota adicional -->
                 <div class="space-y-1.5">
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Lo que se compró</label>
-                    <textarea id="modal-description" rows="3" placeholder="Ej: 100 vasos descartables, 50 platos, 2 rollos de film..."
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Nota adicional <span class="font-normal normal-case text-slate-400">(opcional)</span></label>
+                    <textarea id="modal-description" rows="2" placeholder="Observaciones, condiciones, etc."
                         class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition resize-none"
                     ></textarea>
                 </div>
 
+                <!-- Foto -->
                 <div class="space-y-1.5">
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Foto de la factura</label>
                     <div id="existing-image-preview" class="hidden mb-2">
@@ -305,9 +384,7 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
                         <div class="relative inline-block">
                             <img id="existing-image-thumb" src="" alt="Factura" class="w-24 h-24 object-cover rounded-xl border border-slate-200" />
                             <button id="remove-existing-image" type="button"
-                                class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center hover:bg-red-600 transition-colors">
-                                ✕
-                            </button>
+                                class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center hover:bg-red-600 transition-colors">✕</button>
                         </div>
                     </div>
                     <div id="upload-zone"
@@ -330,12 +407,8 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
             </div>
 
             <div class="px-5 sm:px-6 py-4 border-t border-slate-100 flex gap-2 sm:gap-3 shrink-0">
-                <button id="cancel-modal-btn" class="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
-                    Cancelar
-                </button>
-                <button id="delete-invoice-btn" class="hidden py-2.5 px-3 sm:px-4 rounded-xl text-sm font-semibold bg-red-50 hover:bg-red-100 text-red-600 transition-colors">
-                    Eliminar
-                </button>
+                <button id="cancel-modal-btn" class="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Cancelar</button>
+                <button id="delete-invoice-btn" class="hidden py-2.5 px-3 sm:px-4 rounded-xl text-sm font-semibold bg-red-50 hover:bg-red-100 text-red-600 transition-colors">Eliminar</button>
                 <button id="save-invoice-btn" class="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-rose-600 hover:bg-rose-700 text-white transition-colors flex items-center justify-center gap-2 disabled:bg-rose-300 disabled:cursor-not-allowed">
                     <span id="save-text">Guardar</span>
                     <svg id="save-spinner" class="hidden w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -347,7 +420,7 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
         </div>
     </div>
 
-    <!-- ── Modal visor de imagen ── -->
+    <!-- Modal visor de imagen -->
     <div id="image-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
         <div class="relative max-w-3xl w-full">
             <button id="close-image-modal" class="absolute -top-10 right-0 text-white/70 hover:text-white text-sm font-medium flex items-center gap-1.5 transition-colors">
@@ -379,17 +452,97 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
 <script>
     import { supabase } from "../lib/supabaseClient.js";
 
+    const fmt = (n: number) =>
+        "$ " + new Intl.NumberFormat("es-AR", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }).format(n);
+
+    // ── Acordeón ──────────────────────────────────────────────────────────────
+    function renderAccordionContent(container: HTMLElement) {
+        const raw   = container.dataset.description ?? "";
+        const total = Number(container.dataset.total ?? 0);
+
+        let items: { name: string; qty: number; unit_price: number }[] = [];
+        try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) items = parsed;
+        } catch {}
+
+        if (items.length > 0) {
+            const rows = items.map(it => {
+                const subtotal = it.qty * it.unit_price;
+                return `<tr class="border-b border-rose-100 last:border-0">
+                    <td class="py-2.5 pr-4 text-xs text-slate-700 font-medium">${it.name}</td>
+                    <td class="py-2.5 px-3 text-xs text-slate-500 text-center whitespace-nowrap">${it.qty} u.</td>
+                    <td class="py-2.5 px-3 text-xs text-slate-500 text-right whitespace-nowrap">${fmt(it.unit_price)}</td>
+                    <td class="py-2.5 pl-3 text-xs font-semibold text-slate-800 text-right whitespace-nowrap">${fmt(subtotal)}</td>
+                </tr>`;
+            }).join("");
+
+            container.innerHTML = `
+                <table class="w-full">
+                    <thead>
+                        <tr class="border-b border-rose-200">
+                            <th class="py-2 pr-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">Producto</th>
+                            <th class="py-2 px-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wide">Cant.</th>
+                            <th class="py-2 px-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wide">P. unit.</th>
+                            <th class="py-2 pl-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wide">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                    ${total > 0 ? `<tfoot>
+                        <tr class="border-t-2 border-rose-200">
+                            <td colspan="3" class="pt-3 text-xs font-semibold text-slate-500 text-right pr-3">Total</td>
+                            <td class="pt-3 pl-3 text-sm font-bold text-rose-600 text-right whitespace-nowrap">${fmt(total)}</td>
+                        </tr>
+                    </tfoot>` : ""}
+                </table>`;
+        } else if (raw.trim()) {
+            container.innerHTML = `
+                <div class="flex gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-rose-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <p class="text-sm text-slate-600 leading-relaxed">${raw}</p>
+                </div>`;
+        } else {
+            container.innerHTML = `<p class="text-xs text-slate-400 italic">Sin detalle de productos cargado.</p>`;
+        }
+    }
+
+    document.querySelectorAll<HTMLElement>(".accordion-trigger").forEach(trigger => {
+        trigger.addEventListener("click", () => {
+            const targetId  = trigger.dataset.target!;
+            const targetRow = document.getElementById(targetId);
+            if (!targetRow) return;
+            const isOpen = !targetRow.classList.contains("hidden");
+            const arrow  = trigger.querySelector<SVGElement>(".accordion-arrow");
+            if (isOpen) {
+                targetRow.classList.add("hidden");
+                if (arrow) arrow.style.transform = "";
+            } else {
+                const content = targetRow.querySelector<HTMLElement>(".accordion-content");
+                if (content && !content.dataset.rendered) {
+                    renderAccordionContent(content);
+                    content.dataset.rendered = "1";
+                }
+                targetRow.classList.remove("hidden");
+                if (arrow) arrow.style.transform = "rotate(90deg)";
+            }
+        });
+    });
+
     // ── Filtros ───────────────────────────────────────────────────────────────
-    const searchInput    = document.getElementById("search")           as HTMLInputElement;
-    const supplierFilter = document.getElementById("supplier-filter")  as HTMLSelectElement;
+    const searchInput    = document.getElementById("search")          as HTMLInputElement;
+    const supplierFilter = document.getElementById("supplier-filter") as HTMLSelectElement;
     const footerCount    = document.getElementById("footer-count");
-    const invoiceRows    = document.querySelectorAll<HTMLElement>(".invoice-row");
 
     function applyFilters() {
         const q   = searchInput.value.toLowerCase().trim();
         const sup = supplierFilter.value.toLowerCase();
         let visible = 0;
-        invoiceRows.forEach((row) => {
+        document.querySelectorAll<HTMLElement>(".invoice-row").forEach((row) => {
             const matchQ   = !q ||
                 (row.dataset.supplier    ?? "").includes(q) ||
                 (row.dataset.number      ?? "").includes(q) ||
@@ -399,50 +552,104 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
             row.style.display = show ? "" : "none";
             if (show) visible++;
         });
-        if (footerCount) {
-            const filtered = q || sup;
-            footerCount.textContent = `${visible} ${visible === 1 ? "factura" : "facturas"} ${filtered ? "encontradas" : "en total"}`;
-        }
+        if (footerCount)
+            footerCount.textContent = `${visible} ${visible === 1 ? "factura" : "facturas"} ${q || sup ? "encontradas" : "en total"}`;
     }
 
     searchInput?.addEventListener("input", applyFilters);
     supplierFilter?.addEventListener("change", applyFilters);
 
-    // ── Modal factura ─────────────────────────────────────────────────────────
-    const overlay       = document.getElementById("modal-overlay")!;
-    const modalTitle    = document.getElementById("modal-title")!;
-    const modalError    = document.getElementById("modal-error")!;
-    const modalId       = document.getElementById("modal-id")            as HTMLInputElement;
-    const modalNumber   = document.getElementById("modal-number")        as HTMLInputElement;
-    const modalSupplier = document.getElementById("modal-supplier")      as HTMLInputElement;
-    const modalDate     = document.getElementById("modal-date")          as HTMLInputElement;
-    const modalTotal    = document.getElementById("modal-total")         as HTMLInputElement;
-    const modalDesc     = document.getElementById("modal-description")   as HTMLTextAreaElement;
-    const modalImage    = document.getElementById("modal-image")         as HTMLInputElement;
-    const modalExisting = document.getElementById("modal-existing-image") as HTMLInputElement;
-    const saveBtn       = document.getElementById("save-invoice-btn")    as HTMLButtonElement;
-    const saveText      = document.getElementById("save-text")!;
-    const saveSpinner   = document.getElementById("save-spinner")!;
-    const deleteBtn     = document.getElementById("delete-invoice-btn")  as HTMLButtonElement;
+    // ── Items del modal ───────────────────────────────────────────────────────
+    const itemsContainer = document.getElementById("items-container")!;
+    const itemsEmptyNote = document.getElementById("items-empty-note")!;
+    const itemsHeader    = document.getElementById("items-header")!;
 
-    const existingPreview   = document.getElementById("existing-image-preview")!;
-    const existingThumb     = document.getElementById("existing-image-thumb")  as HTMLImageElement;
-    const removeExisting    = document.getElementById("remove-existing-image")!;
-    const newPreview        = document.getElementById("new-image-preview")!;
-    const newThumb          = document.getElementById("new-image-thumb")       as HTMLImageElement;
-    const newName           = document.getElementById("new-image-name")!;
-    const uploadPlaceholder = document.getElementById("upload-placeholder")!;
+    function buildItemRow(name = "", qty = 1, unit_price = 0): HTMLElement {
+        const row = document.createElement("div");
+        row.className = "item-row grid grid-cols-[1fr_80px_110px_32px] gap-2 items-center";
+        row.innerHTML = `
+            <input type="text" placeholder="Nombre del producto" value="${name}"
+                class="item-name w-full px-2.5 py-2 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-400 transition"/>
+            <input type="number" min="1" step="1" placeholder="Cant." value="${qty}"
+                class="item-qty w-full px-2.5 py-2 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-400 transition text-center"/>
+            <input type="number" min="0" step="0.01" placeholder="$ Precio u." value="${unit_price || ""}"
+                class="item-price w-full px-2.5 py-2 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-400 transition"/>
+            <button type="button" class="remove-item-btn w-7 h-7 rounded-lg bg-red-50 hover:bg-red-100 text-red-400 hover:text-red-600 flex items-center justify-center transition-colors text-sm">✕</button>`;
+        row.querySelector(".remove-item-btn")?.addEventListener("click", () => {
+            row.remove();
+            toggleEmptyNote();
+        });
+        return row;
+    }
+
+    function toggleEmptyNote() {
+        const hasItems = itemsContainer.querySelectorAll(".item-row").length > 0;
+        itemsEmptyNote.classList.toggle("hidden", hasItems);
+        itemsHeader.classList.toggle("hidden", !hasItems);
+    }
+
+    document.getElementById("add-item-btn")?.addEventListener("click", () => {
+        itemsContainer.appendChild(buildItemRow());
+        toggleEmptyNote();
+    });
+
+    function getItems() {
+        return Array.from(itemsContainer.querySelectorAll<HTMLElement>(".item-row")).map(row => ({
+            name:       (row.querySelector<HTMLInputElement>(".item-name")?.value ?? "").trim(),
+            qty:        Number(row.querySelector<HTMLInputElement>(".item-qty")?.value ?? 1),
+            unit_price: Number(row.querySelector<HTMLInputElement>(".item-price")?.value ?? 0),
+        })).filter(it => it.name);
+    }
+
+    function clearItems() {
+        itemsContainer.innerHTML = "";
+        itemsEmptyNote.classList.remove("hidden");
+        itemsHeader.classList.add("hidden");
+    }
+
+    function loadItems(description: string) {
+        clearItems();
+        try {
+            const parsed = JSON.parse(description);
+            if (Array.isArray(parsed)) {
+                parsed.forEach((it: any) => itemsContainer.appendChild(buildItemRow(it.name, it.qty, it.unit_price)));
+                toggleEmptyNote();
+            }
+        } catch {}
+    }
+
+    // ── Modal ─────────────────────────────────────────────────────────────────
+    const overlay        = document.getElementById("modal-overlay")!;
+    const modalTitle     = document.getElementById("modal-title")!;
+    const modalError     = document.getElementById("modal-error")!;
+    const modalId        = document.getElementById("modal-id")             as HTMLInputElement;
+    const modalNumber    = document.getElementById("modal-number")         as HTMLInputElement;
+    const modalSupplier  = document.getElementById("modal-supplier")       as HTMLSelectElement;
+    const modalDate      = document.getElementById("modal-date")           as HTMLInputElement;
+    const modalTotal     = document.getElementById("modal-total")          as HTMLInputElement;
+    const modalDesc      = document.getElementById("modal-description")    as HTMLTextAreaElement;
+    const modalImage     = document.getElementById("modal-image")          as HTMLInputElement;
+    const modalExisting  = document.getElementById("modal-existing-image") as HTMLInputElement;
+    const saveBtn        = document.getElementById("save-invoice-btn")     as HTMLButtonElement;
+    const saveText       = document.getElementById("save-text")!;
+    const saveSpinner    = document.getElementById("save-spinner")!;
+    const deleteBtn      = document.getElementById("delete-invoice-btn")   as HTMLButtonElement;
+    const existingPreview= document.getElementById("existing-image-preview")!;
+    const existingThumb  = document.getElementById("existing-image-thumb") as HTMLImageElement;
+    const removeExisting = document.getElementById("remove-existing-image")!;
+    const newPreview     = document.getElementById("new-image-preview")!;
+    const newThumb       = document.getElementById("new-image-thumb")      as HTMLImageElement;
+    const newName        = document.getElementById("new-image-name")!;
+    const uploadPh       = document.getElementById("upload-placeholder")!;
 
     modalImage.addEventListener("change", () => {
         const file = modalImage.files?.[0];
         if (!file) return;
-        const url = URL.createObjectURL(file);
-        newThumb.src = url;
+        newThumb.src = URL.createObjectURL(file);
         newName.textContent = file.name;
         newPreview.classList.remove("hidden");
-        uploadPlaceholder.classList.add("hidden");
+        uploadPh.classList.add("hidden");
     });
-
     removeExisting.addEventListener("click", () => {
         modalExisting.value = "";
         existingPreview.classList.add("hidden");
@@ -452,39 +659,44 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
         modalError.classList.add("hidden");
         modalImage.value = "";
         newPreview.classList.add("hidden");
-        uploadPlaceholder.classList.remove("hidden");
+        uploadPh.classList.remove("hidden");
+        clearItems();
 
         if (inv) {
-            modalTitle.textContent  = "Editar factura";
-            modalId.value           = inv.id ?? "";
-            modalNumber.value       = inv.invoice_number ?? "";
-            modalSupplier.value     = inv.supplier ?? "";
-            modalDate.value         = inv.date ?? "";
-            modalTotal.value        = inv.total ?? "";
-            modalDesc.value         = inv.description ?? "";
-            modalExisting.value     = inv.image_url ?? "";
+            modalTitle.textContent = "Editar factura";
+            modalId.value          = inv.id ?? "";
+            modalNumber.value      = inv.invoice_number ?? "";
+            modalDate.value        = inv.date ?? "";
+            modalTotal.value       = inv.total ?? "";
+            modalExisting.value    = inv.image_url ?? "";
             deleteBtn.classList.remove("hidden");
-            if (inv.image_url) {
-                existingThumb.src = inv.image_url;
-                existingPreview.classList.remove("hidden");
-            } else {
-                existingPreview.classList.add("hidden");
-            }
+
+            // Seleccionar el proveedor en el dropdown
+            const sel = modalSupplier;
+            const found = Array.from(sel.options).find(o => o.value === inv.supplier);
+            sel.value = found ? inv.supplier : "";
+
+            // Cargar ítems si es JSON, si no poner en nota
+            let descText = inv.description ?? "";
+            try {
+                const p = JSON.parse(descText);
+                if (Array.isArray(p)) { loadItems(descText); descText = ""; }
+            } catch {}
+            modalDesc.value = descText;
+
+            if (inv.image_url) { existingThumb.src = inv.image_url; existingPreview.classList.remove("hidden"); }
+            else existingPreview.classList.add("hidden");
         } else {
-            modalTitle.textContent  = "Nueva factura";
-            modalId.value           = "";
-            modalNumber.value       = "";
-            modalSupplier.value     = "";
-            modalDate.value         = new Date().toISOString().split("T")[0];
-            modalTotal.value        = "";
-            modalDesc.value         = "";
-            modalExisting.value     = "";
+            modalTitle.textContent = "Nueva factura";
+            modalId.value = ""; modalNumber.value = ""; modalSupplier.value = "";
+            modalDate.value = new Date().toISOString().split("T")[0];
+            modalTotal.value = ""; modalDesc.value = "";
             existingPreview.classList.add("hidden");
             deleteBtn.classList.add("hidden");
         }
 
         overlay.classList.remove("hidden");
-        setTimeout(() => modalSupplier.focus(), 80);
+        setTimeout(() => modalNumber.focus(), 80);
     }
 
     function closeModal() { overlay.classList.add("hidden"); }
@@ -499,7 +711,7 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
     document.getElementById("cancel-modal-btn")?.addEventListener("click", closeModal);
     overlay.addEventListener("click", (e) => { if (e.target === overlay) closeModal(); });
 
-    document.querySelectorAll<HTMLButtonElement>(".edit-btn").forEach((btn) => {
+    document.querySelectorAll<HTMLButtonElement>(".edit-btn").forEach(btn => {
         btn.addEventListener("click", () => openModal({
             id:             btn.dataset.id,
             invoice_number: btn.dataset.invoiceNumber,
@@ -513,17 +725,20 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
 
     saveBtn.addEventListener("click", async () => {
         modalError.classList.add("hidden");
-        const id          = modalId.value.trim();
-        const number      = modalNumber.value.trim() || null;
-        const supplier    = modalSupplier.value.trim();
-        const date        = modalDate.value;
-        const total       = parseFloat(modalTotal.value) || null;
-        const description = modalDesc.value.trim() || null;
-        const newFile     = modalImage.files?.[0] ?? null;
+        const id           = modalId.value.trim();
+        const number       = modalNumber.value.trim() || null;
+        const supplier     = modalSupplier.value;
+        const date         = modalDate.value;
+        const total        = parseFloat(modalTotal.value) || null;
+        const note         = modalDesc.value.trim() || null;
+        const newFile      = modalImage.files?.[0] ?? null;
         const keepExisting = modalExisting.value || null;
 
-        if (!supplier) { modalError.textContent = "El proveedor es obligatorio."; modalError.classList.remove("hidden"); return; }
-        if (!date)     { modalError.textContent = "La fecha es obligatoria.";     modalError.classList.remove("hidden"); return; }
+        if (!supplier) { modalError.textContent = "Seleccioná un proveedor."; modalError.classList.remove("hidden"); modalSupplier.focus(); return; }
+        if (!date)     { modalError.textContent = "La fecha es obligatoria."; modalError.classList.remove("hidden"); return; }
+
+        const items = getItems();
+        const description: string | null = items.length > 0 ? JSON.stringify(items) : (note ?? null);
 
         setLoading(true);
         try {
@@ -531,16 +746,13 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
             if (newFile) {
                 const ext      = newFile.name.split(".").pop();
                 const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-                const { error: uploadError } = await supabase.storage
-                    .from("invoices")
-                    .upload(filename, newFile, { contentType: newFile.type, upsert: false });
+                const { error: uploadError } = await supabase.storage.from("invoices").upload(filename, newFile, { contentType: newFile.type, upsert: false });
                 if (uploadError) throw uploadError;
                 const { data: urlData } = supabase.storage.from("invoices").getPublicUrl(filename);
                 imageUrl = urlData.publicUrl;
             }
 
             const payload = { invoice_number: number, supplier, date, total, description, image_url: imageUrl };
-
             if (id) {
                 const { error } = await supabase.from("invoices").update(payload).eq("id", id);
                 if (error) throw error;
@@ -560,8 +772,7 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
 
     deleteBtn.addEventListener("click", async () => {
         const id = modalId.value.trim();
-        if (!id) return;
-        if (!confirm("¿Eliminar esta factura? Esta acción no se puede deshacer.")) return;
+        if (!id || !confirm("¿Eliminar esta factura? Esta acción no se puede deshacer.")) return;
         deleteBtn.disabled = true;
         deleteBtn.textContent = "Eliminando...";
         try {
@@ -577,27 +788,26 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
         }
     });
 
-    // ── Visor de imagen ───────────────────────────────────────────────────────
+    // ── Visor imagen ──────────────────────────────────────────────────────────
     const imageModal      = document.getElementById("image-modal")!;
-    const imageModalImg   = document.getElementById("image-modal-img")    as HTMLImageElement;
+    const imageModalImg   = document.getElementById("image-modal-img")     as HTMLImageElement;
     const imageModalTitle = document.getElementById("image-modal-title")!;
     const imageModalSub   = document.getElementById("image-modal-sub")!;
     const imageDownload   = document.getElementById("image-download-link") as HTMLAnchorElement;
     const closeImageModal = document.getElementById("close-image-modal")!;
 
-    document.querySelectorAll<HTMLButtonElement>(".view-image-btn").forEach((btn) => {
+    document.querySelectorAll<HTMLButtonElement>(".view-image-btn").forEach(btn => {
         btn.addEventListener("click", () => {
-            imageModalImg.src           = btn.dataset.url!;
+            imageModalImg.src = btn.dataset.url!;
             imageModalTitle.textContent = btn.dataset.supplier!;
-            imageModalSub.textContent   = btn.dataset.number ? `Factura N° ${btn.dataset.number}` : "Sin número";
-            imageDownload.href          = btn.dataset.url!;
+            imageModalSub.textContent = btn.dataset.number ? `Factura N° ${btn.dataset.number}` : "Sin número";
+            imageDownload.href = btn.dataset.url!;
             imageModal.classList.remove("hidden");
         });
     });
 
     closeImageModal.addEventListener("click", () => imageModal.classList.add("hidden"));
     imageModal.addEventListener("click", (e) => { if (e.target === imageModal) imageModal.classList.add("hidden"); });
-
     document.addEventListener("keydown", (e) => {
         if (e.key === "Escape") { closeModal(); imageModal.classList.add("hidden"); }
     });

@@ -1,0 +1,361 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { supabase } from "../lib/supabaseClient.js";
+
+const { data: suppliers } = await supabase
+    .from("suppliers")
+    .select("*")
+    .order("name");
+
+const totalSuppliers = suppliers?.length ?? 0;
+---
+
+<Layout>
+    <div class="min-h-screen bg-slate-50 px-4 sm:px-6 py-6 sm:py-8 pt-20 lg:pt-8">
+        <div class="max-w-3xl mx-auto">
+
+            <!-- Header -->
+            <div class="flex items-center justify-between gap-3 mb-6 sm:mb-8">
+                <div class="flex items-center gap-3 sm:gap-4 min-w-0">
+                    <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-600 flex items-center justify-center shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                    </div>
+                    <div class="min-w-0">
+                        <h1 class="text-xl sm:text-2xl font-bold text-slate-800 leading-tight">Proveedores</h1>
+                        <p class="text-xs sm:text-sm text-slate-500">
+                            {totalSuppliers === 0
+                                ? "Todavía no hay proveedores"
+                                : `${totalSuppliers} proveedor${totalSuppliers !== 1 ? "es" : ""} registrado${totalSuppliers !== 1 ? "s" : ""}`}
+                        </p>
+                    </div>
+                </div>
+                <button id="open-modal-btn"
+                    class="inline-flex items-center gap-1.5 sm:gap-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-all shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span class="hidden xs:inline">Nuevo proveedor</span>
+                    <span class="xs:hidden">Nuevo</span>
+                </button>
+            </div>
+
+            <!-- Lista proveedores -->
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+                {suppliers && suppliers.length > 0 ? (
+                    <ul class="divide-y divide-slate-100" id="suppliers-list">
+                        {suppliers.map((s: any) => (
+                            <li class="supplier-row flex items-center gap-3 sm:gap-4 px-4 sm:px-5 py-4 hover:bg-slate-50 transition-colors"
+                                data-name={(s.name ?? "").toLowerCase()}>
+                                <!-- Avatar -->
+                                <div class="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+                                    <span class="text-sm font-bold text-amber-700">
+                                        {(s.name?.[0] ?? "?").toUpperCase()}
+                                    </span>
+                                </div>
+
+                                <!-- Info -->
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-semibold text-slate-800 truncate">{s.name}</p>
+                                    <div class="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
+                                        {s.phone && (
+                                            <span class="text-xs text-slate-500 flex items-center gap-1">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                                </svg>
+                                                {s.phone}
+                                            </span>
+                                        )}
+                                        {s.email && (
+                                            <span class="text-xs text-slate-500 flex items-center gap-1 truncate">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                                </svg>
+                                                {s.email}
+                                            </span>
+                                        )}
+                                        {s.cuit && (
+                                            <span class="text-xs text-slate-400 font-mono">CUIT {s.cuit}</span>
+                                        )}
+                                        {!s.phone && !s.email && !s.cuit && (
+                                            <span class="text-xs text-slate-300 italic">Sin datos de contacto</span>
+                                        )}
+                                    </div>
+                                    {s.notes && (
+                                        <p class="text-xs text-slate-400 mt-1 truncate">{s.notes}</p>
+                                    )}
+                                </div>
+
+                                <!-- Acciones -->
+                                <div class="flex items-center gap-1 shrink-0">
+                                    <button class="edit-supplier-btn p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                                        data-id={s.id}
+                                        data-name={s.name ?? ""}
+                                        data-phone={s.phone ?? ""}
+                                        data-email={s.email ?? ""}
+                                        data-cuit={s.cuit ?? ""}
+                                        data-notes={s.notes ?? ""}
+                                        title="Editar">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                        </svg>
+                                    </button>
+                                    <button class="delete-supplier-btn p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                                        data-id={s.id}
+                                        data-name={s.name ?? ""}
+                                        title="Eliminar">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                ) : (
+                    <div class="flex flex-col items-center justify-center py-14 sm:py-16 text-center px-4">
+                        <div class="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center mb-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            </svg>
+                        </div>
+                        <p class="text-slate-600 font-semibold text-sm">No hay proveedores todavía</p>
+                        <p class="text-slate-400 text-xs mt-1">Hacé click en "Nuevo proveedor" para agregar el primero</p>
+                    </div>
+                )}
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modal nuevo / editar proveedor -->
+    <div id="modal-overlay" class="hidden fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center sm:px-4">
+        <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-md max-h-[90vh] flex flex-col">
+
+            <!-- Encabezado -->
+            <div class="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-slate-100 shrink-0">
+                <h2 id="modal-title" class="text-base font-semibold text-slate-800">Nuevo proveedor</h2>
+                <button id="close-modal-btn" class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Cuerpo -->
+            <div class="px-5 sm:px-6 py-5 space-y-4 overflow-y-auto flex-1">
+                <div id="modal-error" class="hidden px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs"></div>
+                <input type="hidden" id="modal-id" />
+
+                <!-- Nombre -->
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Nombre *</label>
+                    <input id="modal-name" type="text" placeholder="Razón social o nombre comercial"
+                        autocomplete="off"
+                        class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition"
+                    />
+                </div>
+
+                <!-- Teléfono + CUIT -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Teléfono</label>
+                        <input id="modal-phone" type="tel" inputmode="tel" placeholder="Ej: 351 555-1234"
+                            autocomplete="off"
+                            class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition"
+                        />
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">CUIT</label>
+                        <input id="modal-cuit" type="text" inputmode="numeric" placeholder="20-12345678-9"
+                            autocomplete="off"
+                            class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm font-mono text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition"
+                        />
+                    </div>
+                </div>
+
+                <!-- Email -->
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Email</label>
+                    <input id="modal-email" type="email" inputmode="email" placeholder="proveedor@email.com"
+                        autocomplete="off"
+                        class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition"
+                    />
+                </div>
+
+                <!-- Notas -->
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Notas <span class="font-normal normal-case text-slate-400">(opcional)</span></label>
+                    <textarea id="modal-notes" rows="2" placeholder="Condiciones, días de entrega, contacto preferido..."
+                        class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition resize-none"
+                    ></textarea>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="px-5 sm:px-6 py-4 border-t border-slate-100 flex gap-2 sm:gap-3 shrink-0">
+                <button id="cancel-modal-btn"
+                    class="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
+                    Cancelar
+                </button>
+                <button id="delete-supplier-modal-btn"
+                    class="hidden py-2.5 px-3 sm:px-4 rounded-xl text-sm font-semibold bg-red-50 hover:bg-red-100 text-red-600 transition-colors">
+                    Eliminar
+                </button>
+                <button id="save-btn"
+                    class="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-amber-600 hover:bg-amber-700 text-white transition-colors flex items-center justify-center gap-2 disabled:bg-amber-300 disabled:cursor-not-allowed">
+                    <span id="save-text">Guardar</span>
+                    <svg id="save-spinner" class="hidden w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 12 0 12 0v4a8 8 0 00-8 8H0z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+</Layout>
+
+<script>
+    import { supabase } from "../lib/supabaseClient.js";
+
+    const overlay    = document.getElementById("modal-overlay")!;
+    const modalTitle = document.getElementById("modal-title")!;
+    const modalError = document.getElementById("modal-error")!;
+    const modalId    = document.getElementById("modal-id")    as HTMLInputElement;
+    const modalName  = document.getElementById("modal-name")  as HTMLInputElement;
+    const modalPhone = document.getElementById("modal-phone") as HTMLInputElement;
+    const modalEmail = document.getElementById("modal-email") as HTMLInputElement;
+    const modalCuit  = document.getElementById("modal-cuit")  as HTMLInputElement;
+    const modalNotes = document.getElementById("modal-notes") as HTMLTextAreaElement;
+    const saveBtn    = document.getElementById("save-btn")    as HTMLButtonElement;
+    const saveText   = document.getElementById("save-text")!;
+    const saveSpinner= document.getElementById("save-spinner")!;
+    const deleteModalBtn = document.getElementById("delete-supplier-modal-btn") as HTMLButtonElement;
+
+    function openModal(s?: any) {
+        modalError.classList.add("hidden");
+        if (s) {
+            modalTitle.textContent = "Editar proveedor";
+            modalId.value          = s.id ?? "";
+            modalName.value        = s.name ?? "";
+            modalPhone.value       = s.phone ?? "";
+            modalEmail.value       = s.email ?? "";
+            modalCuit.value        = s.cuit ?? "";
+            modalNotes.value       = s.notes ?? "";
+            deleteModalBtn.classList.remove("hidden");
+        } else {
+            modalTitle.textContent = "Nuevo proveedor";
+            modalId.value = ""; modalName.value = ""; modalPhone.value = "";
+            modalEmail.value = ""; modalCuit.value = ""; modalNotes.value = "";
+            deleteModalBtn.classList.add("hidden");
+        }
+        overlay.classList.remove("hidden");
+        setTimeout(() => modalName.focus(), 80);
+    }
+
+    function closeModal() { overlay.classList.add("hidden"); }
+
+    function setLoading(on: boolean) {
+        saveBtn.disabled = on;
+        saveText.textContent = on ? "Guardando..." : "Guardar";
+        saveSpinner.classList.toggle("hidden", !on);
+    }
+
+    document.getElementById("open-modal-btn")?.addEventListener("click", () => openModal());
+    document.getElementById("close-modal-btn")?.addEventListener("click", closeModal);
+    document.getElementById("cancel-modal-btn")?.addEventListener("click", closeModal);
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) closeModal(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
+
+    // Editar desde la lista
+    document.querySelectorAll<HTMLButtonElement>(".edit-supplier-btn").forEach(btn => {
+        btn.addEventListener("click", () => openModal({
+            id:    btn.dataset.id,
+            name:  btn.dataset.name,
+            phone: btn.dataset.phone,
+            email: btn.dataset.email,
+            cuit:  btn.dataset.cuit,
+            notes: btn.dataset.notes,
+        }));
+    });
+
+    // Guardar
+    saveBtn.addEventListener("click", async () => {
+        modalError.classList.add("hidden");
+        const id    = modalId.value.trim();
+        const name  = modalName.value.trim();
+        const phone = modalPhone.value.trim() || null;
+        const email = modalEmail.value.trim() || null;
+        const cuit  = modalCuit.value.trim()  || null;
+        const notes = modalNotes.value.trim() || null;
+
+        if (!name) {
+            modalError.textContent = "El nombre del proveedor es obligatorio.";
+            modalError.classList.remove("hidden");
+            modalName.focus();
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const payload = { name, phone, email, cuit, notes };
+            if (id) {
+                const { error } = await supabase.from("suppliers").update(payload).eq("id", id);
+                if (error) throw error;
+            } else {
+                const { error } = await supabase.from("suppliers").insert([payload]);
+                if (error) throw error;
+            }
+            closeModal();
+            window.location.reload();
+        } catch (err: any) {
+            modalError.textContent = err?.message ?? "Error al guardar el proveedor.";
+            modalError.classList.remove("hidden");
+        } finally {
+            setLoading(false);
+        }
+    });
+
+    // Eliminar desde modal
+    deleteModalBtn.addEventListener("click", async () => {
+        const id   = modalId.value.trim();
+        const name = modalName.value.trim();
+        if (!id) return;
+        if (!confirm(`¿Eliminar a "${name}"? Esta acción no se puede deshacer.`)) return;
+        deleteModalBtn.disabled = true;
+        deleteModalBtn.textContent = "Eliminando...";
+        try {
+            const { error } = await supabase.from("suppliers").delete().eq("id", id);
+            if (error) throw error;
+            closeModal();
+            window.location.reload();
+        } catch (err: any) {
+            modalError.textContent = err?.message ?? "Error al eliminar.";
+            modalError.classList.remove("hidden");
+            deleteModalBtn.disabled = false;
+            deleteModalBtn.textContent = "Eliminar";
+        }
+    });
+
+    // Eliminar desde la lista directamente
+    document.querySelectorAll<HTMLButtonElement>(".delete-supplier-btn").forEach(btn => {
+        btn.addEventListener("click", async () => {
+            const id   = btn.dataset.id!;
+            const name = btn.dataset.name!;
+            if (!confirm(`¿Eliminar a "${name}"?`)) return;
+            btn.disabled = true;
+            try {
+                const { error } = await supabase.from("suppliers").delete().eq("id", id);
+                if (error) throw error;
+                btn.closest("li")?.remove();
+                // Actualizar contador
+                const remaining = document.querySelectorAll(".supplier-row").length;
+                if (remaining === 0) window.location.reload();
+            } catch (err: any) {
+                alert("Error: " + err.message);
+                btn.disabled = false;
+            }
+        });
+    });
+</script>
