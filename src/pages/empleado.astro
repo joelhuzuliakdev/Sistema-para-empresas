@@ -18,32 +18,60 @@ Object.values(discountsByProduct).forEach((arr) =>
     arr.sort((a, b) => b.min_qty - a.min_qty)
 );
 
+// FIX $Â: usar $ literal en vez de Intl currency: "ARS"
 const formatMoney = (amount: number | null) => {
     if (amount == null) return "—";
-    return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(amount);
+    return "$ " + new Intl.NumberFormat("es-AR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    }).format(amount);
 };
+
+const EMPLEADAS = ["Rocío", "Victoria", "Valeria"];
+
+// FIX clientes: serializar en el servidor para que el script los tenga siempre
+const clientsJSON = JSON.stringify(
+    (clients ?? []).map((c) => ({
+        id: c.id,
+        name: c.name,
+        special_discount: c.special_discount ?? null,
+    }))
+);
 ---
 
 <Layout>
     <div class="min-h-screen bg-slate-50 px-4 sm:px-6 py-6 sm:py-8 pt-20 lg:pt-6 sm:pt-20 lg:pt-8">
         <div class="max-w-5xl mx-auto">
 
-            <!-- Header -->
-            <div class="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
-                <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-600 flex items-center justify-center shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                    </svg>
+            <!-- Header con selector de empleada -->
+            <div class="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
+                <div class="flex items-center gap-3 sm:gap-4 flex-1">
+                    <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-600 flex items-center justify-center shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-xl sm:text-2xl font-bold text-slate-800 leading-tight">Panel Empleado</h1>
+                        <p class="text-xs sm:text-sm text-slate-500">Seleccioná productos para registrar una venta</p>
+                    </div>
                 </div>
-                <div>
-                    <h1 class="text-xl sm:text-2xl font-bold text-slate-800 leading-tight">Panel Empleado</h1>
-                    <p class="text-xs sm:text-sm text-slate-500">Seleccioná productos para registrar una venta</p>
+
+                <!-- Selector de empleada -->
+                <div class="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm self-start sm:self-auto">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    <select id="seller-select" class="text-sm font-medium text-slate-700 bg-transparent focus:outline-none pr-1 cursor-pointer">
+                        <option value="">— Quién vende —</option>
+                        {EMPLEADAS.map((e) => <option value={e}>{e}</option>)}
+                    </select>
                 </div>
             </div>
 
             <div class="flex gap-6">
 
-                <!-- ── Productos ── -->
+                <!-- Productos -->
                 <div class="flex-1 min-w-0">
                     <div class="relative mb-4 sm:mb-5">
                         <span class="absolute inset-y-0 left-3 flex items-center text-slate-400 pointer-events-none">
@@ -95,27 +123,21 @@ const formatMoney = (amount: number | null) => {
                             <p class="text-slate-400 text-sm">No hay productos disponibles</p>
                         </div>
                     )}
-
-                    <!-- Spacer para que el FAB no tape los últimos productos en mobile -->
                     <div class="h-24 lg:hidden"></div>
                 </div>
 
-                <!-- ── Carrito desktop (oculto en mobile) ── -->
+                <!-- Carrito desktop -->
                 <div class="hidden lg:block w-72 shrink-0">
                     <div class="bg-white border border-slate-200 rounded-2xl shadow-sm sticky top-6">
-                        <!-- contenido del carrito compartido -->
                         <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
                             <h2 class="font-semibold text-slate-800 text-sm">Venta actual</h2>
                             <button id="clear-cart-desktop" class="text-xs text-slate-400 hover:text-red-500 transition-colors">Limpiar</button>
                         </div>
-                        <div class="px-5 pt-4 pb-3 border-b border-slate-100 space-y-2" id="client-section-desktop">
-                            <!-- cliente desktop -->
-                        </div>
+                        <div class="px-5 pt-4 pb-3 border-b border-slate-100 space-y-2" id="client-section-desktop"></div>
                         <div id="cart-items-desktop" class="divide-y divide-slate-100 min-h-[120px]">
                             <p id="cart-empty-desktop" class="text-sm text-slate-400 text-center py-8">El carrito está vacío</p>
                         </div>
-                        <div class="px-5 py-4 border-t border-slate-100 space-y-2" id="cart-footer-desktop">
-                        </div>
+                        <div class="px-5 py-4 border-t border-slate-100 space-y-2" id="cart-footer-desktop"></div>
                     </div>
                 </div>
 
@@ -123,7 +145,7 @@ const formatMoney = (amount: number | null) => {
         </div>
     </div>
 
-    <!-- ── FAB carrito mobile ── -->
+    <!-- FAB mobile -->
     <button id="open-cart-mobile"
         class="lg:hidden fixed bottom-6 right-4 z-40 flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-semibold text-sm px-4 py-3 rounded-2xl shadow-lg transition-all">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -133,13 +155,12 @@ const formatMoney = (amount: number | null) => {
         <span id="cart-badge" class="hidden bg-white text-indigo-600 text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">0</span>
     </button>
 
-    <!-- ── Overlay mobile ── -->
+    <!-- Overlay mobile -->
     <div id="cart-mobile-overlay" class="lg:hidden fixed inset-0 z-40 bg-black/40 opacity-0 pointer-events-none transition-opacity duration-200"></div>
 
-    <!-- ── Drawer carrito mobile ── -->
+    <!-- Drawer mobile -->
     <div id="cart-mobile-drawer"
         class="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl translate-y-full transition-transform duration-300 ease-in-out max-h-[85vh] flex flex-col">
-
         <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
             <h2 class="font-semibold text-slate-800 text-sm">Venta actual</h2>
             <div class="flex items-center gap-3">
@@ -151,76 +172,101 @@ const formatMoney = (amount: number | null) => {
                 </button>
             </div>
         </div>
-
-        <!-- Cuerpo scrolleable -->
         <div class="overflow-y-auto flex-1">
-            <!-- Selector de cliente -->
-            <div class="px-5 pt-4 pb-3 border-b border-slate-100 space-y-2" id="client-section-mobile">
-            </div>
+            <div class="px-5 pt-4 pb-3 border-b border-slate-100 space-y-2" id="client-section-mobile"></div>
             <div id="cart-items-mobile" class="divide-y divide-slate-100 min-h-[80px]">
                 <p id="cart-empty-mobile" class="text-sm text-slate-400 text-center py-8">El carrito está vacío</p>
             </div>
         </div>
-
-        <!-- Footer fijo -->
-        <div class="px-5 py-4 border-t border-slate-100 space-y-2 shrink-0 bg-white" id="cart-footer-mobile">
-        </div>
+        <div class="px-5 py-4 border-t border-slate-100 space-y-2 shrink-0 bg-white" id="cart-footer-mobile"></div>
     </div>
 
-    <!-- ── Modal vendedor ── -->
-    <div id="seller-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-5">
+    <!-- Modal confirmación de cobro -->
+    <div id="confirm-sale-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
+                <div class="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                     </svg>
                 </div>
                 <div>
-                    <p class="text-sm font-bold text-slate-800">¿Quién está vendiendo?</p>
-                    <p class="text-xs text-slate-400">Ingresá tu nombre antes de confirmar</p>
+                    <p class="text-sm font-bold text-slate-800">Confirmar cobro</p>
+                    <p class="text-xs text-slate-400">Revisá el resumen antes de confirmar</p>
                 </div>
             </div>
-            <div class="space-y-1.5">
-                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Tu nombre</label>
-                <input id="seller-name-input" type="text" placeholder="Ej: María, Juan..."
-                    class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
-                    autocomplete="off" />
-                <div id="seller-modal-error" class="hidden text-xs text-red-600 font-medium pt-0.5">
-                    Ingresá tu nombre para continuar.
+
+            <div class="bg-slate-50 rounded-xl px-4 py-3 space-y-2">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs text-slate-500">Vendedora</span>
+                    <span id="modal-seller-name" class="text-xs font-semibold text-slate-700">—</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-xs text-slate-500">Cliente</span>
+                    <span id="modal-client-name" class="text-xs font-semibold text-slate-700">Sin cliente</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-xs text-slate-500">Productos</span>
+                    <span id="modal-items-count" class="text-xs font-semibold text-slate-700">—</span>
+                </div>
+                <div class="border-t border-slate-200 pt-2 flex justify-between items-center">
+                    <span class="text-sm font-medium text-slate-600">Total a cobrar</span>
+                    <span id="modal-total" class="text-base font-bold text-indigo-600">$ 0,00</span>
                 </div>
             </div>
+
+            <p class="text-sm text-slate-600 text-center">¿Deseás registrar el cobro de esta nueva venta?</p>
+
             <div class="flex gap-2 pt-1">
-                <button id="seller-cancel-btn" type="button"
-                    class="flex-none px-4 py-2.5 rounded-xl text-xs font-semibold border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
-                    Cancelar
+                <button id="confirm-sale-cancel" type="button"
+                    class="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
+                    No, cancelar
                 </button>
-                <button id="seller-confirm-btn" type="button"
+                <button id="confirm-sale-ok" type="button"
                     class="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors flex items-center justify-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                     </svg>
-                    Confirmar venta
+                    <span id="confirm-ok-text">Sí, cobrar</span>
+                    <svg id="confirm-spinner" class="hidden w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 12 0 12 0v4a8 8 0 00-8 8H0z"></path>
+                    </svg>
                 </button>
             </div>
         </div>
     </div>
+
+    <!-- JSON de clientes embebido (FIX: evita leer del DOM vacío) -->
+    <script type="application/json" id="clients-data" set:html={clientsJSON}></script>
 </Layout>
 
 <script>
     import { supabase } from "../lib/supabaseClient.js";
 
+    interface Client   { id: string; name: string; special_discount: number | null; }
     interface Discount { id: string; min_qty: number; discount_pct: number; label?: string; }
-    interface CartItem  { id: string; name: string; basePrice: number; discounts: Discount[]; qty: number; appliedDiscount: number; }
+    interface CartItem { id: string; name: string; basePrice: number; discounts: Discount[]; qty: number; appliedDiscount: number; }
 
     const cart: CartItem[] = [];
     let activeClientId:        string | null = null;
     let activeClientName:      string | null = null;
     let activeSpecialDiscount: number        = 0;
-    let isManualMode = false;
 
+    // FIX: clientes siempre disponibles desde el JSON del servidor
+    const clientsRaw: Client[] = JSON.parse(
+        document.getElementById("clients-data")!.textContent ?? "[]"
+    );
+
+    const sellerSelect  = document.getElementById("seller-select") as HTMLSelectElement;
+    const getSellerName = () => sellerSelect?.value ?? "";
+
+    // FIX $Â: $ literal + Intl solo para el número
     const formatARS = (n: number) =>
-        new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(n);
+        "$ " + new Intl.NumberFormat("es-AR", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }).format(n);
 
     function getApplicableDiscount(discounts: Discount[], qty: number): number {
         for (const d of discounts) { if (qty >= d.min_qty) return d.discount_pct; }
@@ -236,15 +282,13 @@ const formatMoney = (amount: number | null) => {
         return activeSpecialDiscount > 0 ? sub * (1 - activeSpecialDiscount / 100) : sub;
     }
 
-    // ── Helpers para renderizar el HTML de cliente y footer en ambos paneles ──
-
-    function buildClientSectionHTML(clients: {id:string; name:string; special_discount:number|null}[]) {
-        const opts = clients.map(c =>
+    function buildClientSectionHTML(): string {
+        const opts = clientsRaw.map(c =>
             `<option value="${c.id}" data-name="${c.name}" data-special-discount="${c.special_discount ?? ''}">${c.name}${c.special_discount ? ` (−${c.special_discount}%)` : ''}</option>`
         ).join('');
         return `
         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Cliente</label>
-        <div id="client-select-mode-{id}">
+        <div class="client-select-wrapper">
             <div class="relative">
                 <select class="client-select w-full py-2 pl-3 pr-8 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition appearance-none">
                     <option value="">— Sin cliente —</option>
@@ -262,13 +306,13 @@ const formatMoney = (amount: number | null) => {
             </div>
             <button class="switch-to-select mt-1.5 text-xs text-indigo-500 hover:text-indigo-700 font-medium transition-colors">← Elegir de la lista</button>
         </div>
-        <div class="special-discount-badge hidden flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-violet-50 border border-violet-100">
+        <div class="special-discount-badge hidden items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-violet-50 border border-violet-100">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-violet-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>
             <span class="special-discount-text text-xs font-semibold text-violet-700"></span>
         </div>`;
     }
 
-    function buildFooterHTML() {
+    function buildFooterHTML(): string {
         return `
         <div class="subtotal-row hidden items-center justify-between">
             <span class="text-xs text-slate-400">Subtotal</span>
@@ -284,37 +328,20 @@ const formatMoney = (amount: number | null) => {
         </div>
         <button class="confirm-sale-btn w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-xl transition-all text-sm flex items-center justify-center gap-2" disabled>
             <span class="confirm-text">Confirmar venta</span>
-            <svg class="confirm-spinner hidden w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 12 0 12 0v4a8 8 0 00-8 8H0z"></path>
-            </svg>
         </button>`;
     }
 
-    // ── Inicializar secciones ──
-    const clientsData = Array.from(document.querySelectorAll<HTMLOptionElement>("#client-section-desktop option, #client-section-mobile option"))
-        .map(o => ({ id: o.value, name: o.dataset.name ?? o.text, special_discount: o.dataset.specialDiscount ? Number(o.dataset.specialDiscount) : null }));
-
-    // Obtener datos de clientes del DOM inicial (no hay, así que los construimos con fetch)
-    // En su lugar, reconstruimos desde los datos del servidor ya cargados en los select
-    const rawClients: {id:string; name:string; special_discount:number|null}[] = [];
-    document.querySelectorAll<HTMLOptionElement>("option[data-name]").forEach(o => {
-        if (!rawClients.find(c => c.id === o.value)) {
-            rawClients.push({ id: o.value, name: o.dataset.name!, special_discount: o.dataset.specialDiscount ? Number(o.dataset.specialDiscount) : null });
-        }
-    });
-
-    document.getElementById("client-section-desktop")!.innerHTML = buildClientSectionHTML(rawClients);
-    document.getElementById("client-section-mobile")!.innerHTML  = buildClientSectionHTML(rawClients);
+    document.getElementById("client-section-desktop")!.innerHTML = buildClientSectionHTML();
+    document.getElementById("client-section-mobile")!.innerHTML  = buildClientSectionHTML();
     document.getElementById("cart-footer-desktop")!.innerHTML    = buildFooterHTML();
     document.getElementById("cart-footer-mobile")!.innerHTML     = buildFooterHTML();
 
-    // ── Mobile drawer ──
-    const fabBtn        = document.getElementById("open-cart-mobile")!;
-    const closeDrawerBtn= document.getElementById("close-cart-mobile")!;
-    const mobileOverlay = document.getElementById("cart-mobile-overlay")!;
-    const mobileDrawer  = document.getElementById("cart-mobile-drawer")!;
-    const cartBadge     = document.getElementById("cart-badge")!;
+    // Mobile drawer
+    const fabBtn         = document.getElementById("open-cart-mobile")!;
+    const closeDrawerBtn = document.getElementById("close-cart-mobile")!;
+    const mobileOverlay  = document.getElementById("cart-mobile-overlay")!;
+    const mobileDrawer   = document.getElementById("cart-mobile-drawer")!;
+    const cartBadge      = document.getElementById("cart-badge")!;
 
     function openMobileCart() {
         mobileDrawer.classList.remove("translate-y-full");
@@ -328,7 +355,6 @@ const formatMoney = (amount: number | null) => {
         mobileOverlay.classList.remove("opacity-100");
         document.body.style.overflow = "";
     }
-
     fabBtn.addEventListener("click", openMobileCart);
     closeDrawerBtn.addEventListener("click", closeMobileCart);
     mobileOverlay.addEventListener("click", closeMobileCart);
@@ -345,15 +371,15 @@ const formatMoney = (amount: number | null) => {
         }
     }
 
-    // ── Sync ambos paneles ──
     function updateTotal() {
-        const subtotal = calcSubtotal();
-        const total    = calcTotal();
-
-        document.querySelectorAll<HTMLElement>(".cart-total").forEach(el => el.textContent = formatARS(total));
-
+        const subtotal   = calcSubtotal();
+        const total      = calcTotal();
         const hasSpecial = activeSpecialDiscount > 0 && cart.length > 0;
 
+        document.querySelectorAll<HTMLElement>(".cart-total").forEach(el => el.textContent = formatARS(total));
+        document.querySelectorAll<HTMLElement>(".cart-subtotal").forEach(el => el.textContent = formatARS(subtotal));
+        document.querySelectorAll<HTMLElement>(".cart-discount-amount").forEach(el => el.textContent = `−${formatARS(subtotal - total)}`);
+        document.querySelectorAll<HTMLElement>(".special-discount-label").forEach(el => el.textContent = `Desc. especial (${activeSpecialDiscount}%)`);
         document.querySelectorAll<HTMLElement>(".subtotal-row").forEach(el => {
             el.classList.toggle("hidden", !hasSpecial);
             el.classList.toggle("flex", hasSpecial);
@@ -362,14 +388,9 @@ const formatMoney = (amount: number | null) => {
             el.classList.toggle("hidden", !hasSpecial);
             el.classList.toggle("flex", hasSpecial);
         });
-        document.querySelectorAll<HTMLElement>(".cart-subtotal").forEach(el => el.textContent = formatARS(subtotal));
-        document.querySelectorAll<HTMLElement>(".cart-discount-amount").forEach(el => el.textContent = `−${formatARS(subtotal - total)}`);
-        document.querySelectorAll<HTMLElement>(".special-discount-label").forEach(el => el.textContent = `Desc. especial (${activeSpecialDiscount}%)`);
-
         document.querySelectorAll<HTMLButtonElement>(".confirm-sale-btn").forEach(btn => {
-            if (!btn.textContent?.includes("Procesando")) btn.disabled = cart.length === 0;
+            btn.disabled = cart.length === 0;
         });
-
         updateBadge();
     }
 
@@ -390,7 +411,6 @@ const formatMoney = (amount: number | null) => {
             if (input && input.value !== String(item.qty)) input.value = String(item.qty);
         });
     }
-
     function refreshAllCartRows() { cart.forEach(refreshCartRow); }
 
     function buildCartRowHTML(item: CartItem): string {
@@ -456,29 +476,25 @@ const formatMoney = (amount: number | null) => {
     function clearCart() {
         cart.length = 0;
         ["cart-items-desktop", "cart-items-mobile"].forEach(id => {
+            const suffix = id === "cart-items-desktop" ? "desktop" : "mobile";
             document.getElementById(id)!.innerHTML =
-                `<p id="${id === 'cart-items-desktop' ? 'cart-empty-desktop' : 'cart-empty-mobile'}" class="text-sm text-slate-400 text-center py-8">El carrito está vacío</p>`;
+                `<p id="cart-empty-${suffix}" class="text-sm text-slate-400 text-center py-8">El carrito está vacío</p>`;
         });
-        document.querySelectorAll<HTMLElement>(".cart-total").forEach(el => el.textContent = formatARS(0));
+        document.querySelectorAll<HTMLElement>(".cart-total").forEach(el => el.textContent = "$ 0,00");
         document.querySelectorAll<HTMLElement>(".subtotal-row").forEach(el => el.classList.add("hidden"));
         document.querySelectorAll<HTMLElement>(".special-discount-row").forEach(el => el.classList.add("hidden"));
         document.querySelectorAll<HTMLButtonElement>(".confirm-sale-btn").forEach(btn => btn.disabled = true);
         updateBadge();
     }
 
-    // ── Selectors de cliente (inicializar ambos paneles) ──
     function initClientSection(container: HTMLElement) {
-        const selectMode    = container.querySelector<HTMLElement>("[id^='client-select-mode'], .client-select")!.closest("div")!.parentElement as HTMLElement;
+        const selectWrapper = container.querySelector<HTMLElement>(".client-select-wrapper")!;
         const clientSelect  = container.querySelector<HTMLSelectElement>(".client-select")!;
         const manualMode    = container.querySelector<HTMLElement>(".client-manual-mode")!;
         const manualInput   = container.querySelector<HTMLInputElement>(".client-manual-input")!;
         const clearBtn      = container.querySelector<HTMLButtonElement>(".clear-manual-btn")!;
         const switchManual  = container.querySelector<HTMLButtonElement>(".switch-to-manual")!;
         const switchSelect  = container.querySelector<HTMLButtonElement>(".switch-to-select")!;
-        const badge         = container.querySelector<HTMLElement>(".special-discount-badge")!;
-        const badgeText     = container.querySelector<HTMLElement>(".special-discount-text")!;
-
-        const selectModeDiv = container.querySelector<HTMLElement>(".client-select")!.closest("div")!.parentElement as HTMLElement;
 
         function showBadge(pct: number) {
             document.querySelectorAll<HTMLElement>(".special-discount-badge").forEach(b => {
@@ -489,40 +505,35 @@ const formatMoney = (amount: number | null) => {
                 t.textContent = pct > 0 ? `−${pct}% sobre el total` : "";
             });
         }
-
         function setDiscount(pct: number) {
             activeSpecialDiscount = pct;
             showBadge(pct);
             refreshAllCartRows();
             updateTotal();
         }
-
         function resetClient() {
             activeClientId = null; activeClientName = null; activeSpecialDiscount = 0;
-            showBadge(0);
-            refreshAllCartRows();
-            updateTotal();
+            showBadge(0); refreshAllCartRows(); updateTotal();
         }
 
         switchManual?.addEventListener("click", () => {
-            selectModeDiv.classList.add("hidden");
+            selectWrapper.classList.add("hidden");
             manualMode.classList.remove("hidden");
             clientSelect.value = "";
             resetClient();
             setTimeout(() => manualInput.focus(), 50);
-            // sync otro panel
             document.querySelectorAll<HTMLElement>(".client-manual-mode").forEach(m => m.classList.remove("hidden"));
-            document.querySelectorAll<HTMLElement>(".client-select").forEach(s => s.closest("div")!.parentElement!.classList.add("hidden"));
+            document.querySelectorAll<HTMLElement>(".client-select-wrapper").forEach(w => w.classList.add("hidden"));
         });
 
         switchSelect?.addEventListener("click", () => {
-            selectModeDiv.classList.remove("hidden");
+            selectWrapper.classList.remove("hidden");
             manualMode.classList.add("hidden");
             manualInput.value = "";
             clearBtn.classList.add("hidden");
             resetClient();
             document.querySelectorAll<HTMLElement>(".client-manual-mode").forEach(m => m.classList.add("hidden"));
-            document.querySelectorAll<HTMLElement>(".client-select").forEach(s => s.closest("div")!.parentElement!.classList.remove("hidden"));
+            document.querySelectorAll<HTMLElement>(".client-select-wrapper").forEach(w => w.classList.remove("hidden"));
         });
 
         clientSelect.addEventListener("change", () => {
@@ -530,7 +541,6 @@ const formatMoney = (amount: number | null) => {
             activeClientId   = clientSelect.value || null;
             activeClientName = activeClientId ? (sel.dataset.name ?? sel.text.split(" (")[0]) : null;
             const raw = sel.dataset.specialDiscount ?? "";
-            // sync todos los selects
             document.querySelectorAll<HTMLSelectElement>(".client-select").forEach(s => s.value = clientSelect.value);
             setDiscount(raw !== "" ? parseFloat(raw) : 0);
         });
@@ -539,7 +549,6 @@ const formatMoney = (amount: number | null) => {
             const val = manualInput.value.trim();
             activeClientId = null; activeClientName = val || null;
             clearBtn.classList.toggle("hidden", !val);
-            // sync otros inputs
             document.querySelectorAll<HTMLInputElement>(".client-manual-input").forEach(i => { if (i !== manualInput) i.value = manualInput.value; });
             setDiscount(0);
         });
@@ -557,11 +566,9 @@ const formatMoney = (amount: number | null) => {
     initClientSection(document.getElementById("client-section-desktop")!);
     initClientSection(document.getElementById("client-section-mobile")!);
 
-    // ── Limpiar carrito ──
     document.getElementById("clear-cart-desktop")?.addEventListener("click", clearCart);
     document.getElementById("clear-cart-mobile")?.addEventListener("click", clearCart);
 
-    // ── Agregar producto ──
     document.getElementById("products-grid")?.addEventListener("click", (e) => {
         const btn = (e.target as HTMLElement).closest(".product-card") as HTMLElement | null;
         if (!btn) return;
@@ -585,7 +592,6 @@ const formatMoney = (amount: number | null) => {
         }
     });
 
-    // ── Buscar productos ──
     document.getElementById("search")?.addEventListener("input", (e) => {
         const q = (e.target as HTMLInputElement).value.toLowerCase();
         document.querySelectorAll<HTMLElement>(".product-card").forEach(card => {
@@ -593,49 +599,42 @@ const formatMoney = (amount: number | null) => {
         });
     });
 
-    // ── Confirmar venta (ambos botones) ──
-    document.querySelectorAll<HTMLButtonElement>(".confirm-sale-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-            if (cart.length === 0) return;
-            openSellerModal();
-        });
-    });
+    // Modal de confirmación
+    const confirmModal   = document.getElementById("confirm-sale-modal")!;
+    const confirmCancel  = document.getElementById("confirm-sale-cancel")!;
+    const confirmOk      = document.getElementById("confirm-sale-ok") as HTMLButtonElement;
+    const confirmOkText  = document.getElementById("confirm-ok-text")!;
+    const confirmSpinner = document.getElementById("confirm-spinner")!;
 
-    // ── Modal vendedor ──
-    const sellerModal      = document.getElementById("seller-modal")!;
-    const sellerInput      = document.getElementById("seller-name-input") as HTMLInputElement;
-    const sellerError      = document.getElementById("seller-modal-error")!;
-    const sellerConfirmBtn = document.getElementById("seller-confirm-btn")!;
-    const sellerCancelBtn  = document.getElementById("seller-cancel-btn")!;
-
-    function openSellerModal() {
-        sellerInput.value = "";
-        sellerError.classList.add("hidden");
-        sellerModal.classList.remove("hidden");
-        setTimeout(() => sellerInput.focus(), 80);
+    function openConfirmModal() {
+        const sellerName = getSellerName();
+        if (!sellerName) {
+            alert("Primero seleccioná quién está vendiendo.");
+            sellerSelect?.focus();
+            return;
+        }
+        const totalItems = cart.reduce((a, c) => a + c.qty, 0);
+        document.getElementById("modal-seller-name")!.textContent = sellerName;
+        document.getElementById("modal-client-name")!.textContent = activeClientName || "Sin cliente";
+        document.getElementById("modal-items-count")!.textContent = `${totalItems} ítem${totalItems !== 1 ? "s" : ""}`;
+        document.getElementById("modal-total")!.textContent       = formatARS(calcTotal());
+        confirmModal.classList.remove("hidden");
     }
-    function closeSellerModal() { sellerModal.classList.add("hidden"); }
+    function closeConfirmModal() { confirmModal.classList.add("hidden"); }
 
-    sellerCancelBtn.addEventListener("click", closeSellerModal);
-    sellerInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter")  sellerConfirmBtn.click();
-        if (e.key === "Escape") closeSellerModal();
-    });
-    sellerConfirmBtn.addEventListener("click", async () => {
-        const sellerName = sellerInput.value.trim();
-        if (!sellerName) { sellerError.classList.remove("hidden"); sellerInput.focus(); return; }
-        sellerError.classList.add("hidden");
-        closeSellerModal();
-        await processSale(sellerName);
+    confirmCancel.addEventListener("click", closeConfirmModal);
+    confirmModal.addEventListener("click", (e) => { if (e.target === confirmModal) closeConfirmModal(); });
+
+    document.querySelectorAll<HTMLButtonElement>(".confirm-sale-btn").forEach(btn => {
+        btn.addEventListener("click", () => { if (cart.length > 0) openConfirmModal(); });
     });
 
-    // ── Procesar venta ──
+    confirmOk.addEventListener("click", async () => { await processSale(getSellerName()); });
+
     async function processSale(sellerName: string) {
-        document.querySelectorAll<HTMLButtonElement>(".confirm-sale-btn").forEach(btn => {
-            btn.disabled = true;
-            btn.querySelector<HTMLElement>(".confirm-text")!.textContent = "Procesando...";
-            btn.querySelector<HTMLElement>(".confirm-spinner")!.classList.remove("hidden");
-        });
+        confirmOkText.textContent = "Procesando...";
+        confirmSpinner.classList.remove("hidden");
+        confirmOk.disabled = true;
 
         try {
             const subtotal = calcSubtotal();
@@ -687,6 +686,7 @@ const formatMoney = (amount: number | null) => {
                 if (stockError) console.error("Error al descontar stock:", stockError.message);
             }
 
+            closeConfirmModal();
             clearCart();
             document.querySelectorAll<HTMLSelectElement>(".client-select").forEach(s => s.value = "");
             document.querySelectorAll<HTMLInputElement>(".client-manual-input").forEach(i => i.value = "");
@@ -698,12 +698,9 @@ const formatMoney = (amount: number | null) => {
         } catch (err: any) {
             alert("Error al confirmar la venta: " + (err?.message ?? "Error desconocido"));
         } finally {
-            document.querySelectorAll<HTMLButtonElement>(".confirm-sale-btn").forEach(btn => {
-                btn.querySelector<HTMLElement>(".confirm-text")!.textContent = "Confirmar venta";
-                btn.querySelector<HTMLElement>(".confirm-spinner")!.classList.add("hidden");
-                btn.disabled = cart.length === 0;
-            });
+            confirmOkText.textContent = "Sí, cobrar";
+            confirmSpinner.classList.add("hidden");
+            confirmOk.disabled = false;
         }
     }
-
 </script>
