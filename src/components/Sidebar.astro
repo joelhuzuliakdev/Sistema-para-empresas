@@ -57,8 +57,55 @@ const links = [
 ];
 ---
 
-<aside class="w-64 shrink-0 bg-white border-r border-slate-200 h-screen flex flex-col sticky top-0">
+<!-- ─── MOBILE: barra superior fija ─── -->
+<header class="lg:hidden fixed top-0 left-0 right-0 z-40 h-14 bg-white border-b border-slate-200 flex items-center justify-between px-4">
+    <!-- Botón hamburguesa (arriba a la izquierda) -->
+    <button
+        id="mobile-menu-btn"
+        aria-label="Abrir menú"
+        class="w-9 h-9 flex items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 transition-colors"
+    >
+        <svg id="icon-open" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+        <svg id="icon-close" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+    </button>
 
+    <!-- Logo centrado -->
+    <div class="flex items-center gap-2 absolute left-1/2 -translate-x-1/2">
+        {logoUrl ? (
+            <img src={logoUrl} class="w-7 h-7 rounded-lg object-cover" />
+        ) : (
+            <div class="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+            </div>
+        )}
+        <span class="text-sm font-bold text-slate-800 tracking-tight">{companyName}</span>
+    </div>
+
+    <!-- Spacer derecho para centrar el logo -->
+    <div class="w-9"></div>
+</header>
+
+<!-- ─── MOBILE: overlay ─── -->
+<div
+    id="mobile-overlay"
+    class="lg:hidden fixed inset-0 z-40 bg-black/40 opacity-0 pointer-events-none transition-opacity duration-200"
+></div>
+
+<!-- ─── SIDEBAR (desktop fijo / mobile drawer) ─── -->
+<aside
+    id="sidebar"
+    class="
+        fixed top-0 left-0 z-50 h-screen w-64 bg-white border-r border-slate-200 flex flex-col
+        -translate-x-full transition-transform duration-200 ease-in-out
+        lg:translate-x-0 lg:sticky lg:z-auto
+    "
+>
     <!-- Logo -->
     <div class="flex items-center gap-2.5 px-5 py-5 border-b border-slate-100">
         {logoUrl ? (
@@ -76,79 +123,111 @@ const links = [
     <!-- Links -->
     <nav class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         {links.map(({ href, label, icon }) => (
-        
-        <a href={href}
-            data-path={href}
-            class="nav-link group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-        >
-            <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="w-4 h-4 shrink-0 text-slate-400 group-hover:text-slate-600 transition-colors nav-icon"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
+            <a
+                href={href}
+                data-path={href}
+                class="nav-link group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
             >
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={icon} />
-            </svg>
-            {label}
-        </a>
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="w-4 h-4 shrink-0 text-slate-400 group-hover:text-slate-600 transition-colors nav-icon"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                >
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={icon} />
+                </svg>
+                {label}
+            </a>
         ))}
     </nav>
 
     <!-- Sección inferior -->
     <div class="px-3 py-4 border-t border-slate-100 space-y-0.5">
-
-        <!-- Configuración -->
-        
-        <a href="/settings"
-        data-path="/settings"
-        class="nav-link group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+        <a
+            href="/settings"
+            data-path="/settings"
+            class="nav-link group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
         >
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 shrink-0 text-slate-400 group-hover:text-slate-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
-        Configuración
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 shrink-0 text-slate-400 group-hover:text-slate-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Configuración
         </a>
 
-        <!-- Salir -->
         <button
-        id="sidebar-logout"
-        class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-red-600 hover:bg-red-50 transition-colors"
+            id="sidebar-logout"
+            class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-red-600 hover:bg-red-50 transition-colors"
         >
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 shrink-0 text-slate-400 group-hover:text-red-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-        </svg>
-        Salir
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 shrink-0 text-slate-400 group-hover:text-red-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            Salir
         </button>
-
     </div>
-
 </aside>
 
 <script>
     import { supabase } from "../lib/supabaseClient.js";
 
-    // Logout
+    // ── Logout ──
     document.getElementById("sidebar-logout")?.addEventListener("click", async () => {
         await supabase.auth.signOut();
         window.location.href = "/login";
     });
 
-    // Marcar link activo
+    // ── Marcar link activo ──
     const currentPath = window.location.pathname;
     document.querySelectorAll<HTMLElement>(".nav-link").forEach((link) => {
         const path = link.dataset.path ?? "";
         const isActive =
-        currentPath === path ||
-        (path !== "/dashboard" && currentPath.startsWith(path));
+            currentPath === path ||
+            (path !== "/dashboard" && currentPath.startsWith(path));
 
         if (isActive) {
-        link.classList.add("bg-indigo-50", "text-indigo-700");
-        link.classList.remove("text-slate-600");
-        const icon = link.querySelector(".nav-icon");
-        icon?.classList.add("text-indigo-500");
-        icon?.classList.remove("text-slate-400");
+            link.classList.add("bg-indigo-50", "text-indigo-700");
+            link.classList.remove("text-slate-600");
+            const icon = link.querySelector(".nav-icon");
+            icon?.classList.add("text-indigo-500");
+            icon?.classList.remove("text-slate-400");
         }
+    });
+
+    // ── Mobile drawer ──
+    const btn = document.getElementById("mobile-menu-btn");
+    const sidebar = document.getElementById("sidebar");
+    const overlay = document.getElementById("mobile-overlay");
+    const iconOpen = document.getElementById("icon-open");
+    const iconClose = document.getElementById("icon-close");
+
+    function openMenu() {
+        sidebar?.classList.remove("-translate-x-full");
+        overlay?.classList.remove("opacity-0", "pointer-events-none");
+        overlay?.classList.add("opacity-100");
+        iconOpen?.classList.add("hidden");
+        iconClose?.classList.remove("hidden");
+        document.body.style.overflow = "hidden";
+    }
+
+    function closeMenu() {
+        sidebar?.classList.add("-translate-x-full");
+        overlay?.classList.add("opacity-0", "pointer-events-none");
+        overlay?.classList.remove("opacity-100");
+        iconOpen?.classList.remove("hidden");
+        iconClose?.classList.add("hidden");
+        document.body.style.overflow = "";
+    }
+
+    btn?.addEventListener("click", () => {
+        const isOpen = !sidebar?.classList.contains("-translate-x-full");
+        isOpen ? closeMenu() : openMenu();
+    });
+
+    overlay?.addEventListener("click", closeMenu);
+
+    // Cerrar al navegar (útil en SPAs / View Transitions)
+    document.querySelectorAll<HTMLElement>(".nav-link").forEach((link) => {
+        link.addEventListener("click", closeMenu);
     });
 </script>

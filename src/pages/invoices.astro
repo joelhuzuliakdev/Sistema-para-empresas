@@ -24,49 +24,50 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
 ---
 
 <Layout>
-    <div class="min-h-screen bg-slate-50 px-6 py-8">
+    <div class="min-h-screen bg-slate-50 px-4 sm:px-6 py-6 sm:py-8 pt-20 lg:pt-8">
         <div class="max-w-6xl mx-auto">
 
             <!-- Header -->
-            <div class="flex items-center justify-between mb-8">
-                <div class="flex items-center gap-4">
-                    <div class="w-10 h-10 rounded-xl bg-rose-600 flex items-center justify-center shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div class="flex items-center justify-between gap-3 mb-6 sm:mb-8">
+                <div class="flex items-center gap-3 sm:gap-4 min-w-0">
+                    <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-rose-600 flex items-center justify-center shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
                     </div>
-                    <div>
-                        <h1 class="text-2xl font-bold text-slate-800 leading-tight">Facturas</h1>
-                        <p class="text-sm text-slate-500">Registro de compras y gastos</p>
+                    <div class="min-w-0">
+                        <h1 class="text-xl sm:text-2xl font-bold text-slate-800 leading-tight">Facturas</h1>
+                        <p class="text-xs sm:text-sm text-slate-500">Registro de compras y gastos</p>
                     </div>
                 </div>
                 <button id="open-modal-btn"
-                    class="inline-flex items-center gap-2 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-all">
+                    class="inline-flex items-center gap-1.5 sm:gap-2 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-all shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                     </svg>
-                    Nueva factura
+                    <span class="hidden xs:inline">Nueva factura</span>
+                    <span class="xs:hidden">Nueva</span>
                 </button>
             </div>
 
             <!-- Stats -->
-            <div class="grid grid-cols-3 gap-4 mb-6">
-                <div class="bg-white border border-slate-200 rounded-xl px-5 py-4">
-                    <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-1">Total facturas</p>
-                    <p class="text-2xl font-bold text-slate-800">{totalFacturas}</p>
+            <div class="grid grid-cols-3 gap-2 sm:gap-4 mb-5 sm:mb-6">
+                <div class="bg-white border border-slate-200 rounded-xl px-3 sm:px-5 py-3 sm:py-4">
+                    <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-1 leading-tight">Facturas</p>
+                    <p class="text-xl sm:text-2xl font-bold text-slate-800">{totalFacturas}</p>
                 </div>
-                <div class="bg-white border border-slate-200 rounded-xl px-5 py-4">
-                    <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-1">Total gastado</p>
-                    <p class="text-2xl font-bold text-rose-600">{formatMoney(totalGastado)}</p>
+                <div class="bg-white border border-slate-200 rounded-xl px-3 sm:px-5 py-3 sm:py-4">
+                    <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-1 leading-tight">Gastado</p>
+                    <p class="text-xl sm:text-2xl font-bold text-rose-600 break-all">{formatMoney(totalGastado)}</p>
                 </div>
-                <div class="bg-white border border-slate-200 rounded-xl px-5 py-4">
-                    <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-1">Proveedores</p>
-                    <p class="text-2xl font-bold text-slate-800">{proveedores.length}</p>
+                <div class="bg-white border border-slate-200 rounded-xl px-3 sm:px-5 py-3 sm:py-4">
+                    <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-1 leading-tight">Proveedores</p>
+                    <p class="text-xl sm:text-2xl font-bold text-slate-800">{proveedores.length}</p>
                 </div>
             </div>
 
             <!-- Filtros -->
-            <div class="flex items-center gap-3 mb-4">
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 mb-4">
                 <div class="relative flex-1">
                     <span class="absolute inset-y-0 left-3 flex items-center text-slate-400 pointer-events-none">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -78,98 +79,150 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
                     />
                 </div>
                 <select id="supplier-filter"
-                    class="py-2.5 pl-3 pr-8 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-rose-500 transition appearance-none">
+                    class="py-2.5 pl-3 pr-8 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-rose-500 transition appearance-none shrink-0">
                     <option value="">Todos los proveedores</option>
                     {proveedores.map((s) => <option value={s}>{s}</option>)}
                 </select>
             </div>
 
-            <!-- Tabla / cards -->
+            <!-- Tabla desktop / Cards mobile -->
             <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
                 {invoices && invoices.length > 0 ? (
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm">
-                            <thead>
-                                <tr class="border-b border-slate-100 bg-slate-50">
-                                    <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Fecha</th>
-                                    <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">N° Factura</th>
-                                    <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Proveedor</th>
-                                    <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Lo que se compró</th>
-                                    <th class="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Total</th>
-                                    <th class="text-center px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Imagen</th>
-                                    <th class="px-5 py-3"></th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100" id="invoices-tbody">
-                                {invoices.map((inv) => (
-                                    <tr class="invoice-row hover:bg-slate-50 transition-colors"
-                                        data-supplier={(inv.supplier ?? "").toLowerCase()}
-                                        data-number={(inv.invoice_number ?? "").toLowerCase()}
-                                        data-description={(inv.description ?? "").toLowerCase()}
-                                    >
-                                        <td class="px-5 py-3.5 text-slate-600 text-xs whitespace-nowrap">
-                                            {formatDate(inv.date)}
-                                        </td>
-                                        <td class="px-5 py-3.5">
-                                            {inv.invoice_number
-                                                ? <span class="font-mono text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-1 rounded-lg">{inv.invoice_number}</span>
-                                                : <span class="text-slate-300 text-xs">—</span>
-                                            }
-                                        </td>
-                                        <td class="px-5 py-3.5">
-                                            <div class="flex items-center gap-2">
-                                                <div class="w-7 h-7 rounded-lg bg-rose-50 flex items-center justify-center shrink-0">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                                    </svg>
-                                                </div>
-                                                <span class="font-medium text-slate-800 text-sm">{inv.supplier}</span>
-                                            </div>
-                                        </td>
-                                        <td class="px-5 py-3.5 text-xs text-slate-500 max-w-[200px] truncate">
-                                            {inv.description ?? <span class="text-slate-300">—</span>}
-                                        </td>
-                                        <td class="px-5 py-3.5 text-right font-semibold text-slate-800">
-                                            {formatMoney(inv.total)}
-                                        </td>
-                                        <td class="px-5 py-3.5 text-center">
-                                            {inv.image_url
-                                                ? <button
-                                                    class="view-image-btn inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
-                                                    data-url={inv.image_url}
-                                                    data-number={inv.invoice_number ?? ""}
-                                                    data-supplier={inv.supplier}
-                                                  >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                                    </svg>
-                                                    Ver
-                                                  </button>
-                                                : <span class="text-slate-300 text-xs">Sin imagen</span>
-                                            }
-                                        </td>
-                                        <td class="px-5 py-3.5 text-right">
-                                            <button
-                                                class="edit-btn text-xs text-slate-400 hover:text-indigo-600 font-medium transition-colors"
-                                                data-id={inv.id}
-                                                data-invoice-number={inv.invoice_number ?? ""}
-                                                data-supplier={inv.supplier}
-                                                data-date={inv.date}
-                                                data-total={inv.total ?? ""}
-                                                data-description={inv.description ?? ""}
-                                                data-image-url={inv.image_url ?? ""}
-                                            >
-                                                Editar
-                                            </button>
-                                        </td>
+                    <>
+                        {/* Tabla para sm en adelante */}
+                        <div class="hidden sm:block overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="border-b border-slate-100 bg-slate-50">
+                                        <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Fecha</th>
+                                        <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">N° Factura</th>
+                                        <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Proveedor</th>
+                                        <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Lo que se compró</th>
+                                        <th class="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Total</th>
+                                        <th class="text-center px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Imagen</th>
+                                        <th class="px-5 py-3"></th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100" id="invoices-tbody">
+                                    {invoices.map((inv) => (
+                                        <tr class="invoice-row hover:bg-slate-50 transition-colors"
+                                            data-supplier={(inv.supplier ?? "").toLowerCase()}
+                                            data-number={(inv.invoice_number ?? "").toLowerCase()}
+                                            data-description={(inv.description ?? "").toLowerCase()}
+                                        >
+                                            <td class="px-5 py-3.5 text-slate-600 text-xs whitespace-nowrap">{formatDate(inv.date)}</td>
+                                            <td class="px-5 py-3.5">
+                                                {inv.invoice_number
+                                                    ? <span class="font-mono text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-1 rounded-lg">{inv.invoice_number}</span>
+                                                    : <span class="text-slate-300 text-xs">—</span>
+                                                }
+                                            </td>
+                                            <td class="px-5 py-3.5">
+                                                <div class="flex items-center gap-2">
+                                                    <div class="w-7 h-7 rounded-lg bg-rose-50 flex items-center justify-center shrink-0">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                                        </svg>
+                                                    </div>
+                                                    <span class="font-medium text-slate-800 text-sm">{inv.supplier}</span>
+                                                </div>
+                                            </td>
+                                            <td class="px-5 py-3.5 text-xs text-slate-500 max-w-[200px] truncate">
+                                                {inv.description ?? <span class="text-slate-300">—</span>}
+                                            </td>
+                                            <td class="px-5 py-3.5 text-right font-semibold text-slate-800">{formatMoney(inv.total)}</td>
+                                            <td class="px-5 py-3.5 text-center">
+                                                {inv.image_url
+                                                    ? <button class="view-image-btn inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
+                                                        data-url={inv.image_url} data-number={inv.invoice_number ?? ""} data-supplier={inv.supplier}>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                        </svg>
+                                                        Ver
+                                                      </button>
+                                                    : <span class="text-slate-300 text-xs">—</span>
+                                                }
+                                            </td>
+                                            <td class="px-5 py-3.5 text-right">
+                                                <button class="edit-btn text-xs text-slate-400 hover:text-indigo-600 font-medium transition-colors"
+                                                    data-id={inv.id}
+                                                    data-invoice-number={inv.invoice_number ?? ""}
+                                                    data-supplier={inv.supplier}
+                                                    data-date={inv.date}
+                                                    data-total={inv.total ?? ""}
+                                                    data-description={inv.description ?? ""}
+                                                    data-image-url={inv.image_url ?? ""}>
+                                                    Editar
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Cards para mobile */}
+                        <div class="sm:hidden divide-y divide-slate-100" id="invoices-cards">
+                            {invoices.map((inv) => (
+                                <div class="invoice-row px-4 py-4"
+                                    data-supplier={(inv.supplier ?? "").toLowerCase()}
+                                    data-number={(inv.invoice_number ?? "").toLowerCase()}
+                                    data-description={(inv.description ?? "").toLowerCase()}
+                                >
+                                    <div class="flex items-start justify-between gap-2 mb-2">
+                                        <div class="flex items-center gap-2 min-w-0">
+                                            <div class="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center shrink-0">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                                </svg>
+                                            </div>
+                                            <div class="min-w-0">
+                                                <p class="font-semibold text-slate-800 text-sm truncate">{inv.supplier}</p>
+                                                <p class="text-xs text-slate-400">{formatDate(inv.date)}</p>
+                                            </div>
+                                        </div>
+                                        <span class="text-sm font-bold text-slate-800 shrink-0">{formatMoney(inv.total)}</span>
+                                    </div>
+
+                                    {inv.invoice_number && (
+                                        <p class="text-xs text-slate-500 mb-1.5">
+                                            N° <span class="font-mono font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">{inv.invoice_number}</span>
+                                        </p>
+                                    )}
+
+                                    {inv.description && (
+                                        <p class="text-xs text-slate-500 truncate mb-2">{inv.description}</p>
+                                    )}
+
+                                    <div class="flex items-center gap-2 mt-2">
+                                        {inv.image_url && (
+                                            <button class="view-image-btn inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
+                                                data-url={inv.image_url} data-number={inv.invoice_number ?? ""} data-supplier={inv.supplier}>
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                </svg>
+                                                Ver imagen
+                                            </button>
+                                        )}
+                                        <button class="edit-btn ml-auto text-xs text-slate-400 hover:text-indigo-600 font-medium transition-colors px-2.5 py-1 rounded-lg hover:bg-indigo-50"
+                                            data-id={inv.id}
+                                            data-invoice-number={inv.invoice_number ?? ""}
+                                            data-supplier={inv.supplier}
+                                            data-date={inv.date}
+                                            data-total={inv.total ?? ""}
+                                            data-description={inv.description ?? ""}
+                                            data-image-url={inv.image_url ?? ""}>
+                                            Editar
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </>
                 ) : (
-                    <div class="flex flex-col items-center justify-center py-16 text-center">
+                    <div class="flex flex-col items-center justify-center py-14 sm:py-16 text-center px-4">
                         <div class="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -190,11 +243,11 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
         </div>
     </div>
 
-    <!-- ── Modal nueva/editar factura ──────────────────────────────────────── -->
-    <div id="modal-overlay" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
+    <!-- ── Modal nueva/editar factura ── -->
+    <div id="modal-overlay" class="hidden fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center sm:px-4">
+        <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-lg max-h-[90vh] flex flex-col">
 
-            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+            <div class="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-slate-100 shrink-0">
                 <h2 id="modal-title" class="text-base font-semibold text-slate-800">Nueva factura</h2>
                 <button id="close-modal-btn" class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -203,12 +256,11 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
                 </button>
             </div>
 
-            <div class="px-6 py-5 space-y-4 overflow-y-auto flex-1">
+            <div class="px-5 sm:px-6 py-5 space-y-4 overflow-y-auto flex-1">
                 <div id="modal-error" class="hidden px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs"></div>
                 <input type="hidden" id="modal-id" />
                 <input type="hidden" id="modal-existing-image" />
 
-                <!-- Número y proveedor -->
                 <div class="grid grid-cols-2 gap-3">
                     <div class="space-y-1.5">
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">N° de factura</label>
@@ -224,7 +276,6 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
                     </div>
                 </div>
 
-                <!-- Fecha y total -->
                 <div class="grid grid-cols-2 gap-3">
                     <div class="space-y-1.5">
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Fecha *</label>
@@ -240,7 +291,6 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
                     </div>
                 </div>
 
-                <!-- Lo que se compró -->
                 <div class="space-y-1.5">
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Lo que se compró</label>
                     <textarea id="modal-description" rows="3" placeholder="Ej: 100 vasos descartables, 50 platos, 2 rollos de film..."
@@ -248,11 +298,8 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
                     ></textarea>
                 </div>
 
-                <!-- Imagen de la factura -->
                 <div class="space-y-1.5">
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Foto de la factura</label>
-
-                    <!-- Preview imagen existente -->
                     <div id="existing-image-preview" class="hidden mb-2">
                         <p class="text-xs text-slate-400 mb-1.5">Imagen actual:</p>
                         <div class="relative inline-block">
@@ -263,10 +310,8 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
                             </button>
                         </div>
                     </div>
-
-                    <!-- Upload zone -->
                     <div id="upload-zone"
-                        class="relative border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:border-rose-400 hover:bg-rose-50 transition-all cursor-pointer">
+                        class="relative border-2 border-dashed border-slate-200 rounded-xl p-5 sm:p-6 text-center hover:border-rose-400 hover:bg-rose-50 transition-all cursor-pointer">
                         <input id="modal-image" type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                         <div id="upload-placeholder">
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-slate-300 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -275,22 +320,20 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
                             <p class="text-sm text-slate-400 font-medium">Tocá para subir una foto</p>
                             <p class="text-xs text-slate-300 mt-1">JPG, PNG, WEBP — máx. 10MB</p>
                         </div>
-                        <!-- Preview imagen nueva -->
                         <div id="new-image-preview" class="hidden">
-                            <img id="new-image-thumb" src="" alt="" class="w-28 h-28 object-cover rounded-xl mx-auto border border-slate-200" />
+                            <img id="new-image-thumb" src="" alt="" class="w-24 h-24 sm:w-28 sm:h-28 object-cover rounded-xl mx-auto border border-slate-200" />
                             <p id="new-image-name" class="text-xs text-slate-500 mt-2 truncate max-w-[200px] mx-auto"></p>
                             <p class="text-xs text-rose-500 mt-1 font-medium">Tocá para cambiar</p>
                         </div>
                     </div>
                 </div>
-
             </div>
 
-            <div class="px-6 py-4 border-t border-slate-100 flex gap-3 shrink-0">
+            <div class="px-5 sm:px-6 py-4 border-t border-slate-100 flex gap-2 sm:gap-3 shrink-0">
                 <button id="cancel-modal-btn" class="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
                     Cancelar
                 </button>
-                <button id="delete-invoice-btn" class="hidden py-2.5 px-4 rounded-xl text-sm font-semibold bg-red-50 hover:bg-red-100 text-red-600 transition-colors">
+                <button id="delete-invoice-btn" class="hidden py-2.5 px-3 sm:px-4 rounded-xl text-sm font-semibold bg-red-50 hover:bg-red-100 text-red-600 transition-colors">
                     Eliminar
                 </button>
                 <button id="save-invoice-btn" class="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-rose-600 hover:bg-rose-700 text-white transition-colors flex items-center justify-center gap-2 disabled:bg-rose-300 disabled:cursor-not-allowed">
@@ -301,11 +344,10 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
                     </svg>
                 </button>
             </div>
-
         </div>
     </div>
 
-    <!-- ── Modal visor de imagen ────────────────────────────────────────────── -->
+    <!-- ── Modal visor de imagen ── -->
     <div id="image-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
         <div class="relative max-w-3xl w-full">
             <button id="close-image-modal" class="absolute -top-10 right-0 text-white/70 hover:text-white text-sm font-medium flex items-center gap-1.5 transition-colors">
@@ -315,13 +357,13 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
                 Cerrar
             </button>
             <div class="bg-white rounded-2xl overflow-hidden shadow-2xl">
-                <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-                    <div>
-                        <p id="image-modal-title" class="text-sm font-semibold text-slate-800"></p>
+                <div class="px-4 sm:px-5 py-3 border-b border-slate-100 flex items-center justify-between gap-3">
+                    <div class="min-w-0">
+                        <p id="image-modal-title" class="text-sm font-semibold text-slate-800 truncate"></p>
                         <p id="image-modal-sub" class="text-xs text-slate-400"></p>
                     </div>
                     <a id="image-download-link" href="" download target="_blank"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors">
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors shrink-0">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                         </svg>
@@ -341,7 +383,7 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
     const searchInput    = document.getElementById("search")           as HTMLInputElement;
     const supplierFilter = document.getElementById("supplier-filter")  as HTMLSelectElement;
     const footerCount    = document.getElementById("footer-count");
-    const invoiceRows    = document.querySelectorAll<HTMLTableRowElement>(".invoice-row");
+    const invoiceRows    = document.querySelectorAll<HTMLElement>(".invoice-row");
 
     function applyFilters() {
         const q   = searchInput.value.toLowerCase().trim();
@@ -383,15 +425,14 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
     const saveSpinner   = document.getElementById("save-spinner")!;
     const deleteBtn     = document.getElementById("delete-invoice-btn")  as HTMLButtonElement;
 
-    const existingPreview = document.getElementById("existing-image-preview")!;
-    const existingThumb   = document.getElementById("existing-image-thumb")  as HTMLImageElement;
-    const removeExisting  = document.getElementById("remove-existing-image")!;
-    const newPreview      = document.getElementById("new-image-preview")!;
-    const newThumb        = document.getElementById("new-image-thumb")       as HTMLImageElement;
-    const newName         = document.getElementById("new-image-name")!;
+    const existingPreview   = document.getElementById("existing-image-preview")!;
+    const existingThumb     = document.getElementById("existing-image-thumb")  as HTMLImageElement;
+    const removeExisting    = document.getElementById("remove-existing-image")!;
+    const newPreview        = document.getElementById("new-image-preview")!;
+    const newThumb          = document.getElementById("new-image-thumb")       as HTMLImageElement;
+    const newName           = document.getElementById("new-image-name")!;
     const uploadPlaceholder = document.getElementById("upload-placeholder")!;
 
-    // Preview de imagen nueva seleccionada
     modalImage.addEventListener("change", () => {
         const file = modalImage.files?.[0];
         if (!file) return;
@@ -423,7 +464,6 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
             modalDesc.value         = inv.description ?? "";
             modalExisting.value     = inv.image_url ?? "";
             deleteBtn.classList.remove("hidden");
-
             if (inv.image_url) {
                 existingThumb.src = inv.image_url;
                 existingPreview.classList.remove("hidden");
@@ -435,7 +475,7 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
             modalId.value           = "";
             modalNumber.value       = "";
             modalSupplier.value     = "";
-            modalDate.value         = new Date().toISOString().split("T")[0]; // hoy por defecto
+            modalDate.value         = new Date().toISOString().split("T")[0];
             modalTotal.value        = "";
             modalDesc.value         = "";
             modalExisting.value     = "";
@@ -471,10 +511,8 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
         }));
     });
 
-    // ── Guardar factura ───────────────────────────────────────────────────────
     saveBtn.addEventListener("click", async () => {
         modalError.classList.add("hidden");
-
         const id          = modalId.value.trim();
         const number      = modalNumber.value.trim() || null;
         const supplier    = modalSupplier.value.trim();
@@ -484,23 +522,12 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
         const newFile     = modalImage.files?.[0] ?? null;
         const keepExisting = modalExisting.value || null;
 
-        if (!supplier) {
-            modalError.textContent = "El proveedor es obligatorio.";
-            modalError.classList.remove("hidden");
-            return;
-        }
-        if (!date) {
-            modalError.textContent = "La fecha es obligatoria.";
-            modalError.classList.remove("hidden");
-            return;
-        }
+        if (!supplier) { modalError.textContent = "El proveedor es obligatorio."; modalError.classList.remove("hidden"); return; }
+        if (!date)     { modalError.textContent = "La fecha es obligatoria.";     modalError.classList.remove("hidden"); return; }
 
         setLoading(true);
-
         try {
             let imageUrl: string | null = keepExisting;
-
-            // Subir imagen nueva si hay
             if (newFile) {
                 const ext      = newFile.name.split(".").pop();
                 const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
@@ -508,19 +535,11 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
                     .from("invoices")
                     .upload(filename, newFile, { contentType: newFile.type, upsert: false });
                 if (uploadError) throw uploadError;
-
                 const { data: urlData } = supabase.storage.from("invoices").getPublicUrl(filename);
                 imageUrl = urlData.publicUrl;
             }
 
-            const payload = {
-                invoice_number: number,
-                supplier,
-                date,
-                total,
-                description,
-                image_url: imageUrl,
-            };
+            const payload = { invoice_number: number, supplier, date, total, description, image_url: imageUrl };
 
             if (id) {
                 const { error } = await supabase.from("invoices").update(payload).eq("id", id);
@@ -529,10 +548,8 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
                 const { error } = await supabase.from("invoices").insert([payload]);
                 if (error) throw error;
             }
-
             closeModal();
             window.location.reload();
-
         } catch (err: any) {
             modalError.textContent = err?.message ?? "Error al guardar la factura.";
             modalError.classList.remove("hidden");
@@ -541,15 +558,12 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
         }
     });
 
-    // ── Eliminar factura ──────────────────────────────────────────────────────
     deleteBtn.addEventListener("click", async () => {
         const id = modalId.value.trim();
         if (!id) return;
         if (!confirm("¿Eliminar esta factura? Esta acción no se puede deshacer.")) return;
-
         deleteBtn.disabled = true;
         deleteBtn.textContent = "Eliminando...";
-
         try {
             const { error } = await supabase.from("invoices").delete().eq("id", id);
             if (error) throw error;
@@ -573,14 +587,10 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
 
     document.querySelectorAll<HTMLButtonElement>(".view-image-btn").forEach((btn) => {
         btn.addEventListener("click", () => {
-            const url      = btn.dataset.url!;
-            const number   = btn.dataset.number;
-            const supplier = btn.dataset.supplier!;
-
-            imageModalImg.src        = url;
-            imageModalTitle.textContent = supplier;
-            imageModalSub.textContent   = number ? `Factura N° ${number}` : "Sin número";
-            imageDownload.href          = url;
+            imageModalImg.src           = btn.dataset.url!;
+            imageModalTitle.textContent = btn.dataset.supplier!;
+            imageModalSub.textContent   = btn.dataset.number ? `Factura N° ${btn.dataset.number}` : "Sin número";
+            imageDownload.href          = btn.dataset.url!;
             imageModal.classList.remove("hidden");
         });
     });
@@ -588,11 +598,7 @@ const proveedores    = [...new Set(invoices?.map((i) => i.supplier).filter(Boole
     closeImageModal.addEventListener("click", () => imageModal.classList.add("hidden"));
     imageModal.addEventListener("click", (e) => { if (e.target === imageModal) imageModal.classList.add("hidden"); });
 
-    // ESC cierra cualquier modal
     document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") {
-            closeModal();
-            imageModal.classList.add("hidden");
-        }
+        if (e.key === "Escape") { closeModal(); imageModal.classList.add("hidden"); }
     });
 </script>
