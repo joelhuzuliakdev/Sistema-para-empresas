@@ -101,13 +101,13 @@ const links = [
 <aside
     id="sidebar"
     class="
-        fixed top-0 left-0 z-50 h-screen h-[100dvh] w-64 bg-white border-r border-slate-200 flex flex-col
+        fixed top-0 left-0 z-50 h-[100dvh] w-64 bg-white border-r border-slate-200 flex flex-col
         -translate-x-full transition-transform duration-200 ease-in-out
         lg:translate-x-0 lg:sticky lg:z-auto
     "
 >
     <!-- Logo -->
-    <div class="flex items-center gap-2.5 px-5 py-5 border-b border-slate-100">
+    <div class="flex items-center gap-2.5 px-5 py-4 border-b border-slate-100 shrink-0">
         {logoUrl ? (
             <img src={logoUrl} class="w-8 h-8 rounded-lg object-cover shrink-0" />
         ) : (
@@ -117,16 +117,18 @@ const links = [
                 </svg>
             </div>
         )}
-        <a href="/" class="text-base font-bold text-slate-800 tracking-tight">{companyName}</a>
+        <a href="/" class="text-base font-bold text-slate-800 tracking-tight truncate">
+            {companyName}
+        </a>
     </div>
 
-    <!-- Links -->
-    <nav class="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto">
+    <!-- Links (SCROLL SOLO ACÁ) -->
+    <nav class="flex-1 overflow-y-auto px-3 py-2 space-y-0.5">
         {links.map(({ href, label, icon }) => (
             <a
                 href={href}
                 data-path={href}
-                class="nav-link group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                class="nav-link group flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
             >
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -142,12 +144,12 @@ const links = [
         ))}
     </nav>
 
-    <!-- Sección inferior -->
-    <div class="px-3 py-2 border-t border-slate-100 space-y-0.5 shrink-0">
+    <!-- Footer SIEMPRE visible -->
+    <div class="px-3 py-2 border-t border-slate-100 space-y-0.5 shrink-0 bg-white">
         <a
             href="/settings"
             data-path="/settings"
-            class="nav-link group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+            class="nav-link group flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
         >
             <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 shrink-0 text-slate-400 group-hover:text-slate-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -158,7 +160,7 @@ const links = [
 
         <button
             id="sidebar-logout"
-            class="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-red-600 hover:bg-red-50 transition-colors"
+            class="w-full group flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-red-600 hover:bg-red-50 transition-colors"
         >
             <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 shrink-0 text-slate-400 group-hover:text-red-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
