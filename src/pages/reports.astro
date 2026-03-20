@@ -54,6 +54,41 @@ salesRaw?.forEach((s) => {
 });
 const sellerStats: SellerStat[] = Object.values(sellerMap).sort((a, b) => b.total - a.total);
 
+// --- Productos más vendidos ---
+type ProductStat = { name: string; code: string | null; qty: number; total: number };
+const productMap: Record<string, ProductStat> = {};
+salesRaw?.forEach((s) => {
+    s.sale_items?.forEach((it: any) => {
+        const name = it.products?.name ?? "Producto eliminado";
+        const code = it.products?.code ?? null;
+        const key  = name;
+        if (!productMap[key]) productMap[key] = { name, code, qty: 0, total: 0 };
+        productMap[key].qty   += it.quantity ?? 0;
+        productMap[key].total += (it.price ?? 0) * (it.quantity ?? 0);
+    });
+});
+const topProductos: ProductStat[] = Object.values(productMap)
+    .sort((a, b) => b.qty - a.qty)
+    .slice(0, 10);
+
+// --- Gráfico: últimos 7 días ---
+const diasNombres = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+const ultimos7: { label: string; total: number; cantidad: number }[] = [];
+for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    d.setHours(0, 0, 0, 0);
+    const fechaStr = d.toDateString();
+    const label = i === 0 ? "Hoy" : i === 1 ? "Ayer" : diasNombres[d.getDay()];
+    const ventas = salesRaw?.filter((s) => s.created_at && new Date(s.created_at).toDateString() === fechaStr) ?? [];
+    const total  = ventas.reduce((acc, s) => acc + (s.final_total ?? s.total ?? 0), 0);
+    ultimos7.push({ label, total, cantidad: ventas.length });
+}
+
+const chartLabels     = JSON.stringify(ultimos7.map((d) => d.label));
+const chartTotales    = JSON.stringify(ultimos7.map((d) => d.total));
+const chartCantidades = JSON.stringify(ultimos7.map((d) => d.cantidad));
+
 const rows = salesRaw?.map((s) => {
     const method = s.payment_method ?? "Sin especificar";
     const methodClass =
@@ -64,14 +99,13 @@ const rows = salesRaw?.map((s) => {
         : method === "credito"       ? "bg-orange-50 text-orange-700"
         : "bg-slate-100 text-slate-600";
 
-    // Serializar items para pasarlos al cliente
     const items = (s.sale_items ?? []).map((it: any) => ({
-        name:        it.products?.name ?? "Producto eliminado",
-        code:        it.products?.code ?? null,
-        qty:         it.quantity,
-        price:       it.price,
-        discount:    it.discount_pct ?? 0,
-        subtotal:    it.price * it.quantity,
+        name:     it.products?.name ?? "Producto eliminado",
+        code:     it.products?.code ?? null,
+        qty:      it.quantity,
+        price:    it.price,
+        discount: it.discount_pct ?? 0,
+        subtotal: it.price * it.quantity,
     }));
 
     return { ...s, methodClass, methodLabel: method, items };
@@ -79,6 +113,15 @@ const rows = salesRaw?.map((s) => {
 ---
 
 <Layout>
+    <!-- Nodo oculto para pasar datos del servidor al cliente -->
+    <div
+        id="chart-data"
+        class="hidden"
+        data-labels={chartLabels}
+        data-totales={chartTotales}
+        data-cantidades={chartCantidades}
+    ></div>
+
     <div class="min-h-screen bg-slate-50 px-6 py-8">
         <div class="max-w-5xl mx-auto">
 
@@ -128,6 +171,36 @@ const rows = salesRaw?.map((s) => {
                     ))}
                 </div>
             )}
+
+            <!-- Gráfico últimos 7 días -->
+            <div class="mb-6">
+                <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+                    <div class="flex items-center justify-between mb-5">
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 rounded-lg bg-violet-100 flex items-center justify-center shrink-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                                </svg>
+                            </div>
+                            <h2 class="text-sm font-semibold text-slate-700">Ventas — últimos 7 días</h2>
+                        </div>
+                        <!-- Tabs monto / cantidad -->
+                        <div class="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
+                            <button id="tab-monto"
+                                class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all bg-white text-violet-700 shadow-sm">
+                                Monto
+                            </button>
+                            <button id="tab-cantidad"
+                                class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all text-slate-500 hover:text-slate-700">
+                                Cantidad
+                            </button>
+                        </div>
+                    </div>
+                    <div class="relative h-56">
+                        <canvas id="salesChart"></canvas>
+                    </div>
+                </div>
+            </div>
 
             <!-- Ventas por empleado -->
             {sellerStats.length > 0 && (
@@ -202,7 +275,81 @@ const rows = salesRaw?.map((s) => {
                 </div>
             )}
 
-            <!-- Filtros -->
+            <!-- Productos más vendidos -->
+            {topProductos.length > 0 && (
+                <div class="mb-6">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                            </svg>
+                        </div>
+                        <h2 class="text-sm font-semibold text-slate-700">Productos más vendidos</h2>
+                        <span class="text-xs text-slate-400 ml-1">Top 10 · por unidades</span>
+                    </div>
+                    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b border-slate-100 bg-slate-50">
+                                    <th class="text-center px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide w-12">#</th>
+                                    <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Producto</th>
+                                    <th class="text-center px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Unidades vendidas</th>
+                                    <th class="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Total generado</th>
+                                    <th class="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide w-36">% unidades</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                {(() => {
+                                    const totalUnidades = topProductos.reduce((acc, x) => acc + x.qty, 0);
+                                    const medals = ["🥇","🥈","🥉"];
+                                    return topProductos.map((p, i) => {
+                                        const pct = totalUnidades > 0 ? (p.qty / totalUnidades) * 100 : 0;
+                                        return (
+                                            <tr class="hover:bg-slate-50 transition-colors">
+                                                <td class="px-5 py-3.5 text-center">
+                                                    {i < 3
+                                                        ? <span class="text-base leading-none">{medals[i]}</span>
+                                                        : <span class="text-xs text-slate-400 font-medium">{i + 1}</span>
+                                                    }
+                                                </td>
+                                                <td class="px-5 py-3.5">
+                                                    <div class="flex items-center gap-2.5">
+                                                        <div class="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                                            </svg>
+                                                        </div>
+                                                        <div>
+                                                            <p class="font-medium text-slate-800 text-sm">{p.name}</p>
+                                                            {p.code && <p class="text-xs font-mono text-slate-400">{p.code}</p>}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td class="px-5 py-3.5 text-center">
+                                                    <span class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700">
+                                                        {p.qty} {p.qty === 1 ? "unidad" : "unidades"}
+                                                    </span>
+                                                </td>
+                                                <td class="px-5 py-3.5 text-right font-bold text-slate-800">{formatMoney(p.total)}</td>
+                                                <td class="px-5 py-3.5">
+                                                    <div class="flex items-center gap-2 justify-end">
+                                                        <div class="w-20 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                                                            <div class="h-full rounded-full bg-amber-400" style={`width: ${pct.toFixed(1)}%`}></div>
+                                                        </div>
+                                                        <span class="text-xs text-slate-400 w-10 text-right">{pct.toFixed(1)}%</span>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    });
+                                })()}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            <!-- Filtros historial -->
             <div class="flex items-center gap-3 mb-4">
                 <div class="relative flex-1">
                     <span class="absolute inset-y-0 left-3 flex items-center text-slate-400 pointer-events-none">
@@ -246,7 +393,6 @@ const rows = salesRaw?.map((s) => {
                             <tbody id="sales-tbody">
                                 {rows.map((s) => (
                                     <>
-                                        {/* Fila principal — clickeable */}
                                         <tr class="hover:bg-slate-50 transition-colors sale-row cursor-pointer select-none"
                                             data-search={`${(s.client_name ?? "").toLowerCase()} ${s.methodLabel.toLowerCase()} ${(s.seller_name ?? "").toLowerCase()}`}
                                             data-method={s.methodLabel}
@@ -254,7 +400,6 @@ const rows = salesRaw?.map((s) => {
                                             data-sale-id={s.id}
                                             data-items={JSON.stringify(s.items)}
                                         >
-                                            <!-- Chevron -->
                                             <td class="w-8 px-3 py-3.5 text-slate-300">
                                                 <svg class="chevron w-4 h-4 transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -285,7 +430,6 @@ const rows = salesRaw?.map((s) => {
                                             </td>
                                         </tr>
 
-                                        {/* Fila de detalle — oculta por defecto */}
                                         <tr class="detail-row hidden" data-detail-for={s.id}>
                                             <td colspan="6" class="px-0 py-0">
                                                 <div class="bg-slate-50 border-y border-slate-100 px-14 py-3">
@@ -356,13 +500,119 @@ const rows = salesRaw?.map((s) => {
 </Layout>
 
 <script>
-    const searchInput  = document.getElementById("search")        as HTMLInputElement;
-    const methodFilter = document.getElementById("method-filter") as HTMLSelectElement;
-    const sellerFilter = document.getElementById("seller-filter") as HTMLSelectElement;
-    const saleRows     = document.querySelectorAll<HTMLTableRowElement>(".sale-row");
-    const footerCount  = document.getElementById("footer-count");
+    import Chart from "chart.js/auto";
+
+    // ── Datos inyectados desde el servidor ────────────────────────────────────
+    const chartNode      = document.getElementById("chart-data")!;
+    const chartLabels     = JSON.parse(chartNode.dataset.labels!);
+    const chartTotales    = JSON.parse(chartNode.dataset.totales!);
+    const chartCantidades = JSON.parse(chartNode.dataset.cantidades!);
+
+    // ── Inicializar gráfico ───────────────────────────────────────────────────
+    const canvas = document.getElementById("salesChart") as HTMLCanvasElement;
+    const ctx    = canvas.getContext("2d")!;
+
+    let modoActual: "monto" | "cantidad" = "monto";
+
+    const chart = new Chart(ctx, {
+        type: "bar",
+        data: {
+            labels: chartLabels,
+            datasets: [{
+                label: "Monto ($)",
+                data: chartTotales,
+                backgroundColor: "rgba(139,92,246,0.75)",
+                borderColor: "rgba(139,92,246,1)",
+                borderWidth: 0,
+                borderRadius: 6,
+                borderSkipped: false,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: "#1e293b",
+                    titleColor: "#94a3b8",
+                    bodyColor: "#f1f5f9",
+                    padding: 10,
+                    cornerRadius: 8,
+                    callbacks: {
+                        label: (ctx: import("chart.js").TooltipItem<"bar">) => {
+                            const val = ctx.parsed.y ?? 0;
+                            if (modoActual === "monto") {
+                                return " " + new Intl.NumberFormat("es-AR", {
+                                    style: "currency", currency: "ARS"
+                                }).format(val);
+                            }
+                            return ` ${val} ${val === 1 ? "venta" : "ventas"}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { color: "#94a3b8", font: { size: 12, weight: 600 } },
+                    border: { display: false },
+                },
+                y: {
+                    grid: { color: "rgba(148,163,184,0.1)" },
+                    ticks: {
+                        color: "#94a3b8",
+                        font: { size: 11 },
+                        callback: (val: string | number) => {
+                            if (typeof val !== "number") return val;
+                            if (modoActual === "monto") {
+                                return new Intl.NumberFormat("es-AR", {
+                                    style: "currency", currency: "ARS",
+                                    notation: "compact", maximumFractionDigits: 0
+                                }).format(val);
+                            }
+                            return val;
+                        }
+                    },
+                    border: { display: false },
+                    beginAtZero: true,
+                }
+            }
+        }
+    });
+
+    // ── Tabs monto / cantidad ─────────────────────────────────────────────────
+    const tabMonto    = document.getElementById("tab-monto")!;
+    const tabCantidad = document.getElementById("tab-cantidad")!;
+
+    function setTab(modo: "monto" | "cantidad") {
+        modoActual = modo;
+
+        if (modo === "monto") {
+            chart.data.datasets[0].data  = chartTotales;
+            chart.data.datasets[0].label = "Monto ($)";
+            (chart.data.datasets[0] as any).backgroundColor = "rgba(139,92,246,0.75)";
+            (chart.data.datasets[0] as any).borderColor     = "rgba(139,92,246,1)";
+            tabMonto.className    = "px-3 py-1.5 rounded-md text-xs font-semibold transition-all bg-white text-violet-700 shadow-sm";
+            tabCantidad.className = "px-3 py-1.5 rounded-md text-xs font-semibold transition-all text-slate-500 hover:text-slate-700";
+        } else {
+            chart.data.datasets[0].data  = chartCantidades;
+            chart.data.datasets[0].label = "Ventas";
+            (chart.data.datasets[0] as any).backgroundColor = "rgba(16,185,129,0.75)";
+            (chart.data.datasets[0] as any).borderColor     = "rgba(16,185,129,1)";
+            tabMonto.className    = "px-3 py-1.5 rounded-md text-xs font-semibold transition-all text-slate-500 hover:text-slate-700";
+            tabCantidad.className = "px-3 py-1.5 rounded-md text-xs font-semibold transition-all bg-white text-emerald-700 shadow-sm";
+        }
+
+        chart.update("active");
+    }
+
+    tabMonto.addEventListener("click",    () => setTab("monto"));
+    tabCantidad.addEventListener("click", () => setTab("cantidad"));
 
     // ── Expandir / colapsar fila de detalle ───────────────────────────────────
+    const saleRows = document.querySelectorAll<HTMLTableRowElement>(".sale-row");
+
     saleRows.forEach((row) => {
         row.addEventListener("click", () => {
             const saleId    = row.dataset.saleId!;
@@ -372,16 +622,12 @@ const rows = salesRaw?.map((s) => {
 
             const isOpen = !detailRow.classList.contains("hidden");
 
-            // Cerrar todos los demás
-            document.querySelectorAll<HTMLTableRowElement>(".detail-row").forEach((dr) => {
-                dr.classList.add("hidden");
-            });
+            document.querySelectorAll<HTMLTableRowElement>(".detail-row").forEach((dr) => dr.classList.add("hidden"));
             document.querySelectorAll<SVGElement>(".chevron").forEach((ch) => {
                 ch.style.transform = "";
                 ch.style.color     = "";
             });
 
-            // Si estaba cerrado, abrirlo
             if (!isOpen) {
                 detailRow.classList.remove("hidden");
                 if (chevron) {
@@ -393,6 +639,11 @@ const rows = salesRaw?.map((s) => {
     });
 
     // ── Filtros ───────────────────────────────────────────────────────────────
+    const searchInput  = document.getElementById("search")        as HTMLInputElement;
+    const methodFilter = document.getElementById("method-filter") as HTMLSelectElement;
+    const sellerFilter = document.getElementById("seller-filter") as HTMLSelectElement;
+    const footerCount  = document.getElementById("footer-count");
+
     function applyFilters() {
         const q      = searchInput.value.toLowerCase();
         const method = methodFilter.value.toLowerCase();
@@ -407,7 +658,6 @@ const rows = salesRaw?.map((s) => {
 
             row.style.display = show ? "" : "none";
 
-            // Ocultar también la fila de detalle si se filtra
             const saleId    = row.dataset.saleId!;
             const detailRow = document.querySelector<HTMLTableRowElement>(`[data-detail-for="${saleId}"]`);
             if (detailRow) detailRow.style.display = show ? "" : "none";
@@ -421,7 +671,7 @@ const rows = salesRaw?.map((s) => {
         }
     }
 
-    searchInput?.addEventListener("input", applyFilters);
+    searchInput?.addEventListener("input",   applyFilters);
     methodFilter?.addEventListener("change", applyFilters);
     sellerFilter?.addEventListener("change", applyFilters);
 </script>
