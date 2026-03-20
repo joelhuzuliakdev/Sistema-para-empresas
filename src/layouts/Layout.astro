@@ -2,7 +2,7 @@
 import '../styles/global.css'
 import Sidebar from "../components/Sidebar.astro";
 const { pathname } = Astro.url;
-const { isEmployee = false } = Astro.props;
+const { isEmployee = false } = Astro.props; // ← ya lo tenés, solo verificá que esté
 const hideSidebar = pathname === "/" || pathname === "/login" || pathname === "/register";
 ---
 

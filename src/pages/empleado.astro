@@ -2,6 +2,9 @@
 import Layout from "../layouts/Layout.astro";
 import { supabase } from "../lib/supabaseClient.js";
 
+const { data: { user } } = await supabase.auth.getUser();
+const role = user?.user_metadata?.role ?? "empleado"; // ajustá el key si en tu metadata se llama distinto
+const isEmployee = role !== "admin";
 const { data: products } = await supabase.from("products").select("*");
 const { data: allDiscounts } = await supabase.from("product_discounts").select("*");
 const { data: clients } = await supabase
@@ -39,7 +42,7 @@ const clientsJSON = JSON.stringify(
 );
 ---
 
-<Layout>
+<Layout isEmployee={isEmployee}>
     <div class="min-h-screen bg-slate-50 px-4 sm:px-6 py-6 sm:py-8 pt-20 lg:pt-6 sm:pt-20 lg:pt-8">
         <div class="max-w-5xl mx-auto">
 
