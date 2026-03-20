@@ -18,6 +18,7 @@ const hoy = new Date();
 const inicioDia = cajaAbierta
     ? new Date(cajaAbierta.opened_at).toISOString()
     : new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).toISOString();
+
 const { data: ventasHoy } = await supabase
     .from("sales")
     .select("final_total, total, payment_method, status")
@@ -36,6 +37,61 @@ const { data: ventasMes } = await supabase
 
 const totalMes = ventasMes?.reduce((acc, s) => acc + (s.final_total ?? s.total ?? 0), 0) ?? 0;
 
+// ── Categorías fijas ──
+const CATEGORIAS_DESGLOSE = ["Descartable", "Librería", "Caramelos"];
+
+let desgloseCategorias: Record<string, number> = {};
+
+if (cajaAbierta) {
+    const { data: itemsConCategoria } = await supabase
+        .from("sale_items")
+        .select(`
+            quantity,
+            price,
+            discount_pct,
+            sales!inner(created_at, status),
+            products!inner(category)
+        `)
+        .gte("sales.created_at", cajaAbierta.opened_at)
+        .eq("sales.status", "pagado");
+
+    for (const item of itemsConCategoria ?? []) {
+        const cat: string = (item.products as any)?.category ?? "";
+        if (!CATEGORIAS_DESGLOSE.includes(cat)) continue; // ignorar categorías fuera de las 3
+        const subtotal = (item.price ?? 0) * (item.quantity ?? 1) * (1 - (item.discount_pct ?? 0) / 100);
+        desgloseCategorias[cat] = (desgloseCategorias[cat] ?? 0) + subtotal;
+    }
+}
+
+const desgloseJSON = JSON.stringify({
+    categorias: CATEGORIAS_DESGLOSE.map(cat => ({
+        nombre: cat,
+        total: desgloseCategorias[cat] ?? 0,
+    })),
+    totalDia,
+});
+
+// ── Historial con desglose guardado ──
+const { data: historialCats } = await supabase
+    .from("cash_register_categories")
+    .select("cash_register_id, category, total");
+
+const catsByCaja: Record<string, { category: string; total: number }[]> = {};
+historialCats?.forEach((c) => {
+    if (!catsByCaja[c.cash_register_id]) catsByCaja[c.cash_register_id] = [];
+    catsByCaja[c.cash_register_id].push({ category: c.category, total: c.total });
+});
+
+const rows = cash?.map((c) => ({
+    ...c,
+    isOpen: !c.closed_at,
+    // Garantizar que siempre aparezcan las 3 categorías en el historial
+    categorias: CATEGORIAS_DESGLOSE.map(cat => ({
+        category: cat,
+        total: catsByCaja[c.id]?.find(x => x.category === cat)?.total ?? null,
+    })),
+})) ?? [];
+
 const formatDate = (dateStr: string | null) => {
     if (!dateStr) return "—";
     return new Date(dateStr).toLocaleString("es-AR", {
@@ -48,11 +104,6 @@ const formatMoney = (amount: number | null) => {
     if (amount == null) return "—";
     return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(amount);
 };
-
-const rows = cash?.map((c) => ({
-    ...c,
-    isOpen: !c.closed_at,
-})) ?? [];
 ---
 
 <Layout>
@@ -161,11 +212,14 @@ const rows = cash?.map((c) => ({
                                         <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Cierre</th>
                                         <th class="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Total día</th>
                                         <th class="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Total mes</th>
+                                        <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Descartable</th>
+                                        <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Librería</th>
+                                        <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Caramelos</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-100">
                                     {rows.map((c) => (
-                                        <tr class="hover:bg-slate-50 transition-colors">
+                                        <tr class="hover:bg-slate-50 transition-colors align-top">
                                             <td class="px-5 py-3.5">
                                                 {c.isOpen ? (
                                                     <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">
@@ -183,6 +237,11 @@ const rows = cash?.map((c) => ({
                                             <td class="px-5 py-3.5 text-slate-500">{formatDate(c.closed_at)}</td>
                                             <td class="px-5 py-3.5 text-right font-medium text-slate-800">{formatMoney(c.total_day)}</td>
                                             <td class="px-5 py-3.5 text-right font-medium text-emerald-700">{formatMoney(c.total_month)}</td>
+                                            {c.categorias.map((cat) => (
+                                                <td class="px-5 py-3.5 font-medium text-slate-700">
+                                                    {cat.total !== null ? formatMoney(cat.total) : <span class="text-slate-300 text-xs">—</span>}
+                                                </td>
+                                            ))}
                                         </tr>
                                     ))}
                                 </tbody>
@@ -207,7 +266,8 @@ const rows = cash?.map((c) => ({
                                         )}
                                         <span class="text-xs text-slate-400">{formatDate(c.opened_at)}</span>
                                     </div>
-                                    <div class="grid grid-cols-2 gap-2">
+
+                                    <div class="grid grid-cols-2 gap-2 mb-3">
                                         <div class="bg-slate-50 rounded-lg px-3 py-2">
                                             <p class="text-xs text-slate-400 mb-0.5">Total día</p>
                                             <p class="text-sm font-semibold text-slate-800">{formatMoney(c.total_day)}</p>
@@ -217,6 +277,22 @@ const rows = cash?.map((c) => ({
                                             <p class="text-sm font-semibold text-emerald-700">{formatMoney(c.total_month)}</p>
                                         </div>
                                     </div>
+
+                                    {/* Desglose por categoría en mobile — siempre visible si hay datos o caja cerrada */}
+                                    {(!c.isOpen || c.categorias.some(cat => cat.total !== null)) && (
+                                        <div class="bg-slate-50 rounded-lg px-3 py-2.5 space-y-1.5">
+                                            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Por categoría</p>
+                                            {c.categorias.map((cat) => (
+                                                <div class="flex items-center justify-between text-xs">
+                                                    <span class="text-slate-500">{cat.category}</span>
+                                                    <span class="font-semibold text-slate-700">
+                                                        {cat.total !== null ? formatMoney(cat.total) : "—"}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
                                     {!c.isOpen && (
                                         <p class="text-xs text-slate-400 mt-2">
                                             Cerrada: {formatDate(c.closed_at)}
@@ -249,29 +325,85 @@ const rows = cash?.map((c) => ({
     </div>
 </Layout>
 
+<!-- Datos de desglose para el script -->
+<script type="application/json" id="desglose-data" set:html={desgloseJSON}></script>
+
+<!-- Modal de cierre de caja -->
+<div id="cerrar-caja-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+
+        <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+            </div>
+            <div>
+                <p class="text-sm font-bold text-slate-800">Cerrar caja</p>
+                <p class="text-xs text-slate-400">Resumen del período antes de confirmar</p>
+            </div>
+        </div>
+
+        <!-- Desglose por categorías -->
+        <div class="bg-slate-50 rounded-xl px-4 py-3 space-y-2">
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Desglose por categoría</p>
+            <div id="modal-desglose-categorias" class="space-y-1.5">
+                <!-- Se llena desde JS -->
+            </div>
+            <div class="border-t border-slate-200 pt-2 flex justify-between items-center">
+                <span class="text-sm font-medium text-slate-600">Total del día</span>
+                <span id="modal-total-dia" class="text-base font-bold text-emerald-600"></span>
+            </div>
+        </div>
+
+        <p class="text-sm text-slate-600 text-center">¿Confirmás el cierre de caja?</p>
+
+        <div class="flex gap-2 pt-1">
+            <button id="cerrar-modal-cancel" type="button"
+                class="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
+                No, volver
+            </button>
+            <button id="cerrar-modal-ok" type="button"
+                class="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-red-500 hover:bg-red-600 text-white transition-colors flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                <span id="cerrar-ok-text">Sí, cerrar</span>
+                <svg id="cerrar-spinner" class="hidden w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 12 0 12 0v4a8 8 0 00-8 8H0z"></path>
+                </svg>
+            </button>
+        </div>
+
+    </div>
+</div>
+
 <script>
     import { supabase } from "../lib/supabaseClient.js";
 
-    // Abrir caja
+    const formatARS = (n: number) =>
+        "$ " + new Intl.NumberFormat("es-AR", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }).format(n);
+
+    // ── Abrir caja ──
     document.getElementById("abrir-caja-btn")?.addEventListener("click", async () => {
         const btn = document.getElementById("abrir-caja-btn") as HTMLButtonElement;
         btn.disabled = true;
         btn.textContent = "Abriendo...";
-
         try {
             const { data: session } = await supabase.auth.getSession();
             const userId = session?.session?.user?.id;
-
             const { error } = await supabase.from("cash_register").insert([{
                 user_id: userId,
                 opened_at: new Date().toISOString(),
                 total_day: 0,
                 total_month: 0,
             }]);
-
             if (error) throw error;
             window.location.reload();
-
         } catch (err: any) {
             alert("Error al abrir la caja: " + (err?.message ?? "Error desconocido"));
             btn.disabled = false;
@@ -279,35 +411,84 @@ const rows = cash?.map((c) => ({
         }
     });
 
-    // Cerrar caja
-    document.getElementById("cerrar-caja-btn")?.addEventListener("click", async () => {
-        const btn = document.getElementById("cerrar-caja-btn") as HTMLButtonElement;
-        const cajaId = btn.dataset.cajaId!;
-        const totalDia = Number(btn.dataset.totalDia ?? 0);
-        const totalMes = Number(btn.dataset.totalMes ?? 0);
+    // ── Modal de cierre ──
+    const modal     = document.getElementById("cerrar-caja-modal")!;
+    const cancelBtn = document.getElementById("cerrar-modal-cancel")!;
+    const okBtn     = document.getElementById("cerrar-modal-ok") as HTMLButtonElement;
+    const okText    = document.getElementById("cerrar-ok-text")!;
+    const spinner   = document.getElementById("cerrar-spinner")!;
+    const cerrarBtn = document.getElementById("cerrar-caja-btn") as HTMLButtonElement | null;
 
-        if (!confirm(`¿Confirmás el cierre de caja?\nTotal del día: ${new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(totalDia)}`)) return;
+    const desgloseData = JSON.parse(
+        document.getElementById("desglose-data")!.textContent ?? "{}"
+    );
 
-        btn.disabled = true;
-        btn.textContent = "Cerrando...";
+    function openCerrarModal() {
+        const container = document.getElementById("modal-desglose-categorias")!;
+        container.innerHTML = "";
+
+        for (const cat of desgloseData.categorias ?? []) {
+            const row = document.createElement("div");
+            row.className = "flex justify-between items-center";
+            row.innerHTML = `
+                <span class="text-xs text-slate-500">${cat.nombre}</span>
+                <span class="text-xs font-semibold text-slate-700">${formatARS(cat.total)}</span>`;
+            container.appendChild(row);
+        }
+
+        document.getElementById("modal-total-dia")!.textContent = formatARS(desgloseData.totalDia ?? 0);
+        modal.classList.remove("hidden");
+    }
+
+    function closeCerrarModal() { modal.classList.add("hidden"); }
+
+    cerrarBtn?.addEventListener("click", openCerrarModal);
+    cancelBtn.addEventListener("click", closeCerrarModal);
+    modal.addEventListener("click", (e) => { if (e.target === modal) closeCerrarModal(); });
+
+    okBtn.addEventListener("click", async () => {
+        if (!cerrarBtn) return;
+        const cajaId   = cerrarBtn.dataset.cajaId!;
+        const totalDia = Number(cerrarBtn.dataset.totalDia ?? 0);
+        const totalMes = Number(cerrarBtn.dataset.totalMes ?? 0);
+
+        okText.textContent = "Cerrando...";
+        spinner.classList.remove("hidden");
+        okBtn.disabled = true;
 
         try {
+            // 1. Cerrar la caja
             const { error } = await supabase
                 .from("cash_register")
                 .update({
-                    closed_at: new Date().toISOString(),
-                    total_day: totalDia,
+                    closed_at:   new Date().toISOString(),
+                    total_day:   totalDia,
                     total_month: totalMes,
                 })
                 .eq("id", cajaId);
 
             if (error) throw error;
+
+            // 2. Guardar las 3 categorías fijas (siempre, aunque sean 0)
+            const filas = (desgloseData.categorias ?? []).map((cat: { nombre: string; total: number }) => ({
+                cash_register_id: cajaId,
+                category:         cat.nombre,
+                total:            cat.total,
+            }));
+
+            const { error: catError } = await supabase
+                .from("cash_register_categories")
+                .insert(filas);
+
+            if (catError) throw catError;
+
             window.location.reload();
 
         } catch (err: any) {
             alert("Error al cerrar la caja: " + (err?.message ?? "Error desconocido"));
-            btn.disabled = false;
-            btn.textContent = "Cerrar caja";
+            okText.textContent = "Sí, cerrar";
+            spinner.classList.add("hidden");
+            okBtn.disabled = false;
         }
     });
 </script>
