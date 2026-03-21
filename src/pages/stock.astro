@@ -1,10 +1,12 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import { supabase } from "../lib/supabaseClient.js";
+import { createServerSupabase } from "../lib/supabaseClient.js";
+
+const supabase = createServerSupabase(Astro);
 
 const { data: movements } = await supabase
     .from("stock_movements")
-    .select("*, products(name, category)")
+    .select("id, product_id, product_name, type, quantity, stock_before, stock_after, reason, created_at")
     .order("created_at", { ascending: false })
     .limit(200);
 
@@ -33,7 +35,6 @@ const formatDate = (d: string) =>
                     </div>
                 </div>
 
-                <!-- Botón ajuste manual -->
                 <button id="open-ajuste-modal"
                     class="inline-flex items-center gap-1.5 sm:gap-2 bg-violet-600 hover:bg-violet-700 active:scale-95 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-all shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -46,26 +47,11 @@ const formatDate = (d: string) =>
 
             <!-- Filtros -->
             <div class="flex flex-wrap gap-2 mb-5">
-                <button data-filter="todos"
-                    class="filter-btn active-filter px-3 py-1.5 rounded-xl text-xs font-semibold transition-all bg-slate-800 text-white">
-                    Todos
-                </button>
-                <button data-filter="entrada"
-                    class="filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold transition-all bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">
-                    Entradas
-                </button>
-                <button data-filter="salida"
-                    class="filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold transition-all bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">
-                    Salidas
-                </button>
-                <button data-filter="ajuste"
-                    class="filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold transition-all bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">
-                    Ajustes
-                </button>
-                <button data-filter="venta"
-                    class="filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold transition-all bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">
-                    Ventas
-                </button>
+                <button data-filter="todos"   class="filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border border-transparent">Todos</button>
+                <button data-filter="entrada" class="filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border border-transparent">Entradas</button>
+                <button data-filter="salida"  class="filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border border-transparent">Salidas</button>
+                <button data-filter="ajuste"  class="filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border border-transparent">Ajustes</button>
+                <button data-filter="venta"   class="filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border border-transparent">Ventas</button>
             </div>
 
             <!-- Tabla -->
@@ -92,10 +78,10 @@ const formatDate = (d: string) =>
                                     let badgeLabel = tipo;
                                     let badgeCls = "bg-slate-100 text-slate-600";
 
-                                    if (tipo === "entrada") { badgeLabel = "Entrada"; badgeCls = "bg-emerald-50 text-emerald-700"; }
-                                    else if (tipo === "salida")  { badgeLabel = "Salida";  badgeCls = "bg-red-50 text-red-700"; }
-                                    else if (tipo === "ajuste")  { badgeLabel = "Ajuste";  badgeCls = "bg-amber-50 text-amber-700"; }
-                                    else if (tipo === "venta")   { badgeLabel = "Venta";   badgeCls = "bg-blue-50 text-blue-700"; }
+                                    if (tipo === "entrada")     { badgeLabel = "Entrada"; badgeCls = "bg-emerald-50 text-emerald-700"; }
+                                    else if (tipo === "salida") { badgeLabel = "Salida";  badgeCls = "bg-red-50 text-red-700"; }
+                                    else if (tipo === "ajuste") { badgeLabel = "Ajuste";  badgeCls = "bg-amber-50 text-amber-700"; }
+                                    else if (tipo === "venta")  { badgeLabel = "Venta";   badgeCls = "bg-blue-50 text-blue-700"; }
 
                                     const cantidadCls = isPos ? "text-emerald-600" : "text-red-600";
                                     const cantidadStr = (isPos ? "+" : "") + (m.quantity ?? 0);
@@ -107,7 +93,7 @@ const formatDate = (d: string) =>
                                             </td>
                                             <td class="px-4 py-3">
                                                 <p class="text-sm font-medium text-slate-800 truncate max-w-[180px]">
-                                                    {m.product_name ?? "—"}
+                                                    {m.product_name ?? (m.products as any)?.name ?? "—"}
                                                 </p>
                                             </td>
                                             <td class="px-4 py-3">
@@ -207,17 +193,46 @@ const formatDate = (d: string) =>
 
 <script>
     import { supabase } from "../lib/supabaseClient.js";
+    
+    // AGREGÁ ESTO TEMPORALMENTE
+    const { data: { session } } = await supabase.auth.getSession();
+    console.log("SESION:", session);
+    console.log("USER:", session?.user?.email);
 
     // ── Filtros ──
-    document.querySelectorAll<HTMLElement>(".filter-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-            document.querySelectorAll(".filter-btn").forEach(b => {
-                b.classList.remove("active-filter", "bg-slate-800", "text-white");
-                b.classList.add("bg-white", "border", "border-slate-200", "text-slate-600");
-            });
-            btn.classList.add("active-filter", "bg-slate-800", "text-white");
-            btn.classList.remove("bg-white", "border", "border-slate-200", "text-slate-600");
+    const ACTIVE_CLS   = "bg-slate-800 text-white border-slate-800";
+    const INACTIVE_CLS = "bg-white border-slate-200 text-slate-600";
 
+    function setActive(btn: HTMLElement) {
+        document.querySelectorAll<HTMLElement>(".filter-btn").forEach(b => {
+            b.setAttribute("data-active", "false");
+            b.className = "filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold transition-all " + INACTIVE_CLS;
+            b.style.backgroundColor = "";
+        });
+        btn.setAttribute("data-active", "true");
+        btn.className = "filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold transition-all " + ACTIVE_CLS;
+    }
+
+    document.querySelectorAll<HTMLElement>(".filter-btn").forEach(btn => {
+        // Estado inicial
+        if (btn.dataset.filter === "todos") {
+            setActive(btn);
+        }
+
+        btn.addEventListener("mouseenter", () => {
+            if (btn.getAttribute("data-active") !== "true") {
+                btn.style.backgroundColor = "#f8fafc";
+            }
+        });
+
+        btn.addEventListener("mouseleave", () => {
+            if (btn.getAttribute("data-active") !== "true") {
+                btn.style.backgroundColor = "";
+            }
+        });
+
+        btn.addEventListener("click", () => {
+            setActive(btn);
             const filter = btn.dataset.filter!;
             document.querySelectorAll<HTMLElement>(".movement-row").forEach(row => {
                 row.style.display =
@@ -227,21 +242,21 @@ const formatDate = (d: string) =>
     });
 
     // ── Modal ajuste manual ──
-    const modal      = document.getElementById("ajuste-modal")!;
-    const overlay    = document.getElementById("ajuste-overlay")!;
-    const openBtn    = document.getElementById("open-ajuste-modal")!;
-    const closeBtn   = document.getElementById("close-ajuste-modal")!;
-    const saveBtn    = document.getElementById("ajuste-save-btn") as HTMLButtonElement;
-    const saveText   = document.getElementById("ajuste-save-text")!;
-    const spinner    = document.getElementById("ajuste-spinner")!;
-    const errorEl    = document.getElementById("ajuste-error")!;
-    const productSel = document.getElementById("ajuste-product") as HTMLSelectElement;
-    const typeSel    = document.getElementById("ajuste-type")    as HTMLSelectElement;
-    const qtyInput   = document.getElementById("ajuste-qty")     as HTMLInputElement;
-    const reasonInput= document.getElementById("ajuste-reason")  as HTMLInputElement;
+    const modal       = document.getElementById("ajuste-modal")!;
+    const overlay     = document.getElementById("ajuste-overlay")!;
+    const openBtn     = document.getElementById("open-ajuste-modal")!;
+    const closeBtn    = document.getElementById("close-ajuste-modal")!;
+    const saveBtn     = document.getElementById("ajuste-save-btn") as HTMLButtonElement;
+    const saveText    = document.getElementById("ajuste-save-text")!;
+    const spinner     = document.getElementById("ajuste-spinner")!;
+    const errorEl     = document.getElementById("ajuste-error")!;
+    const productSel  = document.getElementById("ajuste-product") as HTMLSelectElement;
+    const typeSel     = document.getElementById("ajuste-type")    as HTMLSelectElement;
+    const qtyInput    = document.getElementById("ajuste-qty")     as HTMLInputElement;
+    const reasonInput = document.getElementById("ajuste-reason")  as HTMLInputElement;
 
-    function openModal() { modal.classList.remove("hidden"); document.body.style.overflow = "hidden"; }
-    function closeModal() { modal.classList.add("hidden"); document.body.style.overflow = ""; }
+    function openModal()  { modal.classList.remove("hidden"); document.body.style.overflow = "hidden"; }
+    function closeModal() { modal.classList.add("hidden");    document.body.style.overflow = ""; }
 
     openBtn.addEventListener("click", openModal);
     closeBtn.addEventListener("click", closeModal);
@@ -257,6 +272,11 @@ const formatDate = (d: string) =>
         });
     });
 
+    function showError(msg: string) {
+        errorEl.textContent = msg;
+        errorEl.classList.remove("hidden");
+    }
+
     saveBtn.addEventListener("click", async () => {
         errorEl.classList.add("hidden");
 
@@ -265,7 +285,7 @@ const formatDate = (d: string) =>
         const qty       = parseInt(qtyInput.value);
         const reason    = reasonInput.value.trim();
 
-        if (!productId)  return showError("Seleccioná un producto.");
+        if (!productId)      return showError("Seleccioná un producto.");
         if (!qty || qty < 1) return showError("Ingresá una cantidad válida.");
 
         saveBtn.disabled = true;
@@ -273,37 +293,53 @@ const formatDate = (d: string) =>
         spinner.classList.remove("hidden");
 
         try {
-            // Obtener stock actual
-            const { data: prod } = await supabase
+            // 1. Obtener stock actual
+            const { data: prod, error: prodError } = await supabase
                 .from("products")
                 .select("stock, name")
                 .eq("id", productId)
                 .single();
 
-            const stockActual = prod?.stock ?? 0;
-            let nuevoStock: number;
+            if (prodError) throw prodError;
 
-            if (type === "entrada")  nuevoStock = stockActual + qty;
-            else if (type === "salida") nuevoStock = Math.max(0, stockActual - qty);
-            else nuevoStock = qty; // ajuste directo
+            const stockAntes = prod?.stock ?? 0;
+            let stockDespues: number;
+            let cantidadMovimiento: number;
 
-            // Actualizar stock (el trigger registra el movimiento automáticamente)
+            if (type === "entrada") {
+                stockDespues = stockAntes + qty;
+                cantidadMovimiento = qty;                    // positivo
+            } else if (type === "salida") {
+                stockDespues = Math.max(0, stockAntes - qty);
+                cantidadMovimiento = -qty;                   // negativo
+            } else {
+                // ajuste: se pone el stock exacto
+                stockDespues = qty;
+                cantidadMovimiento = qty - stockAntes;       // puede ser + o -
+            }
+
+            // 2. Actualizar stock del producto
             const { error: updateError } = await supabase
                 .from("products")
-                .update({ stock: nuevoStock })
+                .update({ stock: stockDespues })
                 .eq("id", productId);
 
             if (updateError) throw updateError;
 
-            // Actualizar el motivo en el último movimiento registrado
-            if (reason) {
-                await supabase
-                    .from("stock_movements")
-                    .update({ reason, type })
-                    .eq("product_id", productId)
-                    .order("created_at", { ascending: false })
-                    .limit(1);
-            }
+            // 3. Insertar el movimiento manualmente (no depende del trigger)
+            const { error: movError } = await supabase
+                .from("stock_movements")
+                .insert({
+                    product_id:   productId,
+                    product_name: prod?.name ?? null,
+                    type:         type,
+                    quantity:     cantidadMovimiento,
+                    stock_before: stockAntes,
+                    stock_after:  stockDespues,
+                    reason:       reason || null,
+                });
+
+            if (movError) throw movError;
 
             closeModal();
             window.location.reload();
@@ -316,9 +352,4 @@ const formatDate = (d: string) =>
             spinner.classList.add("hidden");
         }
     });
-
-    function showError(msg: string) {
-        errorEl.textContent = msg;
-        errorEl.classList.remove("hidden");
-    }
 </script>
