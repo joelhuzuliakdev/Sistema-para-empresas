@@ -1,4 +1,4 @@
-import { createServerClient, parseCookieHeader, serializeCookieHeader } from "@supabase/ssr";
+import { createServerClient } from "@supabase/ssr";
 
 export function createSupabaseServer(request: Request, cookies: any) {
     return createServerClient(
@@ -7,10 +7,16 @@ export function createSupabaseServer(request: Request, cookies: any) {
         {
             cookies: {
                 getAll() {
-                    return parseCookieHeader(request.headers.get("Cookie") ?? "");
+                    // Verificación defensiva por si cookies no está listo
+                    if (typeof cookies?.getAll !== "function") return [];
+                    return cookies.getAll().map((c: any) => ({
+                        name: c.name,
+                        value: c.value,
+                    }));
                 },
                 setAll(cookiesToSet: any[]) {
-                    cookiesToSet.forEach(({ name, value, options }: any) => {
+                    if (typeof cookies?.set !== "function") return;
+                    cookiesToSet.forEach(({ name, value, options }) => {
                         cookies.set(name, value, options);
                     });
                 },

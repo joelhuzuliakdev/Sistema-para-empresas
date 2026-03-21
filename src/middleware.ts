@@ -1,5 +1,5 @@
 import { defineMiddleware } from "astro:middleware";
-import { createSupabaseServer } from "../src/lib/supabaseServer";
+import { createSupabaseServer } from "./lib/supabaseServer";
 
 const PUBLIC_ROUTES = [
     "/",
