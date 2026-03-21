@@ -1,49 +1,62 @@
 import { defineMiddleware } from "astro:middleware";
-import { createClient } from "@supabase/supabase-js";
+import { createSupabaseServer } from "../src/lib/supabaseServer";
 
-const PUBLIC_ROUTES = ["/", "/login", "/register", "/pago"];
-const ADMIN_ROUTES = ["/dashboard", "/products", "/clients", "/cash", "/reports", "/sales", "/team"];
+const PUBLIC_ROUTES = [
+    "/",
+    "/login",
+    "/register",
+    "/forgot-password",
+    "/reset-password",
+    "/auth/callback",
+];
+
+const EMPLOYEE_ONLY_ROUTES = ["/empleado"];
+
+const OWNER_ONLY_ROUTES = [
+    "/inicio",
+    "/productos",
+    "/ventas",
+    "/caja",
+    "/clientes",
+    "/reportes",
+    "/equipo",
+    "/facturas",
+    "/proveedores",
+    "/configuraciones",
+    "/stock",
+];
 
 export const onRequest = defineMiddleware(async ({ url, request, cookies, redirect }, next) => {
     const pathname = url.pathname;
 
     if (PUBLIC_ROUTES.includes(pathname)) return next();
-    if (pathname.startsWith("/api/webhook")) return next(); // para el webhook de Stripe
+    if (pathname.startsWith("/api/")) return next();
+    if (pathname.startsWith("/_")) return next();
 
-    const accessToken = cookies.get("sb-access-token")?.value;
-    const refreshToken = cookies.get("sb-refresh-token")?.value;
+    const supabase = createSupabaseServer(request, cookies);
 
-    if (!accessToken || !refreshToken) {
-        return redirect("/login");
-    }
-
-    const supabase = createClient(
-        import.meta.env.PUBLIC_SUPABASE_URL,
-        import.meta.env.PUBLIC_SUPABASE_KEY,
-        { auth: { autoRefreshToken: false, persistSession: false } }
-    );
-
-    const { data: { user }, error } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-    });
+    const { data: { user }, error } = await supabase.auth.getUser();
 
     if (error || !user) return redirect("/login");
 
     const { data: roleData } = await supabase
         .from("user_roles")
-        .select("role, activo, plan_expira_en")  // 👈 agregamos los nuevos campos
+        .select("role, activo, plan_expira_en")
         .eq("user_id", user.id)
         .single();
 
-    const role = roleData?.role ?? "employee";
+    const role         = roleData?.role         ?? "employee";
+    const activo       = roleData?.activo       ?? false;
+    const planExpiraEn = roleData?.plan_expira_en ?? null;
 
-    if (role === "employee" && ADMIN_ROUTES.some(r => pathname.startsWith(r))) {
-        return redirect("/employee");
+    if (!activo) return redirect("/login");
+
+    if (role === "employee" && OWNER_ONLY_ROUTES.some(r => pathname.startsWith(r))) {
+        return redirect("/empleado");
     }
 
-    if (role === "admin" && pathname.startsWith("/employee")) {
-        return redirect("/dashboard");
+    if ((role === "owner" || role === "admin") && EMPLOYEE_ONLY_ROUTES.some(r => pathname.startsWith(r))) {
+        return redirect("/inicio");
     }
 
     return next();
