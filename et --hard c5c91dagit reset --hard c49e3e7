@@ -1,0 +1,40 @@
+[33mc6e46a4[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m cambien el import de configuracion
+[33mc5c91da[m agregue una carpeta api
+[33mc49e3e7[m hice las categorias dinamicas
+[33mf9b9bc3[m agregue dropdown al cartel de stock bajo
+[33m7fe24da[m cambien la direccion al hacer click en el nombre de la empresa
+[33md98b024[m agregue para exportar a excel o descargar como pdf
+[33m00d7ab2[m agregue cartel de stock bajo
+[33m0ff9d50[m arregle el hsitorial de stock
+[33mdbdbf52[m agregue stock.astro
+[33mb86adea[m agregue stock y cambie a español configuraciones
+[33m9b27eb8[m agregue que el nombre de la empresa que pone en register, quede como titulo
+[33m1a7cb13[m agregue autentificacion de email
+[33med3989c[m agregue division de productos en cierre de cajas
+[33m9e990f2[m cambie las opciones de Sidebar para el empleado
+[33m2b6f353[m modifique empleados
+[33m9f99b51[m agregue proveedores
+[33mc247b90[m arregle equipo y ventas
+[33m6f00a36[m modifique empleado con dropdown
+[33m21a2a5e[m cambie todo a español
+[33m190f3a1[m arregle el login
+[33m4819f9c[m arregle sidebar
+[33m50ab44f[m configurando el sidebar
+[33m3b70cdf[m arreglando el sidebar
+[33m86ae9d0[m modifique el responsive
+[33m1949f7b[m agregamos el responsive
+[33m3863616[m arregle los errores
+[33m4a60293[m cambie el minimo del stock
+[33m08c3a25[m cambie la configuracion de login
+[33m65709bb[m agregue funciones a repots y employee
+[33m3618628[m agregue que aparezca que empleada vendio mas
+[33m49ca650[m agregue olvide contraseña
+[33mc9e9d15[m agregue nombre del empleado en cada venta
+[33m74fe110[m agregue la opcion de poner codigos a los productos
+[33m05bd4a0[m agregue para enviar el ticket
+[33mfa1abd3[m agregue fondo al register y login
+[33md4c94d9[m elimine el icono de register
+[33m78c5195[m elimine que tengan que pagar para usar el sistema
+[33me3c8f52[m cambiar adaptador node por vercel
+[33mdf0cdb0[m first commit
+[33me7d15b1[m "Initial commit from Astro"

@@ -210,19 +210,13 @@ import Layout from "../layouts/Layout.astro";
 		setLoading(true);
 
 		try {
-			const formData = new FormData();
-			formData.append("email", email);
-			formData.append("password", password);
-
-			const res  = await fetch("/api/auth/login", {
-				method: "POST",
-				body: formData,
+			const { data, error } = await supabase.auth.signInWithPassword({
+				email,
+				password,
 			});
 
-			const data = await res.json();
-
-			if (!res.ok) {
-				showError(data.error ?? "Error al iniciar sesión.");
+			if (error) {
+				showError(error.message);
 				return;
 			}
 
