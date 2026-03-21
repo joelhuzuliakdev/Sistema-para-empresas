@@ -1,43 +1,21 @@
 import { defineMiddleware } from "astro:middleware";
 import { createClient } from "@supabase/supabase-js";
 
-const PUBLIC_ROUTES = [
-    "/",
-    "/login",
-    "/register",
-    "/pago",
-    "/forgot-password",
-    "/reset-password",
-    "/auth/callback",   // ← faltaba
-];
+const PUBLIC_ROUTES = ["/", "/login", "/register", "/pago"];
+const ADMIN_ROUTES = ["/dashboard", "/products", "/clients", "/cash", "/reports", "/sales", "/team"];
 
-const EMPLOYEE_ONLY_ROUTES = ["/empleado"];
-
-const OWNER_ONLY_ROUTES = [
-    "/inicio",
-    "/productos",
-    "/ventas",
-    "/caja",
-    "/clientes",
-    "/reportes",
-    "/equipo",
-    "/facturas",
-    "/proveedores",
-    "/configuraciones",
-    "/stock",           // ← la nueva página de movimientos
-];
-
-export const onRequest = defineMiddleware(async ({ url, cookies, redirect }, next) => {
+export const onRequest = defineMiddleware(async ({ url, request, cookies, redirect }, next) => {
     const pathname = url.pathname;
 
     if (PUBLIC_ROUTES.includes(pathname)) return next();
-    if (pathname.startsWith("/api/")) return next();        // cubre /api/webhook y cualquier otra
-    if (pathname.startsWith("/_")) return next();           // assets internos de Astro
+    if (pathname.startsWith("/api/webhook")) return next(); // para el webhook de Stripe
 
     const accessToken = cookies.get("sb-access-token")?.value;
     const refreshToken = cookies.get("sb-refresh-token")?.value;
 
-    if (!accessToken || !refreshToken) return redirect("/login");
+    if (!accessToken || !refreshToken) {
+        return redirect("/login");
+    }
 
     const supabase = createClient(
         import.meta.env.PUBLIC_SUPABASE_URL,
@@ -54,30 +32,18 @@ export const onRequest = defineMiddleware(async ({ url, cookies, redirect }, nex
 
     const { data: roleData } = await supabase
         .from("user_roles")
-        .select("role, activo, plan_expira_en")
+        .select("role, activo, plan_expira_en")  // 👈 agregamos los nuevos campos
         .eq("user_id", user.id)
         .single();
 
-    const role           = roleData?.role           ?? "employee";
-    const activo         = roleData?.activo         ?? false;
-    const planExpiraEn   = roleData?.plan_expira_en ?? null;
+    const role = roleData?.role ?? "employee";
 
-    // Cuenta desactivada
-    if (!activo) return redirect("/login");
-
-    // Plan vencido → redirigir a la página de pago (solo si no está ya ahí)
-    if (planExpiraEn && new Date(planExpiraEn) < new Date() && pathname !== "/pago") {
-        return redirect("/pago");
+    if (role === "employee" && ADMIN_ROUTES.some(r => pathname.startsWith(r))) {
+        return redirect("/employee");
     }
 
-    // Empleado intentando entrar a rutas de owner
-    if (role === "employee" && OWNER_ONLY_ROUTES.some(r => pathname.startsWith(r))) {
-        return redirect("/empleado");
-    }
-
-    // Owner/admin intentando entrar al panel de empleado
-    if ((role === "owner" || role === "admin") && EMPLOYEE_ONLY_ROUTES.some(r => pathname.startsWith(r))) {
-        return redirect("/inicio");
+    if (role === "admin" && pathname.startsWith("/employee")) {
+        return redirect("/dashboard");
     }
 
     return next();

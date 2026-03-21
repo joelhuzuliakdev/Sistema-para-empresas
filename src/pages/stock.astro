@@ -1,0 +1,324 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { supabase } from "../lib/supabaseClient.js";
+
+const { data: movements } = await supabase
+    .from("stock_movements")
+    .select("*, products(name, category)")
+    .order("created_at", { ascending: false })
+    .limit(200);
+
+const formatDate = (d: string) =>
+    new Date(d).toLocaleString("es-AR", {
+        day: "2-digit", month: "2-digit", year: "numeric",
+        hour: "2-digit", minute: "2-digit",
+    });
+---
+
+<Layout>
+    <div class="min-h-screen bg-slate-50 px-4 sm:px-6 py-6 sm:py-8 pt-20 lg:pt-8">
+        <div class="max-w-4xl mx-auto">
+
+            <!-- Header -->
+            <div class="flex items-center justify-between gap-3 mb-6 sm:mb-8">
+                <div class="flex items-center gap-3 sm:gap-4 min-w-0">
+                    <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-violet-600 flex items-center justify-center shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                    </div>
+                    <div class="min-w-0">
+                        <h1 class="text-xl sm:text-2xl font-bold text-slate-800 leading-tight">Movimientos de stock</h1>
+                        <p class="text-xs sm:text-sm text-slate-500">Historial de entradas, salidas y ajustes</p>
+                    </div>
+                </div>
+
+                <!-- Botón ajuste manual -->
+                <button id="open-ajuste-modal"
+                    class="inline-flex items-center gap-1.5 sm:gap-2 bg-violet-600 hover:bg-violet-700 active:scale-95 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-all shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span class="hidden xs:inline">Ajuste manual</span>
+                    <span class="xs:hidden">Ajuste</span>
+                </button>
+            </div>
+
+            <!-- Filtros -->
+            <div class="flex flex-wrap gap-2 mb-5">
+                <button data-filter="todos"
+                    class="filter-btn active-filter px-3 py-1.5 rounded-xl text-xs font-semibold transition-all bg-slate-800 text-white">
+                    Todos
+                </button>
+                <button data-filter="entrada"
+                    class="filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold transition-all bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">
+                    Entradas
+                </button>
+                <button data-filter="salida"
+                    class="filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold transition-all bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">
+                    Salidas
+                </button>
+                <button data-filter="ajuste"
+                    class="filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold transition-all bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">
+                    Ajustes
+                </button>
+                <button data-filter="venta"
+                    class="filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold transition-all bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">
+                    Ventas
+                </button>
+            </div>
+
+            <!-- Tabla -->
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+                {movements && movements.length > 0 ? (
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b border-slate-100 bg-slate-50">
+                                    <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Fecha</th>
+                                    <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Producto</th>
+                                    <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Tipo</th>
+                                    <th class="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Cantidad</th>
+                                    <th class="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden sm:table-cell">Antes</th>
+                                    <th class="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden sm:table-cell">Después</th>
+                                    <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Motivo</th>
+                                </tr>
+                            </thead>
+                            <tbody id="movements-body" class="divide-y divide-slate-100">
+                                {movements.map((m: any) => {
+                                    const isPos = (m.quantity ?? 0) > 0;
+                                    const tipo = m.type ?? "";
+
+                                    let badgeLabel = tipo;
+                                    let badgeCls = "bg-slate-100 text-slate-600";
+
+                                    if (tipo === "entrada") { badgeLabel = "Entrada"; badgeCls = "bg-emerald-50 text-emerald-700"; }
+                                    else if (tipo === "salida")  { badgeLabel = "Salida";  badgeCls = "bg-red-50 text-red-700"; }
+                                    else if (tipo === "ajuste")  { badgeLabel = "Ajuste";  badgeCls = "bg-amber-50 text-amber-700"; }
+                                    else if (tipo === "venta")   { badgeLabel = "Venta";   badgeCls = "bg-blue-50 text-blue-700"; }
+
+                                    const cantidadCls = isPos ? "text-emerald-600" : "text-red-600";
+                                    const cantidadStr = (isPos ? "+" : "") + (m.quantity ?? 0);
+
+                                    return (
+                                        <tr class="movement-row hover:bg-slate-50 transition-colors" data-type={tipo}>
+                                            <td class="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
+                                                {formatDate(m.created_at)}
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <p class="text-sm font-medium text-slate-800 truncate max-w-[180px]">
+                                                    {m.product_name ?? "—"}
+                                                </p>
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <span class={"inline-block px-2 py-0.5 rounded-full text-xs font-semibold " + badgeCls}>
+                                                    {badgeLabel}
+                                                </span>
+                                            </td>
+                                            <td class={"px-4 py-3 text-sm font-bold text-right " + cantidadCls}>
+                                                {cantidadStr}
+                                            </td>
+                                            <td class="px-4 py-3 text-sm text-slate-500 text-right hidden sm:table-cell">
+                                                {m.stock_before ?? "—"}
+                                            </td>
+                                            <td class="px-4 py-3 text-sm font-medium text-slate-700 text-right hidden sm:table-cell">
+                                                {m.stock_after ?? "—"}
+                                            </td>
+                                            <td class="px-4 py-3 text-xs text-slate-400 hidden md:table-cell">
+                                                {m.reason ?? "—"}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <div class="flex flex-col items-center justify-center py-16 text-center px-4">
+                        <div class="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                        </div>
+                        <p class="text-slate-500 text-sm">No hay movimientos registrados</p>
+                        <p class="text-slate-400 text-xs mt-1">Los cambios de stock aparecerán acá automáticamente</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal ajuste manual -->
+    <div id="ajuste-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center px-4">
+        <div class="absolute inset-0 bg-black/40" id="ajuste-overlay"></div>
+        <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5">
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-bold text-slate-800">Ajuste manual de stock</h2>
+                <button id="close-ajuste-modal" class="text-slate-400 hover:text-slate-600 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <div id="ajuste-error" class="hidden px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs"></div>
+
+            <div class="space-y-1.5">
+                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Producto</label>
+                <select id="ajuste-product"
+                    class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500 transition">
+                    <option value="">Seleccioná un producto...</option>
+                </select>
+            </div>
+
+            <div class="space-y-1.5">
+                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Tipo de movimiento</label>
+                <select id="ajuste-type"
+                    class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500 transition">
+                    <option value="entrada">Entrada (suma stock)</option>
+                    <option value="salida">Salida (resta stock)</option>
+                    <option value="ajuste">Ajuste (pone stock exacto)</option>
+                </select>
+            </div>
+
+            <div class="space-y-1.5">
+                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Cantidad</label>
+                <input id="ajuste-qty" type="number" min="1" placeholder="Ej: 50"
+                    class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500 transition"/>
+            </div>
+
+            <div class="space-y-1.5">
+                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Motivo (opcional)</label>
+                <input id="ajuste-reason" type="text" placeholder="Ej: Compra a proveedor, rotura, inventario..."
+                    class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-500 transition"/>
+            </div>
+
+            <button id="ajuste-save-btn"
+                class="w-full py-3 rounded-xl text-sm font-semibold bg-violet-600 hover:bg-violet-700 active:scale-[0.98] text-white transition-all flex items-center justify-center gap-2">
+                <span id="ajuste-save-text">Guardar ajuste</span>
+                <svg id="ajuste-spinner" class="hidden w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 12 0 12 0v4a8 8 0 00-8 8H0z"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+</Layout>
+
+<script>
+    import { supabase } from "../lib/supabaseClient.js";
+
+    // ── Filtros ──
+    document.querySelectorAll<HTMLElement>(".filter-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            document.querySelectorAll(".filter-btn").forEach(b => {
+                b.classList.remove("active-filter", "bg-slate-800", "text-white");
+                b.classList.add("bg-white", "border", "border-slate-200", "text-slate-600");
+            });
+            btn.classList.add("active-filter", "bg-slate-800", "text-white");
+            btn.classList.remove("bg-white", "border", "border-slate-200", "text-slate-600");
+
+            const filter = btn.dataset.filter!;
+            document.querySelectorAll<HTMLElement>(".movement-row").forEach(row => {
+                row.style.display =
+                    filter === "todos" || row.dataset.type === filter ? "" : "none";
+            });
+        });
+    });
+
+    // ── Modal ajuste manual ──
+    const modal      = document.getElementById("ajuste-modal")!;
+    const overlay    = document.getElementById("ajuste-overlay")!;
+    const openBtn    = document.getElementById("open-ajuste-modal")!;
+    const closeBtn   = document.getElementById("close-ajuste-modal")!;
+    const saveBtn    = document.getElementById("ajuste-save-btn") as HTMLButtonElement;
+    const saveText   = document.getElementById("ajuste-save-text")!;
+    const spinner    = document.getElementById("ajuste-spinner")!;
+    const errorEl    = document.getElementById("ajuste-error")!;
+    const productSel = document.getElementById("ajuste-product") as HTMLSelectElement;
+    const typeSel    = document.getElementById("ajuste-type")    as HTMLSelectElement;
+    const qtyInput   = document.getElementById("ajuste-qty")     as HTMLInputElement;
+    const reasonInput= document.getElementById("ajuste-reason")  as HTMLInputElement;
+
+    function openModal() { modal.classList.remove("hidden"); document.body.style.overflow = "hidden"; }
+    function closeModal() { modal.classList.add("hidden"); document.body.style.overflow = ""; }
+
+    openBtn.addEventListener("click", openModal);
+    closeBtn.addEventListener("click", closeModal);
+    overlay.addEventListener("click", closeModal);
+
+    // Cargar productos en el select
+    supabase.from("products").select("id, name, stock").order("name").then(({ data }) => {
+        data?.forEach(p => {
+            const opt = document.createElement("option");
+            opt.value = p.id;
+            opt.textContent = `${p.name} (stock actual: ${p.stock ?? 0})`;
+            productSel.appendChild(opt);
+        });
+    });
+
+    saveBtn.addEventListener("click", async () => {
+        errorEl.classList.add("hidden");
+
+        const productId = productSel.value;
+        const type      = typeSel.value;
+        const qty       = parseInt(qtyInput.value);
+        const reason    = reasonInput.value.trim();
+
+        if (!productId)  return showError("Seleccioná un producto.");
+        if (!qty || qty < 1) return showError("Ingresá una cantidad válida.");
+
+        saveBtn.disabled = true;
+        saveText.textContent = "Guardando...";
+        spinner.classList.remove("hidden");
+
+        try {
+            // Obtener stock actual
+            const { data: prod } = await supabase
+                .from("products")
+                .select("stock, name")
+                .eq("id", productId)
+                .single();
+
+            const stockActual = prod?.stock ?? 0;
+            let nuevoStock: number;
+
+            if (type === "entrada")  nuevoStock = stockActual + qty;
+            else if (type === "salida") nuevoStock = Math.max(0, stockActual - qty);
+            else nuevoStock = qty; // ajuste directo
+
+            // Actualizar stock (el trigger registra el movimiento automáticamente)
+            const { error: updateError } = await supabase
+                .from("products")
+                .update({ stock: nuevoStock })
+                .eq("id", productId);
+
+            if (updateError) throw updateError;
+
+            // Actualizar el motivo en el último movimiento registrado
+            if (reason) {
+                await supabase
+                    .from("stock_movements")
+                    .update({ reason, type })
+                    .eq("product_id", productId)
+                    .order("created_at", { ascending: false })
+                    .limit(1);
+            }
+
+            closeModal();
+            window.location.reload();
+
+        } catch (err: any) {
+            showError(err?.message ?? "Error al guardar el ajuste.");
+        } finally {
+            saveBtn.disabled = false;
+            saveText.textContent = "Guardar ajuste";
+            spinner.classList.add("hidden");
+        }
+    });
+
+    function showError(msg: string) {
+        errorEl.textContent = msg;
+        errorEl.classList.remove("hidden");
+    }
+</script>
