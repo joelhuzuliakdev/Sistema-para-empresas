@@ -12,8 +12,7 @@ const totalClientes = clients?.length ?? 0;
 const totalProductos = products?.length ?? 0;
 const cajaAbierta = cash?.find((c) => !c.closed_at);
 
-const { data: productosConStockBajo } = await supabase
-    .rpc("productos_stock_bajo");
+const { data: productosConStockBajo } = await supabase.rpc("productos_stock_bajo");
 const hayAlertas = (productosConStockBajo?.length ?? 0) > 0;
 
 const formatMoney = (amount: number) =>
@@ -62,34 +61,64 @@ const totalHoy = ventasHoy.reduce((acc, s) => acc + (s.total ?? 0), 0);
                 )}
             </div>
 
+            <!-- Banner stock bajo (dropdown) -->
             {hayAlertas && (
-                <div class="mb-5 sm:mb-6 bg-amber-50 border border-amber-200 rounded-2xl p-4">
-                    <div class="flex items-start gap-3">
-                        <div class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0 mt-0.5">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                            </svg>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm font-semibold text-amber-800">
-                                {productosConStockBajo!.length === 1
-                                    ? "1 producto con stock bajo"
-                                    : `${productosConStockBajo!.length} productos con stock bajo`}
-                            </p>
-                            <div class="mt-2 space-y-1">
-                                {productosConStockBajo!.map((p: any) => (
-                                    <div class="flex items-center justify-between gap-2">
-                                        <span class="text-xs text-amber-700 truncate">{p.name}</span>
-                                        <span class="text-xs font-semibold text-amber-800 shrink-0">
-                                            {p.stock} / {p.stock_minimo} mín.
-                                        </span>
-                                    </div>
-                                ))}
+                <div class="mb-5 sm:mb-6 bg-amber-50 border border-amber-200 rounded-2xl overflow-hidden">
+
+                    <!-- Cabecera clickeable -->
+                    <button
+                        id="stock-alert-toggle"
+                        class="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left hover:bg-amber-100/50 transition-colors"
+                    >
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
                             </div>
-                            <a href="/stock" class="inline-block mt-2 text-xs font-medium text-amber-600 hover:text-amber-700 hover:underline transition">
-                                Ver movimientos de stock →
-                            </a>
+                            <div class="min-w-0">
+                                <p class="text-sm font-semibold text-amber-800">
+                                    {productosConStockBajo!.length === 1
+                                        ? "1 producto con stock bajo"
+                                        : `${productosConStockBajo!.length} productos con stock bajo`}
+                                </p>
+                                <p class="text-xs text-amber-600 mt-0.5">Hacé click para ver el detalle</p>
+                            </div>
                         </div>
+                        <svg
+                            id="stock-alert-chevron"
+                            xmlns="http://www.w3.org/2000/svg"
+                            class="w-4 h-4 text-amber-500 transition-transform duration-200 shrink-0"
+                            fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                        >
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    <!-- Contenido colapsable -->
+                    <div id="stock-alert-body" class="hidden border-t border-amber-200 px-4 py-3 space-y-2">
+                        {productosConStockBajo!.map((p: any) => (
+                            <div class="flex items-center justify-between gap-3 py-1.5 border-b border-amber-100 last:border-0">
+                                <span class="text-sm text-amber-800 truncate font-medium">{p.name}</span>
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <span class="text-xs text-amber-600">Stock actual:</span>
+                                    <span class={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${
+                                        p.stock === 0
+                                            ? "bg-red-100 text-red-700"
+                                            : "bg-amber-100 text-amber-800"
+                                    }`}>
+                                        {p.stock}
+                                    </span>
+                                    <span class="text-xs text-amber-500">/ {p.stock_minimo} mín.</span>
+                                </div>
+                            </div>
+                        ))}
+                        <a
+                            href="/stock"
+                            class="inline-flex items-center gap-1.5 mt-1 text-xs font-semibold text-amber-600 hover:text-amber-700 hover:underline transition"
+                        >
+                            Ver movimientos de stock →
+                        </a>
                     </div>
                 </div>
             )}
@@ -188,7 +217,7 @@ const totalHoy = ventasHoy.reduce((acc, s) => acc + (s.total ?? 0), 0);
                             <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-violet-50 flex items-center justify-center group-hover:bg-violet-100 transition-colors shrink-0">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
+                                </svg>
                             </div>
                             <span class="text-sm font-medium text-slate-700">Clientes</span>
                         </a>
@@ -221,8 +250,21 @@ const totalHoy = ventasHoy.reduce((acc, s) => acc + (s.total ?? 0), 0);
                         </a>
 
                     </div>
+                </div>
 
             </div>
         </div>
     </div>
 </Layout>
+
+<script>
+    const toggle  = document.getElementById("stock-alert-toggle");
+    const body    = document.getElementById("stock-alert-body");
+    const chevron = document.getElementById("stock-alert-chevron");
+
+    toggle?.addEventListener("click", () => {
+        const isOpen = !body?.classList.contains("hidden");
+        body?.classList.toggle("hidden", isOpen);
+        if (chevron) chevron.style.transform = isOpen ? "" : "rotate(180deg)";
+    });
+</script>
