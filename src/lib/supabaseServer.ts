@@ -7,18 +7,21 @@ export function createSupabaseServer(request: Request, cookies: any) {
         {
             cookies: {
                 getAll() {
-                    // Verificación defensiva por si cookies no está listo
-                    if (typeof cookies?.getAll !== "function") return [];
-                    return cookies.getAll().map((c: any) => ({
-                        name: c.name,
-                        value: c.value,
-                    }));
-                },
-                setAll(cookiesToSet: any[]) {
-                    if (typeof cookies?.set !== "function") return;
-                    cookiesToSet.forEach(({ name, value, options }) => {
-                        cookies.set(name, value, options);
+                    const cookieHeader = request.headers.get("Cookie") ?? "";
+                    if (!cookieHeader) return [];
+                    
+                    return cookieHeader.split(";").map((cookie) => {
+                        const [name, ...rest] = cookie.trim().split("=");
+                        return {
+                            name: name.trim(),
+                            value: rest.join("=").trim(),
+                        };
                     });
+                },
+                setAll(cookiesToSet) {
+                    cookiesToSet.forEach(({ name, value, options }) =>
+                        cookies.set(name, value, options)
+                    );
                 },
             },
         }
