@@ -54,10 +54,6 @@ export const onRequest = defineMiddleware(async ({ url, request, cookies, redire
     if (role === "employee" && OWNER_ONLY_ROUTES.some(r => pathname.startsWith(r))) {
         return redirect("/empleado");
     }
-
-    if ((role === "owner" || role === "admin") && EMPLOYEE_ONLY_ROUTES.some(r => pathname.startsWith(r))) {
-        return redirect("/inicio");
-    }
-
+    
     return next();
 });

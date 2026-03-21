@@ -1,25 +1,43 @@
 ---
 import '../styles/global.css'
 import Sidebar from "../components/Sidebar.astro";
+import { createSupabaseServer } from "../lib/supabaseServer";
+
 const { pathname } = Astro.url;
-const { isEmployee = false } = Astro.props; // ← ya lo tenés, solo verificá que esté
 const hideSidebar = pathname === "/" || pathname === "/login" || pathname === "/register";
+
+let role = "employee";
+
+if (!hideSidebar) {
+    const supabase = createSupabaseServer(Astro.request, Astro.cookies);
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (user) {
+        const { data: roleData } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", user.id)
+            .single();
+
+        role = roleData?.role ?? "employee";
+    }
+}
 ---
 
 <html lang="es">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>NexoPOS</title>
-		<link rel="icon" type="image/png" href="/logoJoel.webp" />
-	</head>
-	<body class={`${hideSidebar ? "" : "flex"} bg-slate-50 min-h-screen`}>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>NexoPOS</title>
+        <link rel="icon" type="image/png" href="/logoJoel.webp" />
+    </head>
+    <body class={`${hideSidebar ? "" : "flex"} bg-slate-50 min-h-screen`}>
 
-		{!hideSidebar && <Sidebar isEmployee={isEmployee} />}
+        {!hideSidebar && <Sidebar role={role} />}
 
-		<main class="flex-1 overflow-y-auto">
-		<slot />
-		</main>
+        <main class="flex-1 overflow-y-auto">
+            <slot />
+        </main>
 
-	</body>
+    </body>
 </html>
