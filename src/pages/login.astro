@@ -197,37 +197,39 @@ import Layout from "../layouts/Layout.astro";
 	}
 
 	loginBtn.addEventListener("click", async () => {
-		hideError();
+	hideError();
 
-		const email    = emailInput.value.trim();
-		const password = passwordInput.value;
+	const email    = emailInput.value.trim();
+	const password = passwordInput.value;
 
-		if (!email || !password) {
-			showError("Completá todos los campos.");
+	if (!email || !password) {
+		showError("Completá todos los campos.");
+		return;
+	}
+
+	setLoading(true);
+
+	try {
+		const { data, error } = await supabase.auth.signInWithPassword({
+			email,
+			password,
+		});
+
+		if (error) {
+			showError(error.message);
 			return;
 		}
 
-		setLoading(true);
+		await supabase.auth.getSession();
 
-		try {
-			const { data, error } = await supabase.auth.signInWithPassword({
-				email,
-				password,
-			});
+		window.location.href = "/inicio";
 
-			if (error) {
-				showError(error.message);
-				return;
-			}
-
-			window.location.href = "/inicio";
-
-		} catch {
-			showError("Error de conexión.");
-		} finally {
-			setLoading(false);
-		}
-	});
+	} catch {
+		showError("Error de conexión.");
+	} finally {
+		setLoading(false);
+	}
+});
 
 	[emailInput, passwordInput].forEach((input) => {
 		input.addEventListener("keydown", (e) => {
