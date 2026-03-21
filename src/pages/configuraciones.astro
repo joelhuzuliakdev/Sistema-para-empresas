@@ -6,6 +6,11 @@ const { data: settings } = await supabase
     .from("settings")
     .select("*")
     .single();
+
+const { data: categories } = await supabase
+    .from("categories")
+    .select("*")
+    .order("name");
 ---
 
 <Layout>
@@ -26,7 +31,7 @@ const { data: settings } = await supabase
                 </div>
             </div>
 
-            <!-- Card -->
+            <!-- Card empresa -->
             <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 sm:p-6 space-y-6">
 
                 <div id="settings-error" class="hidden px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs"></div>
@@ -47,9 +52,7 @@ const { data: settings } = await supabase
                 <!-- Logo -->
                 <div class="space-y-3">
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Logo</label>
-
                     <div class="flex items-center gap-4">
-                        <!-- Preview -->
                         <div id="logo-preview-wrapper" class="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center shrink-0">
                             {settings?.logo_url ? (
                                 <img id="logo-preview" src={settings.logo_url} class="w-full h-full object-cover" />
@@ -59,8 +62,6 @@ const { data: settings } = await supabase
                                 </svg>
                             )}
                         </div>
-
-                        <!-- Botón subir -->
                         <div class="space-y-1">
                             <label class="cursor-pointer inline-flex items-center gap-2 px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 active:scale-95 transition-all">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -74,7 +75,7 @@ const { data: settings } = await supabase
                     </div>
                 </div>
 
-                <!-- Botón guardar -->
+                <!-- Botón guardar empresa -->
                 <div class="pt-2">
                     <button
                         id="save-settings-btn"
@@ -87,8 +88,63 @@ const { data: settings } = await supabase
                         </svg>
                     </button>
                 </div>
+            </div>
+
+            <!-- Card categorías -->
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 sm:p-6 space-y-4">
+
+                <div>
+                    <h2 class="text-sm font-semibold text-slate-800">Categorías de productos</h2>
+                    <p class="text-xs text-slate-500 mt-0.5">Se usan en productos, ventas y caja</p>
+                </div>
+
+                <div id="cat-error" class="hidden px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs"></div>
+
+                <!-- Lista de categorías existentes -->
+                <div id="categories-list" class="space-y-2">
+                    {categories && categories.length > 0 ? (
+                        categories.map((cat: any) => (
+                            <div class="category-row flex items-center gap-2" data-id={cat.id}>
+                                <span class="flex-1 text-sm text-slate-700 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                                    {cat.name}
+                                </span>
+                                <button
+                                    class="delete-cat-btn shrink-0 w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                                    data-id={cat.id}
+                                    title="Eliminar categoría"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            </div>
+                        ))
+                    ) : (
+                        <p class="text-sm text-slate-400 text-center py-4">No hay categorías todavía</p>
+                    )}
+                </div>
+
+                <!-- Input nueva categoría -->
+                <div class="flex gap-2 pt-1">
+                    <input
+                        id="new-category-input"
+                        type="text"
+                        placeholder="Nueva categoría..."
+                        class="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                    />
+                    <button
+                        id="add-category-btn"
+                        class="shrink-0 inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-sm font-semibold rounded-xl transition-all"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Agregar
+                    </button>
+                </div>
 
             </div>
+
         </div>
     </div>
 </Layout>
@@ -96,18 +152,11 @@ const { data: settings } = await supabase
 <script>
     import { supabase } from "../lib/supabaseClient.js";
 
-    const saveBtn     = document.getElementById("save-settings-btn") as HTMLButtonElement;
-    const saveText    = document.getElementById("save-settings-text")!;
-    const saveSpinner = document.getElementById("save-settings-spinner")!;
-    const errorEl     = document.getElementById("settings-error")!;
-    const successEl   = document.getElementById("settings-success")!;
-    const logoInput   = document.getElementById("logo-input") as HTMLInputElement;
-
-    // Preview del logo al seleccionar archivo
+    // ── Empresa: logo preview ──
+    const logoInput = document.getElementById("logo-input") as HTMLInputElement;
     logoInput.addEventListener("change", () => {
         const file = logoInput.files?.[0];
         if (!file) return;
-
         const reader = new FileReader();
         reader.onload = (e) => {
             const wrapper = document.getElementById("logo-preview-wrapper")!;
@@ -115,6 +164,13 @@ const { data: settings } = await supabase
         };
         reader.readAsDataURL(file);
     });
+
+    // ── Empresa: guardar ──
+    const saveBtn     = document.getElementById("save-settings-btn") as HTMLButtonElement;
+    const saveText    = document.getElementById("save-settings-text")!;
+    const saveSpinner = document.getElementById("save-settings-spinner")!;
+    const errorEl     = document.getElementById("settings-error")!;
+    const successEl   = document.getElementById("settings-success")!;
 
     function setLoading(loading: boolean) {
         saveBtn.disabled = loading;
@@ -134,27 +190,19 @@ const { data: settings } = await supabase
         }
 
         setLoading(true);
-
         try {
             let logoUrl: string | null = null;
-
             const file = logoInput.files?.[0];
+
             if (file) {
                 if (file.size > 2 * 1024 * 1024) throw new Error("La imagen no puede superar 2MB.");
-
                 const ext  = file.name.split(".").pop();
                 const path = `logo/company-logo.${ext}`;
-
                 const { error: uploadError } = await supabase.storage
                     .from("settings")
                     .upload(path, file, { upsert: true });
-
                 if (uploadError) throw new Error("Error al subir el logo: " + uploadError.message);
-
-                const { data: urlData } = supabase.storage
-                    .from("settings")
-                    .getPublicUrl(path);
-
+                const { data: urlData } = supabase.storage.from("settings").getPublicUrl(path);
                 logoUrl = urlData.publicUrl + "?t=" + Date.now();
             }
 
@@ -178,5 +226,101 @@ const { data: settings } = await supabase
         } finally {
             setLoading(false);
         }
+    });
+
+    // ── Categorías ──
+    const catErrorEl     = document.getElementById("cat-error")!;
+    const catList        = document.getElementById("categories-list")!;
+    const newCatInput    = document.getElementById("new-category-input") as HTMLInputElement;
+    const addCatBtn      = document.getElementById("add-category-btn")!;
+
+    function showCatError(msg: string) {
+        catErrorEl.textContent = msg;
+        catErrorEl.classList.remove("hidden");
+        setTimeout(() => catErrorEl.classList.add("hidden"), 3000);
+    }
+
+    function attachDeleteHandler(btn: Element) {
+        btn.addEventListener("click", async () => {
+            const id = (btn as HTMLElement).dataset.id!;
+            const row = btn.closest(".category-row");
+
+            // Feedback visual inmediato
+            row?.classList.add("opacity-50");
+
+            const { error } = await supabase.from("categories").delete().eq("id", id);
+
+            if (error) {
+                row?.classList.remove("opacity-50");
+                showCatError("No se pudo eliminar. Verificá que no esté en uso.");
+                return;
+            }
+
+            row?.remove();
+
+            // Si ya no quedan categorías, mostrar mensaje vacío
+            if (catList.querySelectorAll(".category-row").length === 0) {
+                catList.innerHTML = `<p class="text-sm text-slate-400 text-center py-4">No hay categorías todavía</p>`;
+            }
+        });
+    }
+
+    // Attacher handlers a las categorías que ya existen
+    document.querySelectorAll(".delete-cat-btn").forEach(attachDeleteHandler);
+
+    addCatBtn.addEventListener("click", async () => {
+        const name = newCatInput.value.trim();
+        if (!name) return;
+
+        addCatBtn.setAttribute("disabled", "true");
+
+        const { data, error } = await supabase
+            .from("categories")
+            .insert({ name })
+            .select()
+            .single();
+
+        addCatBtn.removeAttribute("disabled");
+
+        if (error) {
+            showCatError(
+                error.message.includes("unique") || error.message.includes("duplicate")
+                    ? "Esa categoría ya existe."
+                    : "Error al agregar la categoría."
+            );
+            return;
+        }
+
+        // Limpiar el mensaje de "no hay categorías" si estaba
+        const emptyMsg = catList.querySelector("p");
+        if (emptyMsg) emptyMsg.remove();
+
+        // Agregar la nueva fila sin recargar
+        const row = document.createElement("div");
+        row.className = "category-row flex items-center gap-2";
+        row.dataset.id = data.id;
+        row.innerHTML = `
+            <span class="flex-1 text-sm text-slate-700 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                ${data.name}
+            </span>
+            <button
+                class="delete-cat-btn shrink-0 w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                data-id="${data.id}"
+                title="Eliminar categoría"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+            </button>`;
+
+        catList.appendChild(row);
+        attachDeleteHandler(row.querySelector(".delete-cat-btn")!);
+        newCatInput.value = "";
+        newCatInput.focus();
+    });
+
+    // Enter para agregar categoría
+    newCatInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") addCatBtn.click();
     });
 </script>
