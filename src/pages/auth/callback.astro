@@ -14,11 +14,18 @@ import Layout from '../../layouts/Layout.astro';
         const meta = session.user.user_metadata;
 
         await supabase.from("user_roles").insert([{
-        user_id: session.user.id,
-        role: "owner",
-        activo: true,
-        name: meta.business_name ?? "",
+            user_id: session.user.id,
+            role: "owner",
+            activo: true,
+            name: meta.business_name ?? "",
         }]);
+
+        // Guardar el nombre del negocio en settings para el Sidebar
+        await supabase.from("settings").upsert({
+            company_name: meta.business_name ?? "Mi Empresa",
+            // Si tu tabla tiene user_id, descomentá la siguiente línea:
+            // user_id: session.user.id,
+        });
 
         window.location.href = "/dashboard";
     } else {
