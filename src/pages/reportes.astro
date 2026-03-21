@@ -106,15 +106,36 @@ const rows = salesRaw?.map((s) => {
         <div class="max-w-5xl mx-auto">
 
             <!-- Header -->
-            <div class="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
-                <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-violet-600 flex items-center justify-center shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
+            <div class="flex items-center justify-between gap-3 sm:gap-4 mb-6 sm:mb-8">
+                <div class="flex items-center gap-3 sm:gap-4 min-w-0">
+                    <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-violet-600 flex items-center justify-center shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-xl sm:text-2xl font-bold text-slate-800 leading-tight">Reportes</h1>
+                        <p class="text-xs sm:text-sm text-slate-500">Historial y resumen de ventas</p>
+                    </div>
                 </div>
-                <div>
-                    <h1 class="text-xl sm:text-2xl font-bold text-slate-800 leading-tight">Reportes</h1>
-                    <p class="text-xs sm:text-sm text-slate-500">Historial y resumen de ventas</p>
+
+                <div class="flex items-center gap-2 shrink-0">
+                    <button id="export-excel-btn"
+                        class="inline-flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        <span class="hidden sm:inline">Exportar Excel</span>
+                        <span class="sm:hidden">Excel</span>
+                    </button>
+                    <button id="export-pdf-btn"
+                        class="inline-flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-red-500 hover:bg-red-600 active:scale-95 text-white transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        <span class="hidden sm:inline">Exportar PDF</span>
+                        <span class="sm:hidden">PDF</span>
+                    </button>
                 </div>
             </div>
 
@@ -735,4 +756,178 @@ const rows = salesRaw?.map((s) => {
     searchInput?.addEventListener("input",   applyFilters);
     methodFilter?.addEventListener("change", applyFilters);
     sellerFilter?.addEventListener("change", applyFilters);
+
+    // ── Exportar Excel ────────────────────────────────────────────────────────
+    import * as XLSX from "xlsx";
+
+    document.getElementById("export-excel-btn")?.addEventListener("click", () => {
+        // Hoja 1: Resumen de ventas
+        const ventasRows = [...document.querySelectorAll<HTMLTableRowElement>(".sale-row")]
+            .filter(row => row.style.display !== "none")
+            .map(row => {
+                const cells = row.querySelectorAll("td");
+                return {
+                    "Fecha":          cells[1]?.textContent?.trim() ?? "",
+                    "Cliente":        cells[2]?.textContent?.trim() ?? "",
+                    "Vendedor":       cells[3]?.textContent?.trim() ?? "",
+                    "Método de pago": cells[4]?.textContent?.trim() ?? "",
+                    "Total":          cells[5]?.textContent?.trim() ?? "",
+                };
+            });
+
+        // Hoja 2: Top productos
+        const productosRows = [...document.querySelectorAll<HTMLTableRowElement>("#products-tbody tr")]
+            .map(row => {
+                const cells = row.querySelectorAll("td");
+                return {
+                    "Producto":          cells[1]?.textContent?.trim() ?? "",
+                    "Unidades vendidas": cells[2]?.textContent?.trim() ?? "",
+                    "Total generado":    cells[3]?.textContent?.trim() ?? "",
+                };
+            }).filter(r => r["Producto"]);
+
+        // Hoja 3: Ventas por empleado
+        const empleadosRows = [...document.querySelectorAll<HTMLTableRowElement>("#sales-table thead ~ tbody tr")]
+            .map(row => {
+                const cells = row.querySelectorAll("td");
+                return {
+                    "Empleado":      cells[0]?.textContent?.trim() ?? "",
+                    "Cantidad":      cells[1]?.textContent?.trim() ?? "",
+                    "Total vendido": cells[2]?.textContent?.trim() ?? "",
+                };
+            }).filter(r => r["Empleado"]);
+
+        const wb = XLSX.utils.book_new();
+
+        const ws1 = XLSX.utils.json_to_sheet(ventasRows);
+        ws1["!cols"] = [{ wch: 18 }, { wch: 22 }, { wch: 18 }, { wch: 16 }, { wch: 16 }];
+        XLSX.utils.book_append_sheet(wb, ws1, "Ventas");
+
+        const ws2 = XLSX.utils.json_to_sheet(productosRows);
+        ws2["!cols"] = [{ wch: 28 }, { wch: 18 }, { wch: 18 }];
+        XLSX.utils.book_append_sheet(wb, ws2, "Top productos");
+
+        const ws3 = XLSX.utils.json_to_sheet(empleadosRows);
+        ws3["!cols"] = [{ wch: 22 }, { wch: 12 }, { wch: 18 }];
+        XLSX.utils.book_append_sheet(wb, ws3, "Por empleado");
+
+        const fecha = new Date().toISOString().slice(0, 10);
+        XLSX.writeFile(wb, `reporte-ventas-${fecha}.xlsx`);
+    });
+
+    // ── Exportar PDF ──────────────────────────────────────────────────────────
+        document.getElementById("export-pdf-btn")?.addEventListener("click", async () => {
+        const { jsPDF } = await import("https://esm.sh/jspdf@2.5.1");
+        const autoTable = (await import("https://esm.sh/jspdf-autotable@3.8.2")).default;
+
+        const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+        const fecha = new Date().toLocaleDateString("es-AR", {
+            day: "2-digit", month: "2-digit", year: "numeric"
+        });
+
+        // Título
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(30, 41, 59);
+        doc.text("Reporte de ventas", 14, 18);
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(100, 116, 139);
+        doc.text(`Generado el ${fecha}`, 14, 25);
+
+        // KPIs en cajas
+        const kpiLabels = ["Total acumulado", "Ventas hoy", "Ticket promedio", "Total ventas"];
+        const kpiValues = [
+            document.querySelector(".grid .bg-white:nth-child(1) .text-lg")?.textContent?.trim() ?? "",
+            document.querySelector(".grid .bg-white:nth-child(2) .text-lg")?.textContent?.trim() ?? "",
+            document.querySelector(".grid .bg-white:nth-child(3) .text-lg")?.textContent?.trim() ?? "",
+            document.querySelector(".grid .bg-white:nth-child(4) .text-lg")?.textContent?.trim() ?? "",
+        ];
+
+        const kpiW = 62, kpiH = 16, kpiY = 30, kpiGap = 4;
+        kpiLabels.forEach((label, i) => {
+            const x = 14 + i * (kpiW + kpiGap);
+            doc.setDrawColor(226, 232, 240);
+            doc.setFillColor(248, 250, 252);
+            doc.roundedRect(x, kpiY, kpiW, kpiH, 3, 3, "FD");
+            doc.setFontSize(7);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(148, 163, 184);
+            doc.text(label.toUpperCase(), x + 4, kpiY + 5);
+            doc.setFontSize(11);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(30, 41, 59);
+            doc.text(kpiValues[i], x + 4, kpiY + 12);
+        });
+
+        // Tabla ventas
+        const ventasVisibles = [...document.querySelectorAll<HTMLTableRowElement>(".sale-row")]
+            .filter(row => row.style.display !== "none");
+
+        const ventasData = ventasVisibles.map(row => {
+            const cells = row.querySelectorAll("td");
+            return [
+                cells[1]?.textContent?.trim() ?? "",
+                cells[2]?.textContent?.trim() ?? "",
+                cells[3]?.textContent?.trim() ?? "",
+                cells[4]?.textContent?.trim() ?? "",
+                cells[5]?.textContent?.trim() ?? "",
+            ];
+        });
+
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(51, 65, 85);
+        doc.text(`Historial de ventas (${ventasVisibles.length})`, 14, 56);
+
+        autoTable(doc, {
+            startY: 60,
+            head: [["Fecha", "Cliente", "Vendedor", "Método", "Total"]],
+            body: ventasData,
+            styles: { fontSize: 8, cellPadding: 3, textColor: [30, 41, 59] },
+            headStyles: { fillColor: [248, 250, 252], textColor: [148, 163, 184], fontStyle: "bold", fontSize: 7 },
+            alternateRowStyles: { fillColor: [248, 250, 252] },
+            columnStyles: { 4: { halign: "right", fontStyle: "bold" } },
+            margin: { left: 14, right: 14 },
+            tableLineColor: [226, 232, 240],
+            tableLineWidth: 0.1,
+        });
+
+        // Tabla top productos (nueva página si hay espacio insuficiente)
+        const productosData = [...document.querySelectorAll<HTMLTableRowElement>("#products-tbody tr")]
+            .map(row => {
+                const cells = row.querySelectorAll("td");
+                return [
+                    cells[1]?.textContent?.trim() ?? "",
+                    cells[2]?.textContent?.trim() ?? "",
+                    cells[3]?.textContent?.trim() ?? "",
+                ];
+            }).filter(r => r[0]);
+
+        if (productosData.length > 0) {
+            const finalY = (doc as any).lastAutoTable?.finalY ?? 60;
+            const startY = finalY + 10 > 180 ? (doc.addPage(), 14) : finalY + 10;
+
+            doc.setFontSize(11);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(51, 65, 85);
+            doc.text("Top productos", 14, startY - 2);
+
+            autoTable(doc, {
+                startY,
+                head: [["Producto", "Unidades vendidas", "Total generado"]],
+                body: productosData,
+                styles: { fontSize: 8, cellPadding: 3, textColor: [30, 41, 59] },
+                headStyles: { fillColor: [248, 250, 252], textColor: [148, 163, 184], fontStyle: "bold", fontSize: 7 },
+                alternateRowStyles: { fillColor: [248, 250, 252] },
+                columnStyles: { 2: { halign: "right", fontStyle: "bold" } },
+                margin: { left: 14, right: 14 },
+                tableLineColor: [226, 232, 240],
+                tableLineWidth: 0.1,
+            });
+        }
+
+        doc.save(`reporte-ventas-${new Date().toISOString().slice(0, 10)}.pdf`);
+    });
 </script>
