@@ -38,7 +38,11 @@ const { data: ventasMes } = await supabase
 const totalMes = ventasMes?.reduce((acc, s) => acc + (s.final_total ?? s.total ?? 0), 0) ?? 0;
 
 // ── Categorías fijas ──
-const CATEGORIAS_DESGLOSE = ["Descartable", "Librería", "Caramelos"];
+const { data: categoriesData } = await supabase
+    .from("categories")
+    .select("name")
+    .order("name");
+const CATEGORIAS_DESGLOSE = categoriesData?.map(c => c.name) ?? [];
 
 let desgloseCategorias: Record<string, number> = {};
 

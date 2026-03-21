@@ -5,7 +5,11 @@ import { supabase } from "../lib/supabaseClient.js";
 const { data: products } = await supabase.from("products").select("*");
 const { data: allDiscounts } = await supabase.from("product_discounts").select("*");
 
-const CATEGORIAS = ["Descartable", "Librería", "Caramelos"];
+const { data: categoriesData } = await supabase
+    .from("categories")
+    .select("name")
+    .order("name");
+const CATEGORIAS = categoriesData?.map(c => c.name) ?? [];
 
 const formatMoney = (amount: number | null) => {
     if (amount == null) return "—";
