@@ -94,22 +94,14 @@ const categoryNames = [...new Set((products ?? []).map((p: any) => p.category).f
                     {categoryNames.length > 0 && (
                         <div id="category-filters" class="flex flex-wrap gap-2 mb-4 sm:mb-5">
                             <button
-<<<<<<< HEAD
                                 class="category-filter-btn text-xs font-semibold px-3 py-1.5 rounded-xl border border-transparent bg-indigo-600 text-white transition-all"
-=======
-                                class="category-filter-btn text-xs font-semibold px-3 py-1.5 rounded-xl bg-indigo-600 text-white transition-all"
->>>>>>> a33f36ab6b1477081872ff7666758ff093fe1319
                                 data-category=""
                             >
                                 Todos
                             </button>
                             {categoryNames.map((cat) => (
                                 <button
-<<<<<<< HEAD
-                                    class="category-filter-btn text-xs font-semibold px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 hover:border-indigo-400 transition-all"
-=======
                                     class="category-filter-btn text-xs font-semibold px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-600 hover:border-indigo-400 hover:text-indigo-600 transition-all"
->>>>>>> a33f36ab6b1477081872ff7666758ff093fe1319
                                     data-category={cat}
                                 >
                                     {cat}
@@ -354,8 +346,6 @@ const categoryNames = [...new Set((products ?? []).map((p: any) => p.category).f
     document.getElementById("category-filters")?.addEventListener("click", (e) => {
         const btn = (e.target as HTMLElement).closest(".category-filter-btn") as HTMLElement | null;
         if (!btn) return;
-
-<<<<<<< HEAD
         document.querySelectorAll(".category-filter-btn").forEach(b => {
         b.classList.remove("bg-indigo-600", "text-white", "border-indigo-600");
         b.classList.add("bg-white", "text-slate-600", "border-slate-200");
@@ -363,14 +353,12 @@ const categoryNames = [...new Set((products ?? []).map((p: any) => p.category).f
 
     btn.classList.add("bg-indigo-600", "text-white", "border-indigo-600");
     btn.classList.remove("bg-white", "text-slate-600", "border-slate-200");
-=======
-        document.querySelectorAll<HTMLElement>(".category-filter-btn").forEach(b => {
+    document.querySelectorAll<HTMLElement>(".category-filter-btn").forEach(b => {
             b.classList.remove("bg-indigo-600", "text-white");
             b.classList.add("bg-white", "border", "border-slate-200", "text-slate-600");
-        });
+    });
         btn.classList.add("bg-indigo-600", "text-white");
         btn.classList.remove("bg-white", "border", "border-slate-200", "text-slate-600");
->>>>>>> a33f36ab6b1477081872ff7666758ff093fe1319
 
         activeCategoryFilter = btn.dataset.category ?? "";
         applyFilters();
