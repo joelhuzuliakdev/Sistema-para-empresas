@@ -3,7 +3,7 @@ import Layout from "../layouts/Layout.astro";
 import { supabase } from "../lib/supabaseClient.js";
 
 const { data: { user } } = await supabase.auth.getUser();
-const role = user?.user_metadata?.role ?? "empleado"; // ajustá el key si en tu metadata se llama distinto
+const role = user?.user_metadata?.role ?? "empleado";
 const isEmployee = role !== "admin";
 const { data: products } = await supabase.from("products").select("*");
 const { data: allDiscounts } = await supabase.from("product_discounts").select("*");
@@ -21,7 +21,6 @@ Object.values(discountsByProduct).forEach((arr) =>
     arr.sort((a, b) => b.min_qty - a.min_qty)
 );
 
-// FIX $Â: usar $ literal en vez de Intl currency: "ARS"
 const formatMoney = (amount: number | null) => {
     if (amount == null) return "—";
     return "$ " + new Intl.NumberFormat("es-AR", {
@@ -32,7 +31,6 @@ const formatMoney = (amount: number | null) => {
 
 const EMPLEADAS = ["Rocío", "Victoria", "Valeria"];
 
-// FIX clientes: serializar en el servidor para que el script los tenga siempre
 const clientsJSON = JSON.stringify(
     (clients ?? []).map((c) => ({
         id: c.id,
@@ -40,6 +38,9 @@ const clientsJSON = JSON.stringify(
         special_discount: c.special_discount ?? null,
     }))
 );
+
+// Categorías únicas extraídas de los productos
+const categoryNames = [...new Set((products ?? []).map((p: any) => p.category).filter(Boolean))].sort();
 ---
 
 <Layout isEmployee={isEmployee}>
@@ -76,7 +77,9 @@ const clientsJSON = JSON.stringify(
 
                 <!-- Productos -->
                 <div class="flex-1 min-w-0">
-                    <div class="relative mb-4 sm:mb-5">
+
+                    <!-- Buscador -->
+                    <div class="relative mb-3 sm:mb-4">
                         <span class="absolute inset-y-0 left-3 flex items-center text-slate-400 pointer-events-none">
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -87,6 +90,26 @@ const clientsJSON = JSON.stringify(
                         />
                     </div>
 
+                    <!-- Filtros por categoría -->
+                    {categoryNames.length > 0 && (
+                        <div id="category-filters" class="flex flex-wrap gap-2 mb-4 sm:mb-5">
+                            <button
+                                class="category-filter-btn text-xs font-semibold px-3 py-1.5 rounded-xl bg-indigo-600 text-white transition-all"
+                                data-category=""
+                            >
+                                Todos
+                            </button>
+                            {categoryNames.map((cat) => (
+                                <button
+                                    class="category-filter-btn text-xs font-semibold px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-600 hover:border-indigo-400 hover:text-indigo-600 transition-all"
+                                    data-category={cat}
+                                >
+                                    {cat}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
                     {products && products.length > 0 ? (
                         <div id="products-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
                             {products.map((p) => {
@@ -94,7 +117,10 @@ const clientsJSON = JSON.stringify(
                                 return (
                                     <button type="button"
                                         class="product-card text-left bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 hover:border-indigo-400 hover:shadow-md active:scale-95 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                        data-id={p.id} data-name={p.name} data-price={p.price}
+                                        data-id={p.id}
+                                        data-name={p.name}
+                                        data-price={p.price}
+                                        data-category={p.category ?? ""}
                                         data-discounts={JSON.stringify(discounts)}>
                                         <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-indigo-50 flex items-center justify-center mb-2 sm:mb-3">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -108,6 +134,11 @@ const clientsJSON = JSON.stringify(
                                                 Stock: {p.stock}
                                             </p>
                                         )}
+                                        {p.category && (
+                                            <span class="inline-block mt-1.5 text-xs px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500 font-medium truncate max-w-full">
+                                                {p.category}
+                                            </span>
+                                        )}
                                         {discounts.length > 0 && (
                                             <div class="flex flex-wrap gap-1 mt-2">
                                                 {discounts.slice().reverse().map((d: any) => (
@@ -120,6 +151,16 @@ const clientsJSON = JSON.stringify(
                                     </button>
                                 );
                             })}
+                        </div>
+
+                        <!-- Mensaje sin resultados del filtro -->
+                        <div id="no-results" class="hidden flex flex-col items-center justify-center py-12 text-center">
+                            <div class="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <p class="text-slate-400 text-sm">No hay productos en esta categoría</p>
                         </div>
                     ) : (
                         <div class="flex flex-col items-center justify-center py-16 text-center bg-white border border-slate-200 rounded-2xl">
@@ -240,7 +281,6 @@ const clientsJSON = JSON.stringify(
         </div>
     </div>
 
-    <!-- JSON de clientes embebido (FIX: evita leer del DOM vacío) -->
     <script type="application/json" id="clients-data" set:html={clientsJSON}></script>
 </Layout>
 
@@ -255,8 +295,9 @@ const clientsJSON = JSON.stringify(
     let activeClientId:        string | null = null;
     let activeClientName:      string | null = null;
     let activeSpecialDiscount: number        = 0;
+    let activeCategoryFilter:  string        = "";
+    let activeSearchQuery:     string        = "";
 
-    // FIX: clientes siempre disponibles desde el JSON del servidor
     const clientsRaw: Client[] = JSON.parse(
         document.getElementById("clients-data")!.textContent ?? "[]"
     );
@@ -264,7 +305,6 @@ const clientsJSON = JSON.stringify(
     const sellerSelect  = document.getElementById("seller-select") as HTMLSelectElement;
     const getSellerName = () => sellerSelect?.value ?? "";
 
-    // FIX $Â: $ literal + Intl solo para el número
     const formatARS = (n: number) =>
         "$ " + new Intl.NumberFormat("es-AR", {
             minimumFractionDigits: 2,
@@ -285,6 +325,46 @@ const clientsJSON = JSON.stringify(
         return activeSpecialDiscount > 0 ? sub * (1 - activeSpecialDiscount / 100) : sub;
     }
 
+    // ── Filtro combinado: categoría + búsqueda ──────────────────────────────
+    function applyFilters() {
+        let visibleCount = 0;
+        document.querySelectorAll<HTMLElement>(".product-card").forEach(card => {
+            const matchesCategory = !activeCategoryFilter || card.dataset.category === activeCategoryFilter;
+            const matchesSearch   = !activeSearchQuery || (card.dataset.name ?? "").toLowerCase().includes(activeSearchQuery);
+            const visible = matchesCategory && matchesSearch;
+            card.style.display = visible ? "" : "none";
+            if (visible) visibleCount++;
+        });
+        const noResults = document.getElementById("no-results");
+        if (noResults) {
+            noResults.classList.toggle("hidden", visibleCount > 0);
+            noResults.classList.toggle("flex", visibleCount === 0);
+        }
+    }
+
+    // ── Filtros por categoría ───────────────────────────────────────────────
+    document.getElementById("category-filters")?.addEventListener("click", (e) => {
+        const btn = (e.target as HTMLElement).closest(".category-filter-btn") as HTMLElement | null;
+        if (!btn) return;
+
+        document.querySelectorAll<HTMLElement>(".category-filter-btn").forEach(b => {
+            b.classList.remove("bg-indigo-600", "text-white");
+            b.classList.add("bg-white", "border", "border-slate-200", "text-slate-600");
+        });
+        btn.classList.add("bg-indigo-600", "text-white");
+        btn.classList.remove("bg-white", "border", "border-slate-200", "text-slate-600");
+
+        activeCategoryFilter = btn.dataset.category ?? "";
+        applyFilters();
+    });
+
+    // ── Búsqueda ────────────────────────────────────────────────────────────
+    document.getElementById("search")?.addEventListener("input", (e) => {
+        activeSearchQuery = (e.target as HTMLInputElement).value.toLowerCase();
+        applyFilters();
+    });
+
+    // ── Cart UI ─────────────────────────────────────────────────────────────
     function buildClientSectionHTML(): string {
         const opts = clientsRaw.map(c =>
             `<option value="${c.id}" data-name="${c.name}" data-special-discount="${c.special_discount ?? ''}">${c.name}${c.special_discount ? ` (−${c.special_discount}%)` : ''}</option>`
@@ -593,13 +673,6 @@ const clientsJSON = JSON.stringify(
             addToCart(newItem);
             updateTotal();
         }
-    });
-
-    document.getElementById("search")?.addEventListener("input", (e) => {
-        const q = (e.target as HTMLInputElement).value.toLowerCase();
-        document.querySelectorAll<HTMLElement>(".product-card").forEach(card => {
-            card.style.display = (card.dataset.name ?? "").toLowerCase().includes(q) ? "" : "none";
-        });
     });
 
     // Modal de confirmación
