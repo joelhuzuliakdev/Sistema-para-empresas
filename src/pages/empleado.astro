@@ -85,7 +85,7 @@ const categoryNames = [...new Set((products ?? []).map((p: any) => p.category).f
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
                         </span>
-                        <input id="search" type="text" placeholder="Buscar producto..."
+                        <input id="search" type="text" placeholder="Buscar por nombre o código..."
                             class="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
                         />
                     </div>
@@ -121,6 +121,7 @@ const categoryNames = [...new Set((products ?? []).map((p: any) => p.category).f
                                         data-name={p.name}
                                         data-price={p.price}
                                         data-category={p.category ?? ""}
+                                        data-code={(p.code ?? "").toLowerCase()}
                                         data-discounts={JSON.stringify(discounts)}>
                                         <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-indigo-50 flex items-center justify-center mb-2 sm:mb-3">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -330,7 +331,7 @@ const categoryNames = [...new Set((products ?? []).map((p: any) => p.category).f
         let visibleCount = 0;
         document.querySelectorAll<HTMLElement>(".product-card").forEach(card => {
             const matchesCategory = !activeCategoryFilter || card.dataset.category === activeCategoryFilter;
-            const matchesSearch   = !activeSearchQuery || (card.dataset.name ?? "").toLowerCase().includes(activeSearchQuery);
+            const matchesSearch   = !activeSearchQuery || (card.dataset.name ?? "").toLowerCase().includes(activeSearchQuery) || (card.dataset.code ?? "").includes(activeSearchQuery);
             const visible = matchesCategory && matchesSearch;
             card.style.display = visible ? "" : "none";
             if (visible) visibleCount++;
