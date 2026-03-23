@@ -211,6 +211,13 @@ import Layout from '../layouts/Layout.astro';
 
 			if (error) throw error;
 
+			if (data.user) {
+				await supabase.from("settings").insert({
+					company_name: business,
+					user_id: data.user.id,
+				});
+			}
+
 			// No insertamos en user_roles acá — se hace en /auth/callback
 			// después de que el usuario confirme su email
 			showSuccess("¡Revisá tu email y confirmá tu cuenta para continuar!");
