@@ -1,6 +1,8 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import { supabase } from "../lib/supabaseClient.js";
+import { createServerSupabase } from "../lib/supabaseClient.js";
+
+const supabase = createServerSupabase(Astro);
 
 const { data: sales } = await supabase.from("sales").select("*");
 const { data: clients } = await supabase.from("clients").select("*");

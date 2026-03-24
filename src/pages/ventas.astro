@@ -27,6 +27,11 @@ const { data: categoriesData } = await supabase
     .select("name")
     .order("name");
 const CATEGORIAS = categoriesData?.map(c => c.name) ?? [];
+const { data: cuentasData } = await supabase
+    .from("cash_register_categories")
+    .select("name")
+    .order("name");
+const CUENTAS = cuentasData?.map(c => c.name) ?? [];
 ---
 
 <Layout>
