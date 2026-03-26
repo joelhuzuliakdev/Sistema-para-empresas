@@ -314,9 +314,10 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
 
 <script>
     import { supabase } from "../lib/supabaseClient.js";
+    declare const qz: any;
 
     const EMPRESA_NOMBRE   = "El Mundo Del Descartable";
-    const EMPRESA_TELEFONO = "5493XXXXXXXXXX";
+    const EMPRESA_TELEFONO = "5493572549909";
     const METODOS: Record<string, string> = {
         efectivo:"Efectivo", transferencia:"Transferencia",
         debito:"Débito", credito:"Crédito", deudor:"Deuda",
@@ -348,7 +349,7 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
             <td style="padding:4px 0;font-size:12px;color:#111;text-align:right;white-space:nowrap;">${fmt(it.subtotal)}</td>
             </tr>`).join("");
 
-        const srRow = td.surcharge > 0 ? (() => {
+        const srRow = (td.surcharge > 0 && (td.paymentMethod === "debito" || td.paymentMethod === "credito")) ? (() => {
             const base = td.total / (1 + td.surcharge / 100);
             return `<tr>
             <td colspan="2" style="padding:3px 0;font-size:11px;color:#b45309;">Recargo ${td.surcharge}%</td>
@@ -410,12 +411,153 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
         </html>`;
     }
 
-    function imprimirTicket(td: TicketData) {
-        const win = window.open("", "_blank", "width=420,height=650,menubar=no,toolbar=no,scrollbars=yes");
-        if (!win) { alert("Habilitá las ventanas emergentes para este sitio."); return; }
-        win.document.open();
-        win.document.write(buildTicketHTML(td));
-        win.document.close();
+    async function imprimirTicket(td: TicketData) {
+        try {
+            if (!qz.websocket.isActive()) {
+                await qz.websocket.connect();
+            }
+
+            const printer = "Generic / Text Only";
+            const config = qz.configs.create(printer);
+
+            const sinAcentos = (txt: string): string =>
+                txt
+                    .replace(/á/g,"a").replace(/é/g,"e").replace(/í/g,"i")
+                    .replace(/ó/g,"o").replace(/ú/g,"u").replace(/Á/g,"A")
+                    .replace(/É/g,"E").replace(/Í/g,"I").replace(/Ó/g,"O")
+                    .replace(/Ú/g,"U").replace(/ñ/g,"n").replace(/Ñ/g,"N")
+                    .replace(/[^\x20-\x7E]/g, "");
+
+            const ANCHO = 32; // caracteres por línea (impresora 80mm)
+
+            const centrar = (txt: string): string => {
+                const t = sinAcentos(txt).slice(0, ANCHO);
+                const pad = Math.max(0, Math.floor((ANCHO - t.length) / 2));
+                return " ".repeat(pad) + t;
+            };
+
+            const fmtRaw = (n: number): string => {
+                const fixed = n.toFixed(2);
+                const [entero, dec] = fixed.split(".");
+                const miles = entero.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                return "$" + miles + "," + dec;
+            };
+
+            // Fila producto: nombre a la izq, importe a la der
+            const filaProducto = (nombre: string, importe: string): string => {
+                const n = sinAcentos(nombre);
+                const i = importe;
+                const espacio = ANCHO - n.length - i.length;
+                if (espacio >= 1) return n + " ".repeat(espacio) + i;
+                // Si no entra, cortar nombre
+                const maxNom = ANCHO - i.length - 1;
+                return n.slice(0, maxNom) + " " + i;
+            };
+
+            // Fila dos columnas genérica
+            const fila2col = (izq: string, der: string): string => {
+                const l = sinAcentos(izq);
+                const r = sinAcentos(der);
+                const espacio = ANCHO - l.length - r.length;
+                if (espacio >= 1) return l + " ".repeat(espacio) + r;
+                return l.slice(0, ANCHO - r.length - 1) + " " + r;
+            };
+
+            const sep  = "-".repeat(ANCHO);
+            const sep2 = "=".repeat(ANCHO);
+
+            let t = "";
+
+            // ── INICIALIZAR impresora ──────────────────────────────
+            t += "\x1B\x40"; // ESC @ — reset
+
+            // ── ENCABEZADO ────────────────────────────────────────
+            t += "\x1B\x61\x01"; // centrar
+            t += "\x1B\x21\x30"; // doble alto + doble ancho
+            t += "EL MUNDO\n";
+            t += "DEL DESCARTABLE\n";
+            t += "\x1B\x21\x00"; // volver a normal
+            t += centrar("Tel: +5493572549909") + "\n";
+            t += centrar(td.fecha) + "\n";
+            t += "\x1B\x61\x00"; // izquierda
+
+            t += sep + "\n";
+
+            // ── VENDEDOR ──────────────────────────────────────────
+            if (td.sellerName) {
+                t += "Vendedor: " + sinAcentos(td.sellerName) + "\n";
+            }
+
+            // ── CLIENTE ───────────────────────────────────────────
+            if (td.clientName) {
+                t += "Cliente:  " + sinAcentos(td.clientName) + "\n";
+            }
+
+            t += sep + "\n";
+
+            // ── PRODUCTOS ─────────────────────────────────────────
+            td.items.forEach(item => {
+                const nombre    = sinAcentos(item.name);
+                const subtotal  = fmtRaw(item.subtotal);
+                const unitario  = item.qty > 0 ? fmtRaw(item.subtotal / item.qty) : "";
+
+                // Línea 1: nombre del producto
+                t += nombre + "\n";
+                // Línea 2:   x qty  precio-unit → subtotal
+                const qty_str  = "x" + item.qty;
+                const det      = qty_str + (unitario ? "  " + unitario : "");
+                t += "  " + filaProducto(det, subtotal) + "\n";
+            });
+
+            t += sep2 + "\n";
+
+            // ── RECARGO ───────────────────────────────────────────
+            if (td.surcharge > 0 && (td.paymentMethod === "debito" || td.paymentMethod === "credito")) {
+                const base   = td.total / (1 + td.surcharge / 100);
+                const recAmt = fmtRaw(td.total - base);
+                t += fila2col("Recargo " + td.surcharge + "%", recAmt) + "\n";
+            }
+
+            // ── TOTAL ─────────────────────────────────────────────
+            t += "\x1B\x61\x00"; // izquierda
+            t += "\x1B\x21\x10"; // solo negrita, sin doble ancho
+            t += "TOTAL" + "\n";
+            t += fmtRaw(td.total) + "\n";
+            t += "\x1B\x21\x00"; // normal
+
+            t += sep + "\n";
+
+            // ── PAGO ──────────────────────────────────────────────
+            const METODOS_PRINT: Record<string, string> = {
+                efectivo:      "Efectivo",
+                transferencia: "Transferencia",
+                debito:        "Debito",
+                credito:       "Credito",
+                deudor:        "Deuda",
+            };
+            t += "Pago: " + (METODOS_PRINT[td.paymentMethod] ?? td.paymentMethod) + "\n";
+
+            if (td.paymentMethod === "transferencia" && td.transferAccount) {
+                t += "Cuenta: " + sinAcentos(td.transferAccount) + "\n";
+            }
+
+            t += sep + "\n";
+
+            // ── PIE ───────────────────────────────────────────────
+            t += "\x1B\x61\x01"; // centrar
+            t += "Gracias por su compra!\n";
+            t += "\n\n";
+
+            // ── CORTE ─────────────────────────────────────────────
+            t += "\x1D\x56\x41\x00"; // GS V A — corte parcial
+
+            const data = [{ type: "raw", format: "plain", data: t }];
+            await qz.print(config, data);
+
+        } catch (err) {
+            console.error("Error al imprimir:", err);
+            alert("Error al imprimir. Revisa QZ Tray o la impresora.");
+        }
     }
 
     function descargarTicket(td: TicketData) {
@@ -433,7 +575,7 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
         const lines = [
             `🧾 *Ticket de compra*`, `📅 ${td.fecha}`, `🏪 ${EMPRESA_NOMBRE}`, ``,
             lineas,
-            td.surcharge > 0 ? `Recargo ${td.surcharge}%: incluido` : null,
+            (td.surcharge > 0 && (td.paymentMethod === "debito" || td.paymentMethod === "credito")) ? `Recargo ${td.surcharge}%: incluido` : null,
             ``, `*TOTAL: ${fmt(td.total)}*`,
             `💳 Pago: ${METODOS[td.paymentMethod] ?? td.paymentMethod}`,
             td.transferAccount ? `🏦 Cuenta: ${td.transferAccount}` : null,
@@ -638,6 +780,7 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                 const { error: upErr } = await supabase.from("sales").update({
                     client_id: clientId, client_name: clientName,
                     final_total: total, payment_method: pm, surcharge: sr,
+                    transfer_account: transferAccount,   // 👈 línea nueva
                     note: transferAccount ? `Transferencia a: ${transferAccount}` : null,
                     status: pm === "deudor" ? "deuda" : "pagado",
                 }).eq("id", saleId);
@@ -670,6 +813,11 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                     transferAccount,
                 };
                 showSuccess(card, total, pm, clientName, changeMsg, td);
+
+                // 🔥 IMPRIMIR AUTOMÁTICO
+                if (pm !== "deudor") { // opcional: no imprimir deudas
+                    await imprimirTicket(td);
+                }
 
             } catch (err: any) {
                 errorEl.textContent = err?.message ?? "Error al procesar el cobro.";
