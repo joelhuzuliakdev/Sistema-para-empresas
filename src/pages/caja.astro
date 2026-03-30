@@ -13,7 +13,7 @@ const { data: cash } = await supabase
 // Caja actualmente abierta
 const cajaAbierta = cash?.find((c) => !c.closed_at) ?? null;
 
-// Ventas del día actual
+// Ventas desde apertura de caja (o inicio del día)
 const hoy = new Date();
 const inicioDia = cajaAbierta
     ? new Date(cajaAbierta.opened_at).toISOString()
@@ -21,11 +21,37 @@ const inicioDia = cajaAbierta
 
 const { data: ventasHoy } = await supabase
     .from("sales")
-    .select("final_total, total, payment_method, status")
+    .select("final_total, total, payment_method, status, transfer_account")
     .gte("created_at", inicioDia)
     .eq("status", "pagado");
 
 const totalDia = ventasHoy?.reduce((acc, s) => acc + (s.final_total ?? s.total ?? 0), 0) ?? 0;
+
+// Transferencias agrupadas por cuenta
+const transferenciasPorCuenta = (ventasHoy ?? [])
+    .filter(v => v.payment_method === "transferencia")
+    .reduce((acc, v) => {
+        const cuenta = (v as any).transfer_account ?? "Sin especificar";
+        acc[cuenta] = (acc[cuenta] ?? 0) + (v.final_total ?? v.total ?? 0);
+        return acc;
+    }, {} as Record<string, number>);
+
+// Totales por método de pago
+const totalEfectivo = (ventasHoy ?? [])
+    .filter(v => v.payment_method === "efectivo")
+    .reduce((acc, v) => acc + (v.final_total ?? v.total ?? 0), 0);
+
+const totalTransferencias = (ventasHoy ?? [])
+    .filter(v => v.payment_method === "transferencia")
+    .reduce((acc, v) => acc + (v.final_total ?? v.total ?? 0), 0);
+
+const totalDebito = (ventasHoy ?? [])
+    .filter(v => v.payment_method === "debito")
+    .reduce((acc, v) => acc + (v.final_total ?? v.total ?? 0), 0);
+
+const totalCredito = (ventasHoy ?? [])
+    .filter(v => v.payment_method === "credito")
+    .reduce((acc, v) => acc + (v.final_total ?? v.total ?? 0), 0);
 
 // Ventas del mes actual
 const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString();
@@ -44,35 +70,76 @@ const { data: categoriesData } = await supabase
     .order("name");
 const CATEGORIAS_DESGLOSE = categoriesData?.map(c => c.name) ?? [];
 
-let desgloseCategorias: Record<string, number> = {};
+let desgloseCategorias: Record<string, {
+    total: number;
+    efectivo: number;
+    transferencia: number;
+    debito: number;
+    credito: number;
+}> = {};
 
 if (cajaAbierta) {
-    const { data: itemsConCategoria } = await supabase
-        .from("sale_items")
-        .select(`
-            quantity,
-            price,
-            discount_pct,
-            sales!inner(created_at, status),
-            products!inner(category)
-        `)
-        .gte("sales.created_at", cajaAbierta.opened_at)
-        .eq("sales.status", "pagado");
+    // Paso 1: traer los IDs de ventas pagadas desde la apertura
+    const { data: ventasPagadas } = await supabase
+        .from("sales")
+        .select("id, payment_method")
+        .gte("created_at", cajaAbierta.opened_at)
+        .eq("status", "pagado");
 
-    for (const item of itemsConCategoria ?? []) {
-        const cat: string = (item.products as any)?.category ?? "";
-        if (!CATEGORIAS_DESGLOSE.includes(cat)) continue; // ignorar categorías fuera de las 3
-        const subtotal = (item.price ?? 0) * (item.quantity ?? 1) * (1 - (item.discount_pct ?? 0) / 100);
-        desgloseCategorias[cat] = (desgloseCategorias[cat] ?? 0) + subtotal;
+    const ventasMap: Record<string, string> = {};
+    for (const v of ventasPagadas ?? []) {
+        ventasMap[v.id] = v.payment_method;
+    }
+    const ventasIds = Object.keys(ventasMap);
+
+    // Paso 2: traer los items de esas ventas
+    if (ventasIds.length > 0) {
+        const { data: itemsConCategoria } = await supabase
+            .from("sale_items")
+            .select(`
+                quantity,
+                price,
+                discount_pct,
+                sale_id,
+                products!inner(category)
+            `)
+            .in("sale_id", ventasIds);
+
+        for (const item of itemsConCategoria ?? []) {
+            const cat: string = (item.products as any)?.category ?? "";
+            if (!CATEGORIAS_DESGLOSE.includes(cat)) continue;
+            const metodo: string = ventasMap[item.sale_id] ?? "";
+            const subtotal = (item.price ?? 0) * (item.quantity ?? 1) * (1 - (item.discount_pct ?? 0) / 100);
+
+            if (!desgloseCategorias[cat]) {
+                desgloseCategorias[cat] = { total: 0, efectivo: 0, transferencia: 0, debito: 0, credito: 0 };
+            }
+            desgloseCategorias[cat].total         += subtotal;
+            if (metodo === "efectivo")      desgloseCategorias[cat].efectivo      += subtotal;
+            if (metodo === "transferencia") desgloseCategorias[cat].transferencia += subtotal;
+            if (metodo === "debito")        desgloseCategorias[cat].debito        += subtotal;
+            if (metodo === "credito")       desgloseCategorias[cat].credito       += subtotal;
+        }
     }
 }
 
 const desgloseJSON = JSON.stringify({
     categorias: CATEGORIAS_DESGLOSE.map(cat => ({
-        nombre: cat,
-        total: desgloseCategorias[cat] ?? 0,
+        nombre:        cat,
+        total:         desgloseCategorias[cat]?.total         ?? 0,
+        efectivo:      desgloseCategorias[cat]?.efectivo      ?? 0,
+        transferencia: desgloseCategorias[cat]?.transferencia ?? 0,
+        debito:        desgloseCategorias[cat]?.debito        ?? 0,
+        credito:       desgloseCategorias[cat]?.credito       ?? 0,
     })),
     totalDia,
+    metodos: {
+        efectivo:       totalEfectivo,
+        transferencias: totalTransferencias,
+        debito:         totalDebito,
+        credito:        totalCredito,
+    },
+    transferenciasPorCuenta,
 });
 
 // ── Historial con desglose guardado ──
@@ -86,15 +153,45 @@ historialCats?.forEach((c) => {
     catsByCaja[c.cash_register_id].push({ category: c.category, total: c.total });
 });
 
-const rows = cash?.map((c) => ({
-    ...c,
-    isOpen: !c.closed_at,
-    // Garantizar que siempre aparezcan las 3 categorías en el historial
-    categorias: CATEGORIAS_DESGLOSE.map(cat => ({
-        category: cat,
-        total: catsByCaja[c.id]?.find(x => x.category === cat)?.total ?? null,
-    })),
-})) ?? [];
+// Buscar ventas por método de pago para cada caja cerrada
+const cajasCerradas = cash?.filter(c => c.closed_at) ?? [];
+
+const { data: todasVentasMetodo } = await supabase
+    .from("sales")
+    .select("final_total, total, payment_method, created_at, status")
+    .eq("status", "pagado");
+
+const rows = cash?.map((c) => {
+    const ventasCaja = c.closed_at
+        ? (todasVentasMetodo ?? []).filter(v =>
+            v.created_at >= c.opened_at && v.created_at <= c.closed_at
+          )
+        : (todasVentasMetodo ?? []).filter(v => v.created_at >= c.opened_at);
+
+    const metodosCaja = {
+        efectivo:       ventasCaja.filter(v => v.payment_method === "efectivo").reduce((a, v) => a + (v.final_total ?? v.total ?? 0), 0),
+        transferencias: ventasCaja.filter(v => v.payment_method === "transferencia").reduce((a, v) => a + (v.final_total ?? v.total ?? 0), 0),
+        debito:         ventasCaja.filter(v => v.payment_method === "debito").reduce((a, v) => a + (v.final_total ?? v.total ?? 0), 0),
+        credito:        ventasCaja.filter(v => v.payment_method === "credito").reduce((a, v) => a + (v.final_total ?? v.total ?? 0), 0),
+    };
+
+    return {
+        ...c,
+        isOpen: !c.closed_at,
+        categorias: CATEGORIAS_DESGLOSE.map(cat => ({
+            category: cat,
+            total: catsByCaja[c.id]?.find(x => x.category === cat)?.total ?? null,
+        })),
+        metodos: metodosCaja,
+    };
+}) ?? [];
+
+// Días únicos de cajas cerradas (YYYY-MM-DD, orden desc)
+const diasUnicos = [...new Set(
+    rows
+        .filter(r => !r.isOpen && r.closed_at)
+        .map(r => r.opened_at.slice(0, 10))
+)].sort((a, b) => b.localeCompare(a));
 
 const formatDate = (dateStr: string | null) => {
     if (!dateStr) return "—";
@@ -108,6 +205,17 @@ const formatMoney = (amount: number | null) => {
     if (amount == null) return "—";
     return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(amount);
 };
+
+const rowsJSON = JSON.stringify(rows.map(r => ({
+    id: r.id,
+    isOpen: r.isOpen,
+    opened_at: r.opened_at,
+    closed_at: r.closed_at,
+    total_day: r.total_day,
+    total_month: r.total_month,
+    categorias: r.categorias,
+    metodos: r.metodos,
+})));
 ---
 
 <Layout>
@@ -130,7 +238,6 @@ const formatMoney = (amount: number | null) => {
                     </div>
                 </div>
 
-                <!-- Botón abrir/cerrar caja -->
                 {cajaAbierta ? (
                     <button
                         id="cerrar-caja-btn"
@@ -198,15 +305,63 @@ const formatMoney = (amount: number | null) => {
                 </div>
             </div>
 
+            <!-- Desglose por rubro (caja actual) -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 mb-5 sm:mb-6">
+                <h3 class="text-sm font-semibold text-slate-800 mb-3">Desglose por rubro</h3>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {CATEGORIAS_DESGLOSE.map(cat => (
+                        <div class="bg-slate-50 rounded-xl px-3 py-2">
+                            <p class="text-xs text-slate-500">{cat}</p>
+                            <p class="text-sm font-bold text-slate-800">
+                                {formatMoney(desgloseCategorias[cat]?.total ?? 0)}
+                            </p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
             <!-- Historial -->
             <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-                <div class="px-4 sm:px-5 py-3.5 sm:py-4 border-b border-slate-100">
+
+                <!-- Encabezado + filtro -->
+                <div class="px-4 sm:px-5 py-3.5 sm:py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <h2 class="text-sm font-semibold text-slate-800">Historial de caja</h2>
+
+                    {diasUnicos.length > 0 && (
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <label for="filtro-historial" class="text-xs text-slate-400 shrink-0">Filtrar por día:</label>
+                            <select
+                                id="filtro-historial"
+                                class="text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                            >
+                                <option value="">Todos</option>
+                                {diasUnicos.map(d => {
+                                    const label = new Date(d + "T12:00:00").toLocaleDateString("es-AR", {
+                                        day: "2-digit", month: "2-digit", year: "numeric"
+                                    });
+                                    return <option value={d}>{label}</option>;
+                                })}
+                            </select>
+                            <button
+                                id="ver-resumen-btn"
+                                class="hidden items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-lg transition-colors"
+                            >
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                </svg>
+                                <span id="ver-resumen-label">Ver resumen</span>
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                <!-- Banner descartable de resumen del día seleccionado -->
+                <div id="resumen-banner" class="hidden border-b border-slate-100 animate-fade-in">
                 </div>
 
                 {rows.length > 0 ? (
                     <>
-                        {/* Vista de tabla para pantallas medianas en adelante */}
+                        <!-- Vista tabla (sm+) -->
                         <div class="hidden sm:block overflow-x-auto">
                             <table class="w-full text-sm">
                                 <thead>
@@ -216,14 +371,17 @@ const formatMoney = (amount: number | null) => {
                                         <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Cierre</th>
                                         <th class="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Total día</th>
                                         <th class="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Total mes</th>
-                                        <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Descartable</th>
-                                        <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Librería</th>
-                                        <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Caramelos</th>
+                                        {CATEGORIAS_DESGLOSE.map(cat => (
+                                            <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{cat}</th>
+                                        ))}
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-slate-100">
+                                <tbody id="historial-tbody" class="divide-y divide-slate-100">
                                     {rows.map((c) => (
-                                        <tr class="hover:bg-slate-50 transition-colors align-top">
+                                        <tr
+                                            class="hover:bg-slate-50 transition-colors align-top historial-row"
+                                            data-fecha={c.opened_at.slice(0, 10)}
+                                        >
                                             <td class="px-5 py-3.5">
                                                 {c.isOpen ? (
                                                     <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">
@@ -252,10 +410,13 @@ const formatMoney = (amount: number | null) => {
                             </table>
                         </div>
 
-                        {/* Vista de tarjetas para móvil */}
+                        <!-- Vista tarjetas (móvil) -->
                         <div class="sm:hidden divide-y divide-slate-100">
                             {rows.map((c) => (
-                                <div class="px-4 py-4">
+                                <div
+                                    class="px-4 py-4 historial-card"
+                                    data-fecha={c.opened_at.slice(0, 10)}
+                                >
                                     <div class="flex items-center justify-between mb-3">
                                         {c.isOpen ? (
                                             <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">
@@ -270,7 +431,6 @@ const formatMoney = (amount: number | null) => {
                                         )}
                                         <span class="text-xs text-slate-400">{formatDate(c.opened_at)}</span>
                                     </div>
-
                                     <div class="grid grid-cols-2 gap-2 mb-3">
                                         <div class="bg-slate-50 rounded-lg px-3 py-2">
                                             <p class="text-xs text-slate-400 mb-0.5">Total día</p>
@@ -281,8 +441,6 @@ const formatMoney = (amount: number | null) => {
                                             <p class="text-sm font-semibold text-emerald-700">{formatMoney(c.total_month)}</p>
                                         </div>
                                     </div>
-
-                                    {/* Desglose por categoría en mobile — siempre visible si hay datos o caja cerrada */}
                                     {(!c.isOpen || c.categorias.some(cat => cat.total !== null)) && (
                                         <div class="bg-slate-50 rounded-lg px-3 py-2.5 space-y-1.5">
                                             <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Por categoría</p>
@@ -296,7 +454,6 @@ const formatMoney = (amount: number | null) => {
                                             ))}
                                         </div>
                                     )}
-
                                     {!c.isOpen && (
                                         <p class="text-xs text-slate-400 mt-2">
                                             Cerrada: {formatDate(c.closed_at)}
@@ -317,25 +474,27 @@ const formatMoney = (amount: number | null) => {
                         <p class="text-slate-400 text-xs mt-1">Abrí la caja para comenzar a registrar</p>
                     </div>
                 )}
-            </div>
 
-            {rows.length > 0 && (
-                <p class="text-xs text-slate-400 mt-3 text-right">
-                    {rows.length} {rows.length === 1 ? "registro" : "registros"} en total
-                </p>
-            )}
+                {rows.length > 0 && (
+                    <div class="px-4 sm:px-5 py-3 border-t border-slate-100">
+                        <p id="historial-count" class="text-xs text-slate-400 text-right">
+                            {rows.length} {rows.length === 1 ? "registro" : "registros"} en total
+                        </p>
+                    </div>
+                )}
+            </div>
 
         </div>
     </div>
 </Layout>
 
-<!-- Datos de desglose para el script -->
+<!-- Datos para los scripts -->
 <script type="application/json" id="desglose-data" set:html={desgloseJSON}></script>
+<script type="application/json" id="rows-data" set:html={rowsJSON}></script>
 
 <!-- Modal de cierre de caja -->
 <div id="cerrar-caja-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
-
         <div class="flex items-center gap-3">
             <div class="w-11 h-11 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -347,21 +506,19 @@ const formatMoney = (amount: number | null) => {
                 <p class="text-xs text-slate-400">Resumen del período antes de confirmar</p>
             </div>
         </div>
-
-        <!-- Desglose por categorías -->
         <div class="bg-slate-50 rounded-xl px-4 py-3 space-y-2">
-            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Desglose por categoría</p>
-            <div id="modal-desglose-categorias" class="space-y-1.5">
-                <!-- Se llena desde JS -->
-            </div>
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Por categoría</p>
+            <div id="modal-desglose-categorias" class="space-y-1.5"></div>
             <div class="border-t border-slate-200 pt-2 flex justify-between items-center">
                 <span class="text-sm font-medium text-slate-600">Total del día</span>
                 <span id="modal-total-dia" class="text-base font-bold text-emerald-600"></span>
             </div>
         </div>
-
+        <div class="bg-slate-50 rounded-xl px-4 py-3 space-y-2">
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Por método de pago</p>
+            <div id="modal-desglose-metodos" class="space-y-1.5"></div>
+        </div>
         <p class="text-sm text-slate-600 text-center">¿Confirmás el cierre de caja?</p>
-
         <div class="flex gap-2 pt-1">
             <button id="cerrar-modal-cancel" type="button"
                 class="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
@@ -379,12 +536,13 @@ const formatMoney = (amount: number | null) => {
                 </svg>
             </button>
         </div>
-
     </div>
 </div>
 
 <script>
     import { supabase } from "../lib/supabaseClient.js";
+
+    const $ = (id: string) => document.getElementById(id);
 
     const formatARS = (n: number) =>
         "$ " + new Intl.NumberFormat("es-AR", {
@@ -393,8 +551,8 @@ const formatMoney = (amount: number | null) => {
         }).format(n);
 
     // ── Abrir caja ──
-    document.getElementById("abrir-caja-btn")?.addEventListener("click", async () => {
-        const btn = document.getElementById("abrir-caja-btn") as HTMLButtonElement;
+    $("abrir-caja-btn")?.addEventListener("click", async () => {
+        const btn = $("abrir-caja-btn") as HTMLButtonElement;
         btn.disabled = true;
         btn.textContent = "Abriendo...";
         try {
@@ -416,36 +574,81 @@ const formatMoney = (amount: number | null) => {
     });
 
     // ── Modal de cierre ──
-    const modal     = document.getElementById("cerrar-caja-modal")!;
-    const cancelBtn = document.getElementById("cerrar-modal-cancel")!;
-    const okBtn     = document.getElementById("cerrar-modal-ok") as HTMLButtonElement;
-    const okText    = document.getElementById("cerrar-ok-text")!;
-    const spinner   = document.getElementById("cerrar-spinner")!;
-    const cerrarBtn = document.getElementById("cerrar-caja-btn") as HTMLButtonElement | null;
+    const modal     = $("cerrar-caja-modal")!;
+    const cancelBtn = $("cerrar-modal-cancel")!;
+    const okBtn     = $("cerrar-modal-ok") as HTMLButtonElement;
+    const okText    = $("cerrar-ok-text")!;
+    const spinner   = $("cerrar-spinner")!;
+    const cerrarBtn = $("cerrar-caja-btn") as HTMLButtonElement | null;
 
-    const desgloseData = JSON.parse(
-        document.getElementById("desglose-data")!.textContent ?? "{}"
-    );
+    const desgloseData = JSON.parse($("desglose-data")!.textContent ?? "{}");
 
     function openCerrarModal() {
-        const container = document.getElementById("modal-desglose-categorias")!;
+        const container = $("modal-desglose-categorias")!;
         container.innerHTML = "";
 
         for (const cat of desgloseData.categorias ?? []) {
             const row = document.createElement("div");
-            row.className = "flex justify-between items-center";
+            row.className = "space-y-1 pb-2 border-b border-slate-100 last:border-0 last:pb-0";
+
+            const metodos: [string, number][] = [
+                ["Efectivo",      cat.efectivo],
+                ["Transferencia", cat.transferencia],
+                ["Débito",        cat.debito],
+                ["Crédito",       cat.credito],
+            ].filter(([, v]) => v > 0) as [string, number][];
+
             row.innerHTML = `
-                <span class="text-xs text-slate-500">${cat.nombre}</span>
-                <span class="text-xs font-semibold text-slate-700">${formatARS(cat.total)}</span>`;
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-semibold text-slate-700">${cat.nombre}</span>
+                    <span class="text-xs font-bold text-slate-800">${formatARS(cat.total)}</span>
+                </div>
+                ${metodos.map(([label, val]) => `
+                    <div class="flex justify-between items-center pl-3">
+                        <span class="text-xs text-slate-400">↳ ${label}</span>
+                        <span class="text-xs font-medium text-slate-500">${formatARS(val)}</span>
+                    </div>
+                `).join("")}
+            `;
             container.appendChild(row);
         }
 
-        document.getElementById("modal-total-dia")!.textContent = formatARS(desgloseData.totalDia ?? 0);
+        $("modal-total-dia")!.textContent = formatARS(desgloseData.totalDia ?? 0);
+
+        const metContainer = $("modal-desglose-metodos")!;
+        metContainer.innerHTML = "";
+        const metodos: Record<string, string> = {
+            efectivo: "Efectivo", transferencias: "Transferencias",
+            debito: "Débito", credito: "Crédito",
+        };
+        for (const [key, label] of Object.entries(metodos)) {
+            const valor: number = desgloseData.metodos?.[key] ?? 0;
+            if (valor === 0) continue;
+            const row = document.createElement("div");
+            row.className = "flex justify-between items-center";
+            row.innerHTML = `
+                <span class="text-xs text-slate-500">${label}</span>
+                <span class="text-xs font-semibold text-slate-700">${formatARS(valor)}</span>`;
+            metContainer.appendChild(row);
+            if (key === "transferencias") {
+                const porCuenta: Record<string, number> = desgloseData.transferenciasPorCuenta ?? {};
+                const cuentas = Object.entries(porCuenta);
+                if (cuentas.length > 1) {
+                    for (const [cuenta, monto] of cuentas) {
+                        const sub = document.createElement("div");
+                        sub.className = "flex justify-between items-center pl-4";
+                        sub.innerHTML = `
+                            <span class="text-xs text-slate-400">↳ ${cuenta}</span>
+                            <span class="text-xs font-medium text-slate-500">${formatARS(monto as number)}</span>`;
+                        metContainer.appendChild(sub);
+                    }
+                }
+            }
+        }
         modal.classList.remove("hidden");
     }
 
     function closeCerrarModal() { modal.classList.add("hidden"); }
-
     cerrarBtn?.addEventListener("click", openCerrarModal);
     cancelBtn.addEventListener("click", closeCerrarModal);
     modal.addEventListener("click", (e) => { if (e.target === modal) closeCerrarModal(); });
@@ -461,38 +664,212 @@ const formatMoney = (amount: number | null) => {
         okBtn.disabled = true;
 
         try {
-            // 1. Cerrar la caja
             const { error } = await supabase
                 .from("cash_register")
-                .update({
-                    closed_at:   new Date().toISOString(),
-                    total_day:   totalDia,
-                    total_month: totalMes,
-                })
+                .update({ closed_at: new Date().toISOString(), total_day: totalDia, total_month: totalMes })
                 .eq("id", cajaId);
-
             if (error) throw error;
 
-            // 2. Guardar las 3 categorías fijas (siempre, aunque sean 0)
-            const filas = (desgloseData.categorias ?? []).map((cat: { nombre: string; total: number }) => ({
+            const filas = (desgloseData.categorias ?? []).map((cat: {
+                nombre: string;
+                total: number;
+                efectivo: number;
+                transferencia: number;
+                debito: number;
+                credito: number;
+            }) => ({
                 cash_register_id: cajaId,
                 category:         cat.nombre,
                 total:            cat.total,
+                efectivo:         cat.efectivo,
+                transferencia:    cat.transferencia,
+                debito:           cat.debito,
+                credito:          cat.credito,
             }));
 
-            const { error: catError } = await supabase
-                .from("cash_register_categories")
-                .insert(filas);
-
+            const { error: catError } = await supabase.from("cash_register_categories").insert(filas);
             if (catError) throw catError;
 
             window.location.reload();
-
         } catch (err: any) {
             alert("Error al cerrar la caja: " + (err?.message ?? "Error desconocido"));
             okText.textContent = "Sí, cerrar";
             spinner.classList.add("hidden");
             okBtn.disabled = false;
         }
+    });
+
+    // ══════════════════════════════════════════
+    // FILTRO DE HISTORIAL + BANNER DESCARTABLE
+    // ══════════════════════════════════════════
+
+    type RowData = {
+        id: string;
+        isOpen: boolean;
+        opened_at: string;
+        closed_at: string | null;
+        total_day: number | null;
+        total_month: number | null;
+        categorias: Array<{ category: string; total: number | null }>;
+        metodos: { efectivo: number; transferencias: number; debito: number; credito: number };
+    };
+
+    const allRows: RowData[] = JSON.parse($("rows-data")?.textContent ?? "[]");
+    const filtroSelect    = $("filtro-historial") as HTMLSelectElement | null;
+    const verResumenBtn   = $("ver-resumen-btn") as HTMLButtonElement | null;
+    const verResumenLabel = $("ver-resumen-label");
+    const bannerEl        = $("resumen-banner")!;
+    const countEl         = $("historial-count");
+
+    const tableRows   = document.querySelectorAll<HTMLElement>(".historial-row");
+    const mobileCards = document.querySelectorAll<HTMLElement>(".historial-card");
+
+    let bannerVisible = false;
+
+    function filtrarHistorial(fechaISO: string) {
+        let visible = 0;
+        tableRows.forEach(tr => {
+            const match = !fechaISO || tr.dataset.fecha === fechaISO;
+            tr.style.display = match ? "" : "none";
+            if (match) visible++;
+        });
+        mobileCards.forEach(card => {
+            const match = !fechaISO || card.dataset.fecha === fechaISO;
+            card.style.display = match ? "" : "none";
+        });
+
+        if (countEl) {
+            const total = fechaISO ? visible : allRows.length;
+            countEl.textContent = `${total} ${total === 1 ? "registro" : "registros"}${fechaISO ? " ese día" : " en total"}`;
+        }
+
+        if (verResumenBtn) {
+            if (fechaISO) {
+                verResumenBtn.classList.remove("hidden");
+                verResumenBtn.classList.add("inline-flex");
+            } else {
+                verResumenBtn.classList.add("hidden");
+                verResumenBtn.classList.remove("inline-flex");
+                ocultarBanner();
+            }
+        }
+    }
+
+    function mostrarBanner(fechaISO: string) {
+        const rowsFecha = allRows.filter(r =>
+            !r.isOpen && r.opened_at.slice(0, 10) === fechaISO
+        );
+        if (rowsFecha.length === 0) return;
+
+        let total = 0;
+        let efectivo = 0, transferencias = 0, debito = 0, credito = 0;
+        const porCat: Record<string, number> = {};
+
+        for (const r of rowsFecha) {
+            total          += r.total_day ?? 0;
+            efectivo       += r.metodos?.efectivo ?? 0;
+            transferencias += r.metodos?.transferencias ?? 0;
+            debito         += r.metodos?.debito ?? 0;
+            credito        += r.metodos?.credito ?? 0;
+            for (const c of r.categorias) {
+                if (c.total !== null) {
+                    porCat[c.category] = (porCat[c.category] ?? 0) + c.total;
+                }
+            }
+        }
+
+        const categorias = Object.keys(porCat);
+        const fechaLabel = new Date(fechaISO + "T12:00:00").toLocaleDateString("es-AR", {
+            weekday: "long", day: "numeric", month: "long", year: "numeric"
+        });
+
+        const metodosItems: [string, number][] = [
+            ["Efectivo",      efectivo],
+            ["Transferencia", transferencias],
+            ["Débito",        debito],
+            ["Crédito",       credito],
+        ].filter(([, v]) => (v as number) > 0) as [string, number][];
+
+        let html = `
+        <div class="px-4 sm:px-5 py-4 bg-gradient-to-br from-slate-50 to-white">
+            <div class="flex items-start justify-between gap-3 mb-4">
+                <div>
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Resumen del día</p>
+                    <p class="text-sm font-bold text-slate-800 capitalize mt-0.5">${fechaLabel}</p>
+                </div>
+                <button id="cerrar-banner-btn"
+                    class="text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors p-1.5 rounded-lg"
+                    aria-label="Cerrar resumen">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="flex items-center justify-between bg-emerald-600 rounded-2xl px-5 py-4 mb-3 text-white">
+                <div>
+                    <p class="text-xs font-semibold opacity-75 uppercase tracking-wide">Total del día</p>
+                    <p class="text-2xl font-bold mt-0.5">${formatARS(total)}</p>
+                </div>
+                <svg class="w-8 h-8 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">`;
+
+        for (const [label, val] of metodosItems) {
+            html += `
+                <div class="bg-white border border-slate-200 rounded-xl px-3 py-2.5">
+                    <p class="text-xs text-slate-400 mb-1">${label}</p>
+                    <p class="text-sm font-bold text-slate-800">${formatARS(val)}</p>
+                </div>`;
+        }
+
+        html += `</div>`;
+
+        if (categorias.length > 0) {
+            html += `<div class="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">`;
+            for (const cat of categorias) {
+                html += `
+                <div class="bg-white border border-slate-100 rounded-xl px-3 py-2.5">
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">${cat}</p>
+                    <p class="text-sm font-bold text-slate-700">${formatARS(porCat[cat] ?? 0)}</p>
+                </div>`;
+            }
+            html += `</div>`;
+        }
+
+        html += `</div>`;
+
+        bannerEl.innerHTML = html;
+        bannerEl.classList.remove("hidden");
+        bannerVisible = true;
+
+        if (verResumenLabel) verResumenLabel.textContent = "Ocultar resumen";
+
+        $("cerrar-banner-btn")?.addEventListener("click", ocultarBanner);
+    }
+
+    function ocultarBanner() {
+        bannerEl.classList.add("hidden");
+        bannerEl.innerHTML = "";
+        bannerVisible = false;
+        if (verResumenLabel) verResumenLabel.textContent = "Ver resumen";
+    }
+
+    filtroSelect?.addEventListener("change", (e) => {
+        const val = (e.target as HTMLSelectElement).value;
+        filtrarHistorial(val);
+        if (bannerVisible) {
+            if (val) mostrarBanner(val);
+            else ocultarBanner();
+        }
+    });
+
+    verResumenBtn?.addEventListener("click", () => {
+        const fechaISO = filtroSelect?.value ?? "";
+        if (!fechaISO) return;
+        bannerVisible ? ocultarBanner() : mostrarBanner(fechaISO);
     });
 </script>
