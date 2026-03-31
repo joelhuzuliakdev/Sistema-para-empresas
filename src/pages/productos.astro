@@ -11,12 +11,13 @@ const { data: categoriesData } = await supabase
     .order("name");
 const CATEGORIAS = categoriesData?.map(c => c.name) ?? [];
 
-const formatMoney = (amount: number | null) => {
+const formatMoney = (amount: number | null, perKg?: boolean) => {
     if (amount == null) return "—";
-    return new Intl.NumberFormat("es-AR", {
+    const formatted = new Intl.NumberFormat("es-AR", {
         style: "currency",
         currency: "ARS",
     }).format(amount);
+    return perKg ? `${formatted}/kg` : formatted;
 };
 
 const discountsByProduct: Record<string, any[]> = {};
@@ -161,7 +162,17 @@ const rows = products?.map((p) => {
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                                                         </svg>
                                                     </div>
-                                                    <span class="font-medium text-slate-800">{p.name}</span>
+                                                    <div class="flex items-center gap-2">
+                                                        <span class="font-medium text-slate-800">{p.name}</span>
+                                                        {p.price_per_kg && (
+                                                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+                                                                </svg>
+                                                                /kg
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </td>
                                             <td class="px-5 py-3.5">
@@ -170,7 +181,9 @@ const rows = products?.map((p) => {
                                                     : <span class="text-slate-400">—</span>
                                                 }
                                             </td>
-                                            <td class="px-5 py-3.5 text-right font-semibold text-slate-800">{formatMoney(p.price)}</td>
+                                            <td class="px-5 py-3.5 text-right">
+                                                <span class="font-semibold text-slate-800">{formatMoney(p.price, p.price_per_kg)}</span>
+                                            </td>
                                             <td class="px-5 py-3.5 text-center font-medium text-slate-700">{p.stock ?? 0}</td>
                                             <td class="px-5 py-3.5 text-center text-xs text-slate-400">{p.stock_minimo ?? 10}</td>
                                             <td class="px-5 py-3.5 text-center">
@@ -186,7 +199,7 @@ const rows = products?.map((p) => {
                                                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                                                                 </svg>
-                                                                {d.label ? d.label : `x${d.min_qty}`} − {d.discount_pct}%
+                                                                {d.label ? d.label : `x${d.min_qty}kg`} − {d.discount_pct}%
                                                             </span>
                                                         ))}
                                                     </div>
@@ -200,6 +213,7 @@ const rows = products?.map((p) => {
                                                     data-price={p.price} data-stock={p.stock}
                                                     data-stock-minimo={p.stock_minimo ?? 10}
                                                     data-category={p.category ?? ""}
+                                                    data-price-per-kg={p.price_per_kg ? "true" : "false"}
                                                     data-discounts={JSON.stringify(p.discounts)}>
                                                     Editar
                                                 </button>
@@ -227,13 +241,18 @@ const rows = products?.map((p) => {
                                                 </svg>
                                             </div>
                                             <div class="min-w-0">
-                                                <p class="font-semibold text-slate-800 text-sm truncate">{p.name}</p>
+                                                <div class="flex items-center gap-1.5">
+                                                    <p class="font-semibold text-slate-800 text-sm truncate">{p.name}</p>
+                                                    {p.price_per_kg && (
+                                                        <span class="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold">/kg</span>
+                                                    )}
+                                                </div>
                                                 {p.code && (
                                                     <span class="text-xs font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded mt-0.5 inline-block">{p.code}</span>
                                                 )}
                                             </div>
                                         </div>
-                                        <span class="text-sm font-bold text-slate-800 shrink-0">{formatMoney(p.price)}</span>
+                                        <span class="text-sm font-bold text-slate-800 shrink-0">{formatMoney(p.price, p.price_per_kg)}</span>
                                     </div>
 
                                     <div class="flex items-center gap-2 flex-wrap mt-2">
@@ -251,7 +270,7 @@ const rows = products?.map((p) => {
                                         <div class="flex flex-wrap gap-1 mt-2">
                                             {p.discounts.map((d: any) => (
                                                 <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-semibold bg-violet-50 text-violet-700 border border-violet-100">
-                                                    {d.label ? d.label : `x${d.min_qty}`} − {d.discount_pct}%
+                                                    {d.label ? d.label : `x${d.min_qty}kg`} − {d.discount_pct}%
                                                 </span>
                                             ))}
                                         </div>
@@ -263,6 +282,7 @@ const rows = products?.map((p) => {
                                             data-price={p.price} data-stock={p.stock}
                                             data-stock-minimo={p.stock_minimo ?? 10}
                                             data-category={p.category ?? ""}
+                                            data-price-per-kg={p.price_per_kg ? "true" : "false"}
                                             data-discounts={JSON.stringify(p.discounts)}>
                                             Editar
                                         </button>
@@ -331,9 +351,28 @@ const rows = products?.map((p) => {
                     />
                 </div>
 
+                <!-- Toggle precio por kilo -->
+                <div class="flex items-center justify-between px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
+                    <div class="flex items-center gap-2.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+                        </svg>
+                        <div>
+                            <p class="text-xs font-semibold text-amber-800">Precio por kilo</p>
+                            <p class="text-xs text-amber-600">El empleado ingresará kg y g al vender</p>
+                        </div>
+                    </div>
+                    <button type="button" id="toggle-price-per-kg"
+                        role="switch" aria-checked="false"
+                        class="relative inline-flex h-6 w-11 items-center rounded-full border-2 border-transparent bg-slate-200 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1">
+                        <span class="inline-block h-4 w-4 translate-x-0.5 transform rounded-full bg-white shadow transition-transform duration-200"></span>
+                    </button>
+                    <input type="hidden" id="modal-price-per-kg" value="false" />
+                </div>
+
                 <div class="grid grid-cols-2 gap-3">
                     <div class="space-y-1.5">
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Precio *</label>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide" id="price-label">Precio *</label>
                         <input id="modal-price" type="number" min="0" step="0.01" placeholder="0.00"
                             class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition"
                         />
@@ -372,7 +411,7 @@ const rows = products?.map((p) => {
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Descuentos por cantidad</label>
                     <div id="discounts-header" class="hidden grid grid-cols-[1fr_80px_80px_32px] gap-2 px-1">
                         <span class="text-xs text-slate-400 font-medium">Etiqueta</span>
-                        <span class="text-xs text-slate-400 font-medium text-center">Cant.</span>
+                        <span id="discount-qty-header" class="text-xs text-slate-400 font-medium text-center">Cant.</span>
                         <span class="text-xs text-slate-400 font-medium text-center">%</span>
                         <span></span>
                     </div>
@@ -441,6 +480,39 @@ const rows = products?.map((p) => {
     categoryFilter?.addEventListener("change", applyFilters);
     stockFilter?.addEventListener("change", applyFilters);
 
+    // --- Toggle precio por kilo ---
+    const toggleBtn      = document.getElementById("toggle-price-per-kg") as HTMLButtonElement;
+    const pricePerKgInput = document.getElementById("modal-price-per-kg") as HTMLInputElement;
+    const priceLabel     = document.getElementById("price-label")!;
+    const discountQtyHeader = document.getElementById("discount-qty-header")!;
+
+    let isPricePerKg = false;
+
+    function setPricePerKg(value: boolean) {
+        isPricePerKg = value;
+        pricePerKgInput.value = value ? "true" : "false";
+        toggleBtn.setAttribute("aria-checked", value ? "true" : "false");
+        // Visual del toggle
+        const thumb = toggleBtn.querySelector("span")!;
+        if (value) {
+            toggleBtn.classList.remove("bg-slate-200");
+            toggleBtn.classList.add("bg-amber-500");
+            thumb.classList.remove("translate-x-0.5");
+            thumb.classList.add("translate-x-5");
+            priceLabel.textContent = "Precio por kg *";
+            discountQtyHeader.textContent = "Cant. (kg)";
+        } else {
+            toggleBtn.classList.remove("bg-amber-500");
+            toggleBtn.classList.add("bg-slate-200");
+            thumb.classList.remove("translate-x-5");
+            thumb.classList.add("translate-x-0.5");
+            priceLabel.textContent = "Precio *";
+            discountQtyHeader.textContent = "Cant.";
+        }
+    }
+
+    toggleBtn.addEventListener("click", () => setPricePerKg(!isPricePerKg));
+
     // --- Modal ---
     const overlay          = document.getElementById("modal-overlay")!;
     const modalTitle       = document.getElementById("modal-title")!;
@@ -481,7 +553,7 @@ const rows = products?.map((p) => {
         row.innerHTML = `
             <input type="text" placeholder="Ej: Bulto..." value="${d?.label ?? ""}" data-field="label"
                 class="discount-label px-2.5 py-2 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition"/>
-            <input type="number" min="1" placeholder="50" value="${d?.min_qty ?? ""}" data-field="min_qty"
+            <input type="number" min="1" placeholder="${isPricePerKg ? '0.5' : '50'}" value="${d?.min_qty ?? ""}" data-field="min_qty"
                 class="discount-qty px-2.5 py-2 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition text-center"/>
             <div class="relative">
                 <input type="number" min="1" max="100" step="0.01" placeholder="10" value="${d?.discount_pct ?? ""}" data-field="discount_pct"
@@ -522,7 +594,7 @@ const rows = products?.map((p) => {
         const result: any[] = [];
         discountsList.querySelectorAll<HTMLDivElement>(".discount-row").forEach((row) => {
             const label        = (row.querySelector("[data-field='label']")        as HTMLInputElement).value.trim();
-            const min_qty      = parseInt((row.querySelector("[data-field='min_qty']")      as HTMLInputElement).value);
+            const min_qty      = parseFloat((row.querySelector("[data-field='min_qty']")      as HTMLInputElement).value);
             const discount_pct = parseFloat((row.querySelector("[data-field='discount_pct']") as HTMLInputElement).value);
             result.push({ id: row.dataset.discountId, label, min_qty, discount_pct });
         });
@@ -548,6 +620,7 @@ const rows = products?.map((p) => {
             modalStockMinimo.value       = product.stockMinimo ?? "10";
             modalCategory.value          = product.category ?? "";
             deleteBtn.classList.remove("hidden");
+            setPricePerKg(product.pricePerKg === true || product.pricePerKg === "true");
             const discounts: any[] = product.discounts ?? [];
             discounts.forEach((d) => discountsList.appendChild(createDiscountRow(d)));
         } else {
@@ -560,6 +633,7 @@ const rows = products?.map((p) => {
             modalStockMinimo.value       = "10";
             modalCategory.value          = "";
             deleteBtn.classList.add("hidden");
+            setPricePerKg(false);
         }
 
         updateDiscountsUI();
@@ -591,6 +665,7 @@ const rows = products?.map((p) => {
                 stock: btn.dataset.stock,
                 stockMinimo: btn.dataset.stockMinimo,
                 category: btn.dataset.category,
+                pricePerKg: btn.dataset.pricePerKg === "true",
                 discounts,
             });
         });
@@ -605,6 +680,7 @@ const rows = products?.map((p) => {
         const stock        = parseInt(modalStock.value) || 0;
         const stock_minimo = parseInt(modalStockMinimo.value) || 10;
         const category     = modalCategory.value || null;
+        const price_per_kg = pricePerKgInput.value === "true";
 
         if (!name) { modalError.textContent = "El nombre es obligatorio."; modalError.classList.remove("hidden"); return; }
         if (isNaN(price) || price < 0) { modalError.textContent = "Ingresá un precio válido."; modalError.classList.remove("hidden"); return; }
@@ -612,8 +688,10 @@ const rows = products?.map((p) => {
 
         const discountRows = getDiscountRows();
         for (const d of discountRows) {
-            if (!d.min_qty || isNaN(d.min_qty) || d.min_qty < 1) {
-                modalError.textContent = "Cada descuento debe tener una cantidad mínima válida.";
+            if (!d.min_qty || isNaN(d.min_qty) || d.min_qty <= 0) {
+                modalError.textContent = price_per_kg
+                    ? "Cada descuento debe tener una cantidad mínima en kg válida."
+                    : "Cada descuento debe tener una cantidad mínima válida.";
                 modalError.classList.remove("hidden"); return;
             }
             if (!d.discount_pct || isNaN(d.discount_pct) || d.discount_pct <= 0 || d.discount_pct > 100) {
@@ -628,13 +706,13 @@ const rows = products?.map((p) => {
             if (id) {
                 const { error } = await supabase
                     .from("products")
-                    .update({ code, name, price, stock, stock_minimo, category })
+                    .update({ code, name, price, stock, stock_minimo, category, price_per_kg })
                     .eq("id", id);
                 if (error) throw error;
             } else {
                 const { data, error } = await supabase
                     .from("products")
-                    .insert([{ code, name, price, stock, stock_minimo, category }])
+                    .insert([{ code, name, price, stock, stock_minimo, category, price_per_kg }])
                     .select("id")
                     .single();
                 if (error) throw error;

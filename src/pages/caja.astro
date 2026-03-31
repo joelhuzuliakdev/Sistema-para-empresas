@@ -70,6 +70,7 @@ const { data: categoriesData } = await supabase
     .order("name");
 const CATEGORIAS_DESGLOSE = categoriesData?.map(c => c.name) ?? [];
 
+// ── Desglose por categoría (siempre se calcula si hay ventas del día, no solo si hay caja abierta) ──
 let desgloseCategorias: Record<string, {
     total: number;
     efectivo: number;
@@ -78,48 +79,45 @@ let desgloseCategorias: Record<string, {
     credito: number;
 }> = {};
 
-if (cajaAbierta) {
-    // Paso 1: traer los IDs de ventas pagadas desde la apertura
-    const { data: ventasPagadas } = await supabase
-        .from("sales")
-        .select("id, payment_method")
-        .gte("created_at", cajaAbierta.opened_at)
-        .eq("status", "pagado");
+// Usamos inicioDia para calcular el desglose (funciona tanto con caja abierta como para el modal de cierre)
+const { data: ventasPagadasDesglose } = await supabase
+    .from("sales")
+    .select("id, payment_method")
+    .gte("created_at", inicioDia)
+    .eq("status", "pagado");
 
-    const ventasMap: Record<string, string> = {};
-    for (const v of ventasPagadas ?? []) {
-        ventasMap[v.id] = v.payment_method;
-    }
-    const ventasIds = Object.keys(ventasMap);
+const ventasMapDesglose: Record<string, string> = {};
+for (const v of ventasPagadasDesglose ?? []) {
+    ventasMapDesglose[v.id] = v.payment_method;
+}
+const ventasIdsDesglose = Object.keys(ventasMapDesglose);
 
-    // Paso 2: traer los items de esas ventas
-    if (ventasIds.length > 0) {
-        const { data: itemsConCategoria } = await supabase
-            .from("sale_items")
-            .select(`
-                quantity,
-                price,
-                discount_pct,
-                sale_id,
-                products!inner(category)
-            `)
-            .in("sale_id", ventasIds);
+if (ventasIdsDesglose.length > 0) {
+    const { data: itemsConCategoria } = await supabase
+        .from("sale_items")
+        .select(`
+            quantity,
+            price,
+            discount_pct,
+            sale_id,
+            products!inner(category)
+        `)
+        .in("sale_id", ventasIdsDesglose);
 
-        for (const item of itemsConCategoria ?? []) {
-            const cat: string = (item.products as any)?.category ?? "";
-            if (!CATEGORIAS_DESGLOSE.includes(cat)) continue;
-            const metodo: string = ventasMap[item.sale_id] ?? "";
-            const subtotal = (item.price ?? 0) * (item.quantity ?? 1) * (1 - (item.discount_pct ?? 0) / 100);
+    for (const item of itemsConCategoria ?? []) {
+        const cat: string = (item.products as any)?.category ?? "";
+        if (!CATEGORIAS_DESGLOSE.includes(cat)) continue;
+        const metodo: string = ventasMapDesglose[item.sale_id] ?? "";
+        const subtotal = (item.price ?? 0) * (item.quantity ?? 1) * (1 - (item.discount_pct ?? 0) / 100);
 
-            if (!desgloseCategorias[cat]) {
-                desgloseCategorias[cat] = { total: 0, efectivo: 0, transferencia: 0, debito: 0, credito: 0 };
-            }
-            desgloseCategorias[cat].total         += subtotal;
-            if (metodo === "efectivo")      desgloseCategorias[cat].efectivo      += subtotal;
-            if (metodo === "transferencia") desgloseCategorias[cat].transferencia += subtotal;
-            if (metodo === "debito")        desgloseCategorias[cat].debito        += subtotal;
-            if (metodo === "credito")       desgloseCategorias[cat].credito       += subtotal;
+        if (!desgloseCategorias[cat]) {
+            desgloseCategorias[cat] = { total: 0, efectivo: 0, transferencia: 0, debito: 0, credito: 0 };
         }
+        desgloseCategorias[cat].total         += subtotal;
+        if (metodo === "efectivo")      desgloseCategorias[cat].efectivo      += subtotal;
+        if (metodo === "transferencia") desgloseCategorias[cat].transferencia += subtotal;
+        if (metodo === "debito")        desgloseCategorias[cat].debito        += subtotal;
+        if (metodo === "credito")       desgloseCategorias[cat].credito       += subtotal;
     }
 }
 
@@ -145,17 +143,22 @@ const desgloseJSON = JSON.stringify({
 // ── Historial con desglose guardado ──
 const { data: historialCats } = await supabase
     .from("cash_register_categories")
-    .select("cash_register_id, category, total");
+    .select("cash_register_id, category, total, efectivo, transferencia, debito, credito");
 
-const catsByCaja: Record<string, { category: string; total: number }[]> = {};
+const catsByCaja: Record<string, { category: string; total: number; efectivo: number; transferencia: number; debito: number; credito: number }[]> = {};
 historialCats?.forEach((c) => {
     if (!catsByCaja[c.cash_register_id]) catsByCaja[c.cash_register_id] = [];
-    catsByCaja[c.cash_register_id].push({ category: c.category, total: c.total });
+    catsByCaja[c.cash_register_id].push({
+        category:      c.category,
+        total:         c.total,
+        efectivo:      c.efectivo ?? 0,
+        transferencia: c.transferencia ?? 0,
+        debito:        c.debito ?? 0,
+        credito:       c.credito ?? 0,
+    });
 });
 
-// Buscar ventas por método de pago para cada caja cerrada
-const cajasCerradas = cash?.filter(c => c.closed_at) ?? [];
-
+// Buscar ventas por método de pago para cada caja
 const { data: todasVentasMetodo } = await supabase
     .from("sales")
     .select("final_total, total, payment_method, created_at, status")
@@ -179,8 +182,12 @@ const rows = cash?.map((c) => {
         ...c,
         isOpen: !c.closed_at,
         categorias: CATEGORIAS_DESGLOSE.map(cat => ({
-            category: cat,
-            total: catsByCaja[c.id]?.find(x => x.category === cat)?.total ?? null,
+            category:      cat,
+            total:         catsByCaja[c.id]?.find(x => x.category === cat)?.total ?? null,
+            efectivo:      catsByCaja[c.id]?.find(x => x.category === cat)?.efectivo ?? null,
+            transferencia: catsByCaja[c.id]?.find(x => x.category === cat)?.transferencia ?? null,
+            debito:        catsByCaja[c.id]?.find(x => x.category === cat)?.debito ?? null,
+            credito:       catsByCaja[c.id]?.find(x => x.category === cat)?.credito ?? null,
         })),
         metodos: metodosCaja,
     };
@@ -302,21 +309,6 @@ const rowsJSON = JSON.stringify(rows.map(r => ({
                     <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-1">Total del mes</p>
                     <p class="text-xl sm:text-2xl font-bold text-emerald-600 break-all">{formatMoney(totalMes)}</p>
                     <p class="text-xs text-slate-400 mt-1">{ventasMes?.length ?? 0} ventas pagadas</p>
-                </div>
-            </div>
-
-            <!-- Desglose por rubro (caja actual) -->
-            <div class="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 mb-5 sm:mb-6">
-                <h3 class="text-sm font-semibold text-slate-800 mb-3">Desglose por rubro</h3>
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {CATEGORIAS_DESGLOSE.map(cat => (
-                        <div class="bg-slate-50 rounded-xl px-3 py-2">
-                            <p class="text-xs text-slate-500">{cat}</p>
-                            <p class="text-sm font-bold text-slate-800">
-                                {formatMoney(desgloseCategorias[cat]?.total ?? 0)}
-                            </p>
-                        </div>
-                    ))}
                 </div>
             </div>
 
@@ -587,30 +579,39 @@ const rowsJSON = JSON.stringify(rows.map(r => ({
         const container = $("modal-desglose-categorias")!;
         container.innerHTML = "";
 
-        for (const cat of desgloseData.categorias ?? []) {
-            const row = document.createElement("div");
-            row.className = "space-y-1 pb-2 border-b border-slate-100 last:border-0 last:pb-0";
+        // ── Mostrar advertencia si no hay data de rubros ──
+        const hayData = (desgloseData.categorias ?? []).some((c: any) => c.total > 0);
+        if (!hayData) {
+            container.innerHTML = `<p class="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+                No se encontraron ventas con rubros asignados en esta caja.
+            </p>`;
+        } else {
+            for (const cat of desgloseData.categorias ?? []) {
+                if (cat.total === 0) continue;
+                const row = document.createElement("div");
+                row.className = "space-y-1 pb-2 border-b border-slate-100 last:border-0 last:pb-0";
 
-            const metodos: [string, number][] = [
-                ["Efectivo",      cat.efectivo],
-                ["Transferencia", cat.transferencia],
-                ["Débito",        cat.debito],
-                ["Crédito",       cat.credito],
-            ].filter(([, v]) => v > 0) as [string, number][];
+                const metodos: [string, number][] = [
+                    ["Efectivo",      cat.efectivo],
+                    ["Transferencia", cat.transferencia],
+                    ["Débito",        cat.debito],
+                    ["Crédito",       cat.credito],
+                ].filter(([, v]) => v > 0) as [string, number][];
 
-            row.innerHTML = `
-                <div class="flex justify-between items-center">
-                    <span class="text-xs font-semibold text-slate-700">${cat.nombre}</span>
-                    <span class="text-xs font-bold text-slate-800">${formatARS(cat.total)}</span>
-                </div>
-                ${metodos.map(([label, val]) => `
-                    <div class="flex justify-between items-center pl-3">
-                        <span class="text-xs text-slate-400">↳ ${label}</span>
-                        <span class="text-xs font-medium text-slate-500">${formatARS(val)}</span>
+                row.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-semibold text-slate-700">${cat.nombre}</span>
+                        <span class="text-xs font-bold text-slate-800">${formatARS(cat.total)}</span>
                     </div>
-                `).join("")}
-            `;
-            container.appendChild(row);
+                    ${metodos.map(([label, val]) => `
+                        <div class="flex justify-between items-center pl-3">
+                            <span class="text-xs text-slate-400">↳ ${label}</span>
+                            <span class="text-xs font-medium text-slate-500">${formatARS(val)}</span>
+                        </div>
+                    `).join("")}
+                `;
+                container.appendChild(row);
+            }
         }
 
         $("modal-total-dia")!.textContent = formatARS(desgloseData.totalDia ?? 0);
@@ -664,31 +665,37 @@ const rowsJSON = JSON.stringify(rows.map(r => ({
         okBtn.disabled = true;
 
         try {
+            // 1. Cerrar la caja
             const { error } = await supabase
                 .from("cash_register")
                 .update({ closed_at: new Date().toISOString(), total_day: totalDia, total_month: totalMes })
                 .eq("id", cajaId);
             if (error) throw error;
 
-            const filas = (desgloseData.categorias ?? []).map((cat: {
-                nombre: string;
-                total: number;
-                efectivo: number;
-                transferencia: number;
-                debito: number;
-                credito: number;
-            }) => ({
-                cash_register_id: cajaId,
-                category:         cat.nombre,
-                total:            cat.total,
-                efectivo:         cat.efectivo,
-                transferencia:    cat.transferencia,
-                debito:           cat.debito,
-                credito:          cat.credito,
-            }));
+            // 2. Guardar desglose por categoría (incluyendo efectivo, transferencia, debito, credito)
+            const filas = (desgloseData.categorias ?? [])
+                .filter((cat: any) => cat.total > 0) // Solo guardar categorías con movimiento
+                .map((cat: {
+                    nombre: string;
+                    total: number;
+                    efectivo: number;
+                    transferencia: number;
+                    debito: number;
+                    credito: number;
+                }) => ({
+                    cash_register_id: cajaId,
+                    category:         cat.nombre,
+                    total:            cat.total,
+                    efectivo:         cat.efectivo,
+                    transferencia:    cat.transferencia,
+                    debito:           cat.debito,
+                    credito:          cat.credito,
+                }));
 
-            const { error: catError } = await supabase.from("cash_register_categories").insert(filas);
-            if (catError) throw catError;
+            if (filas.length > 0) {
+                const { error: catError } = await supabase.from("cash_register_categories").insert(filas);
+                if (catError) throw catError;
+            }
 
             window.location.reload();
         } catch (err: any) {
@@ -710,7 +717,7 @@ const rowsJSON = JSON.stringify(rows.map(r => ({
         closed_at: string | null;
         total_day: number | null;
         total_month: number | null;
-        categorias: Array<{ category: string; total: number | null }>;
+        categorias: Array<{ category: string; total: number | null; efectivo: number | null; transferencia: number | null; debito: number | null; credito: number | null }>;
         metodos: { efectivo: number; transferencias: number; debito: number; credito: number };
     };
 
@@ -764,6 +771,7 @@ const rowsJSON = JSON.stringify(rows.map(r => ({
         let total = 0;
         let efectivo = 0, transferencias = 0, debito = 0, credito = 0;
         const porCat: Record<string, number> = {};
+        const porCatMetodos: Record<string, { efectivo: number; transferencia: number; debito: number; credito: number }> = {};
 
         for (const r of rowsFecha) {
             total          += r.total_day ?? 0;
@@ -772,8 +780,15 @@ const rowsJSON = JSON.stringify(rows.map(r => ({
             debito         += r.metodos?.debito ?? 0;
             credito        += r.metodos?.credito ?? 0;
             for (const c of r.categorias) {
-                if (c.total !== null) {
+                if (c.total !== null && c.total > 0) {
                     porCat[c.category] = (porCat[c.category] ?? 0) + c.total;
+                    if (!porCatMetodos[c.category]) {
+                        porCatMetodos[c.category] = { efectivo: 0, transferencia: 0, debito: 0, credito: 0 };
+                    }
+                    porCatMetodos[c.category].efectivo      += c.efectivo ?? 0;
+                    porCatMetodos[c.category].transferencia += c.transferencia ?? 0;
+                    porCatMetodos[c.category].debito        += c.debito ?? 0;
+                    porCatMetodos[c.category].credito       += c.credito ?? 0;
                 }
             }
         }
@@ -829,12 +844,31 @@ const rowsJSON = JSON.stringify(rows.map(r => ({
         html += `</div>`;
 
         if (categorias.length > 0) {
-            html += `<div class="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">`;
+            html += `<div class="mt-2 space-y-2">
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mt-3">Por rubro</p>`;
             for (const cat of categorias) {
+                const m = porCatMetodos[cat];
+                const subMetodos: [string, number][] = [
+                    ["Efectivo",      m.efectivo],
+                    ["Transferencia", m.transferencia],
+                    ["Débito",        m.debito],
+                    ["Crédito",       m.credito],
+                ].filter(([, v]) => (v as number) > 0) as [string, number][];
+
                 html += `
                 <div class="bg-white border border-slate-100 rounded-xl px-3 py-2.5">
-                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">${cat}</p>
-                    <p class="text-sm font-bold text-slate-700">${formatARS(porCat[cat] ?? 0)}</p>
+                    <div class="flex justify-between items-center mb-1">
+                        <p class="text-xs font-semibold text-slate-600 uppercase tracking-wide">${cat}</p>
+                        <p class="text-sm font-bold text-slate-700">${formatARS(porCat[cat] ?? 0)}</p>
+                    </div>
+                    ${subMetodos.length > 0 ? `<div class="space-y-0.5 pt-1 border-t border-slate-100">
+                        ${subMetodos.map(([label, val]) => `
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs text-slate-400">↳ ${label}</span>
+                                <span class="text-xs font-medium text-slate-500">${formatARS(val)}</span>
+                            </div>
+                        `).join("")}
+                    </div>` : ""}
                 </div>`;
             }
             html += `</div>`;
