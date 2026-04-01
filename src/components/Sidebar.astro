@@ -30,8 +30,9 @@ const allLinks = [
 
 // Empleado: solo Panel Empleado. Owner/Admin: todo menos Panel Empleado
 const links = isEmployee
-    ? allLinks.filter(l => l.href === "/empleado")
+    ? allLinks.filter(l => ["/empleado", "/presupuesto"].includes(l.href))
     : allLinks;
+
 ---
 
 <!-- ─── MOBILE: barra superior fija ─── -->
