@@ -70,7 +70,7 @@ const { data: categoriesData } = await supabase
     .order("name");
 const CATEGORIAS_DESGLOSE = categoriesData?.map(c => c.name) ?? [];
 
-// ── Desglose por categoría (siempre se calcula si hay ventas del día, no solo si hay caja abierta) ──
+// ── Desglose por categoría ──
 let desgloseCategorias: Record<string, {
     total: number;
     efectivo: number;
@@ -79,7 +79,6 @@ let desgloseCategorias: Record<string, {
     credito: number;
 }> = {};
 
-// Usamos inicioDia para calcular el desglose (funciona tanto con caja abierta como para el modal de cierre)
 const { data: ventasPagadasDesglose } = await supabase
     .from("sales")
     .select("id, payment_method")
@@ -105,7 +104,7 @@ if (ventasIdsDesglose.length > 0) {
         .in("sale_id", ventasIdsDesglose);
 
     for (const item of itemsConCategoria ?? []) {
-        const cat: string = (item.products as any)?.category ?? "";
+        const cat: string = (Array.isArray(item.products) ? item.products[0]?.category : (item.products as any)?.category) ?? "";
         if (!CATEGORIAS_DESGLOSE.includes(cat)) continue;
         const metodo: string = ventasMapDesglose[item.sale_id] ?? "";
         const subtotal = (item.price ?? 0) * (item.quantity ?? 1) * (1 - (item.discount_pct ?? 0) / 100);
@@ -158,7 +157,6 @@ historialCats?.forEach((c) => {
     });
 });
 
-// Buscar ventas por método de pago para cada caja
 const { data: todasVentasMetodo } = await supabase
     .from("sales")
     .select("final_total, total, payment_method, created_at, status")
@@ -193,7 +191,6 @@ const rows = cash?.map((c) => {
     };
 }) ?? [];
 
-// Días únicos de cajas cerradas (YYYY-MM-DD, orden desc)
 const diasUnicos = [...new Set(
     rows
         .filter(r => !r.isOpen && r.closed_at)
@@ -251,6 +248,7 @@ const rowsJSON = JSON.stringify(rows.map(r => ({
                         data-caja-id={cajaAbierta.id}
                         data-total-dia={totalDia}
                         data-total-mes={totalMes}
+                        data-caja-abierta-desde={cajaAbierta.opened_at}
                         class="inline-flex items-center gap-1.5 sm:gap-2 bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-all shrink-0"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -347,9 +345,8 @@ const rowsJSON = JSON.stringify(rows.map(r => ({
                     )}
                 </div>
 
-                <!-- Banner descartable de resumen del día seleccionado -->
-                <div id="resumen-banner" class="hidden border-b border-slate-100 animate-fade-in">
-                </div>
+                <!-- Banner de resumen del día -->
+                <div id="resumen-banner" class="hidden border-b border-slate-100"></div>
 
                 {rows.length > 0 ? (
                     <>
@@ -498,18 +495,17 @@ const rowsJSON = JSON.stringify(rows.map(r => ({
                 <p class="text-xs text-slate-400">Resumen del período antes de confirmar</p>
             </div>
         </div>
+
+        <!-- Solo total + métodos, sin categorías -->
         <div class="bg-slate-50 rounded-xl px-4 py-3 space-y-2">
-            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Por categoría</p>
-            <div id="modal-desglose-categorias" class="space-y-1.5"></div>
-            <div class="border-t border-slate-200 pt-2 flex justify-between items-center">
+            <div class="flex justify-between items-center border-b border-slate-200 pb-2 mb-2">
                 <span class="text-sm font-medium text-slate-600">Total del día</span>
                 <span id="modal-total-dia" class="text-base font-bold text-emerald-600"></span>
             </div>
-        </div>
-        <div class="bg-slate-50 rounded-xl px-4 py-3 space-y-2">
             <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Por método de pago</p>
             <div id="modal-desglose-metodos" class="space-y-1.5"></div>
         </div>
+
         <p class="text-sm text-slate-600 text-center">¿Confirmás el cierre de caja?</p>
         <div class="flex gap-2 pt-1">
             <button id="cerrar-modal-cancel" type="button"
@@ -541,6 +537,14 @@ const rowsJSON = JSON.stringify(rows.map(r => ({
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
         }).format(n);
+
+    // Colores por método de pago
+    const METODO_STYLES: Record<string, { bg: string; text: string; dot: string; label: string }> = {
+        efectivo:      { bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-400", label: "Efectivo" },
+        transferencia: { bg: "bg-blue-50",    text: "text-blue-700",    dot: "bg-blue-400",    label: "Transferencia" },
+        debito:        { bg: "bg-violet-50",  text: "text-violet-700",  dot: "bg-violet-400",  label: "Débito" },
+        credito:       { bg: "bg-orange-50",  text: "text-orange-700",  dot: "bg-orange-400",  label: "Crédito" },
+    };
 
     // ── Abrir caja ──
     $("abrir-caja-btn")?.addEventListener("click", async () => {
@@ -576,78 +580,40 @@ const rowsJSON = JSON.stringify(rows.map(r => ({
     const desgloseData = JSON.parse($("desglose-data")!.textContent ?? "{}");
 
     function openCerrarModal() {
-        const container = $("modal-desglose-categorias")!;
-        container.innerHTML = "";
+    $("modal-total-dia")!.textContent = formatARS(desgloseData.totalDia ?? 0);
 
-        // ── Mostrar advertencia si no hay data de rubros ──
-        const hayData = (desgloseData.categorias ?? []).some((c: any) => c.total > 0);
-        if (!hayData) {
-            container.innerHTML = `<p class="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
-                No se encontraron ventas con rubros asignados en esta caja.
-            </p>`;
-        } else {
-            for (const cat of desgloseData.categorias ?? []) {
-                if (cat.total === 0) continue;
-                const row = document.createElement("div");
-                row.className = "space-y-1 pb-2 border-b border-slate-100 last:border-0 last:pb-0";
-
-                const metodos: [string, number][] = [
-                    ["Efectivo",      cat.efectivo],
-                    ["Transferencia", cat.transferencia],
-                    ["Débito",        cat.debito],
-                    ["Crédito",       cat.credito],
-                ].filter(([, v]) => v > 0) as [string, number][];
-
-                row.innerHTML = `
-                    <div class="flex justify-between items-center">
-                        <span class="text-xs font-semibold text-slate-700">${cat.nombre}</span>
-                        <span class="text-xs font-bold text-slate-800">${formatARS(cat.total)}</span>
-                    </div>
-                    ${metodos.map(([label, val]) => `
-                        <div class="flex justify-between items-center pl-3">
-                            <span class="text-xs text-slate-400">↳ ${label}</span>
-                            <span class="text-xs font-medium text-slate-500">${formatARS(val)}</span>
-                        </div>
-                    `).join("")}
-                `;
-                container.appendChild(row);
-            }
-        }
-
-        $("modal-total-dia")!.textContent = formatARS(desgloseData.totalDia ?? 0);
-
-        const metContainer = $("modal-desglose-metodos")!;
-        metContainer.innerHTML = "";
-        const metodos: Record<string, string> = {
-            efectivo: "Efectivo", transferencias: "Transferencias",
-            debito: "Débito", credito: "Crédito",
-        };
-        for (const [key, label] of Object.entries(metodos)) {
-            const valor: number = desgloseData.metodos?.[key] ?? 0;
-            if (valor === 0) continue;
-            const row = document.createElement("div");
-            row.className = "flex justify-between items-center";
-            row.innerHTML = `
-                <span class="text-xs text-slate-500">${label}</span>
-                <span class="text-xs font-semibold text-slate-700">${formatARS(valor)}</span>`;
-            metContainer.appendChild(row);
-            if (key === "transferencias") {
-                const porCuenta: Record<string, number> = desgloseData.transferenciasPorCuenta ?? {};
-                const cuentas = Object.entries(porCuenta);
-                if (cuentas.length > 1) {
-                    for (const [cuenta, monto] of cuentas) {
-                        const sub = document.createElement("div");
-                        sub.className = "flex justify-between items-center pl-4";
-                        sub.innerHTML = `
-                            <span class="text-xs text-slate-400">↳ ${cuenta}</span>
-                            <span class="text-xs font-medium text-slate-500">${formatARS(monto as number)}</span>`;
-                        metContainer.appendChild(sub);
-                    }
+    const metContainer = $("modal-desglose-metodos")!;
+    metContainer.innerHTML = "";
+    const metodos: Record<string, string> = {
+        efectivo: "Efectivo", transferencias: "Transferencias",
+        debito: "Débito", credito: "Crédito",
+    };
+    for (const [key, label] of Object.entries(metodos)) {
+        const valor: number = desgloseData.metodos?.[key] ?? 0;
+        if (valor === 0) continue;
+        const row = document.createElement("div");
+        row.className = "flex justify-between items-center";
+        row.innerHTML = `
+            <span class="text-xs text-slate-500">${label}</span>
+            <span class="text-xs font-semibold text-slate-700">${formatARS(valor)}</span>`;
+        metContainer.appendChild(row);
+        if (key === "transferencias") {
+            const porCuenta: Record<string, number> = desgloseData.transferenciasPorCuenta ?? {};
+            const cuentas = Object.entries(porCuenta);
+            if (cuentas.length > 1) {
+                for (const [cuenta, monto] of cuentas) {
+                    const sub = document.createElement("div");
+                    sub.className = "flex justify-between items-center pl-4";
+                    sub.innerHTML = `
+                        <span class="text-xs text-slate-400">↳ ${cuenta}</span>
+                        <span class="text-xs font-medium text-slate-500">${formatARS(monto as number)}</span>`;
+                    metContainer.appendChild(sub);
                 }
             }
         }
-        modal.classList.remove("hidden");
     }
+    modal.classList.remove("hidden");
+}
 
     function closeCerrarModal() { modal.classList.add("hidden"); }
     cerrarBtn?.addEventListener("click", openCerrarModal);
@@ -672,29 +638,72 @@ const rowsJSON = JSON.stringify(rows.map(r => ({
                 .eq("id", cajaId);
             if (error) throw error;
 
-            // 2. Guardar desglose por categoría (incluyendo efectivo, transferencia, debito, credito)
-            const filas = (desgloseData.categorias ?? [])
-                .filter((cat: any) => cat.total > 0) // Solo guardar categorías con movimiento
-                .map((cat: {
-                    nombre: string;
-                    total: number;
-                    efectivo: number;
-                    transferencia: number;
-                    debito: number;
-                    credito: number;
-                }) => ({
-                    cash_register_id: cajaId,
-                    category:         cat.nombre,
-                    total:            cat.total,
-                    efectivo:         cat.efectivo,
-                    transferencia:    cat.transferencia,
-                    debito:           cat.debito,
-                    credito:          cat.credito,
-                }));
+            // 2. Traer ventas pagadas desde la apertura de esta caja
+            const cajaAbiertaDesde = cerrarBtn.dataset.cajaAbiertaDesde!;
+            const { data: ventasCaja } = await supabase
+                .from("sales")
+                .select("id, payment_method, final_total, total")
+                .gte("created_at", cajaAbiertaDesde)
+                .eq("status", "pagado");
 
-            if (filas.length > 0) {
-                const { error: catError } = await supabase.from("cash_register_categories").insert(filas);
-                if (catError) throw catError;
+            if (ventasCaja && ventasCaja.length > 0) {
+                const ventasIds = ventasCaja.map(v => v.id);
+                const ventasMap: Record<string, string> = {};
+                ventasCaja.forEach(v => { ventasMap[v.id] = v.payment_method; });
+
+                // 3. Traer items con categoría
+                const { data: items } = await supabase
+                    .from("sale_items")
+                    .select("sale_id, quantity, price, discount_pct, product_id, products(category)")
+                    .in("sale_id", ventasIds);
+
+                console.log("items con productos:", items);
+
+                // 4. Agrupar por categoría
+                const porCat: Record<string, { total: number; efectivo: number; transferencia: number; debito: number; credito: number }> = {};
+
+                for (const item of items ?? []) {
+                    const cat: string = (Array.isArray(item.products)
+                        ? item.products[0]?.category
+                        : (item.products as any)?.category) ?? "";
+                    if (!cat) continue;
+
+                    const metodo = ventasMap[item.sale_id] ?? "";
+                    const subtotal = (item.price ?? 0) * (item.quantity ?? 1) * (1 - (item.discount_pct ?? 0) / 100);
+
+                    if (!porCat[cat]) porCat[cat] = { total: 0, efectivo: 0, transferencia: 0, debito: 0, credito: 0 };
+                    porCat[cat].total += subtotal;
+                    if (metodo === "efectivo")      porCat[cat].efectivo      += subtotal;
+                    if (metodo === "transferencia") porCat[cat].transferencia += subtotal;
+                    if (metodo === "debito")        porCat[cat].debito        += subtotal;
+                    if (metodo === "credito")       porCat[cat].credito       += subtotal;
+                }
+
+                console.log("desglose por categoría calculado:", porCat);
+
+                // 5. Insertar en cash_register_categories
+                const filas = Object.entries(porCat)
+                    .filter(([, d]) => d.total > 0)
+                    .map(([cat, d]) => ({
+                        cash_register_id: cajaId,
+                        category:         cat,
+                        total:            d.total,
+                        efectivo:         d.efectivo,
+                        transferencia:    d.transferencia,
+                        debito:           d.debito,
+                        credito:          d.credito,
+                    }));
+
+                console.log("filas a insertar:", filas);
+
+                if (filas.length > 0) {
+                    const { data: inserted, error: catError } = await supabase
+                        .from("cash_register_categories")
+                        .insert(filas)
+                        .select();
+                    console.log("insertado:", inserted, "error:", catError);
+                    if (catError) throw catError;
+                }
             }
 
             window.location.reload();
@@ -707,8 +716,17 @@ const rowsJSON = JSON.stringify(rows.map(r => ({
     });
 
     // ══════════════════════════════════════════
-    // FILTRO DE HISTORIAL + BANNER DESCARTABLE
+    // FILTRO DE HISTORIAL + BANNER MEJORADO
     // ══════════════════════════════════════════
+
+    type CatData = {
+        category: string;
+        total: number | null;
+        efectivo: number | null;
+        transferencia: number | null;
+        debito: number | null;
+        credito: number | null;
+    };
 
     type RowData = {
         id: string;
@@ -717,7 +735,7 @@ const rowsJSON = JSON.stringify(rows.map(r => ({
         closed_at: string | null;
         total_day: number | null;
         total_month: number | null;
-        categorias: Array<{ category: string; total: number | null; efectivo: number | null; transferencia: number | null; debito: number | null; credito: number | null }>;
+        categorias: CatData[];
         metodos: { efectivo: number; transferencias: number; debito: number; credito: number };
     };
 
@@ -762,58 +780,70 @@ const rowsJSON = JSON.stringify(rows.map(r => ({
         }
     }
 
-    function mostrarBanner(fechaISO: string) {
+    // ── Banner mejorado ──────────────────────────────────────────────────────
+    async function mostrarBanner(fechaISO: string) {
         const rowsFecha = allRows.filter(r =>
             !r.isOpen && r.opened_at.slice(0, 10) === fechaISO
         );
         if (rowsFecha.length === 0) return;
 
-        let total = 0;
-        let efectivo = 0, transferencias = 0, debito = 0, credito = 0;
-        const porCat: Record<string, number> = {};
-        const porCatMetodos: Record<string, { efectivo: number; transferencia: number; debito: number; credito: number }> = {};
+        // Mostrar loading
+        bannerEl.innerHTML = `<div class="px-6 py-8 text-center text-sm text-slate-400">Cargando resumen...</div>`;
+        bannerEl.classList.remove("hidden");
+        bannerVisible = true;
+        if (verResumenLabel) verResumenLabel.textContent = "Ocultar resumen";
+
+        // Traer categorías frescas desde Supabase
+        const cajaIds = rowsFecha.map(r => r.id);
+        const { data: catsDB } = await supabase
+            .from("cash_register_categories")
+            .select("cash_register_id, category, total, efectivo, transferencia, debito, credito")
+            .in("cash_register_id", cajaIds);
+
+        // Acumular totales
+        let totalDia = 0;
+        const porCat: Record<string, { total: number; efectivo: number; transferencia: number; debito: number; credito: number }> = {};
+        let totalEfectivo = 0, totalTransferencia = 0, totalDebito = 0, totalCredito = 0;
 
         for (const r of rowsFecha) {
-            total          += r.total_day ?? 0;
-            efectivo       += r.metodos?.efectivo ?? 0;
-            transferencias += r.metodos?.transferencias ?? 0;
-            debito         += r.metodos?.debito ?? 0;
-            credito        += r.metodos?.credito ?? 0;
-            for (const c of r.categorias) {
-                if (c.total !== null && c.total > 0) {
-                    porCat[c.category] = (porCat[c.category] ?? 0) + c.total;
-                    if (!porCatMetodos[c.category]) {
-                        porCatMetodos[c.category] = { efectivo: 0, transferencia: 0, debito: 0, credito: 0 };
-                    }
-                    porCatMetodos[c.category].efectivo      += c.efectivo ?? 0;
-                    porCatMetodos[c.category].transferencia += c.transferencia ?? 0;
-                    porCatMetodos[c.category].debito        += c.debito ?? 0;
-                    porCatMetodos[c.category].credito       += c.credito ?? 0;
-                }
-            }
+            totalDia           += r.total_day ?? 0;
+            totalEfectivo      += r.metodos?.efectivo ?? 0;
+            totalTransferencia += r.metodos?.transferencias ?? 0;
+            totalDebito        += r.metodos?.debito ?? 0;
+            totalCredito       += r.metodos?.credito ?? 0;
         }
 
-        const categorias = Object.keys(porCat);
+        for (const c of catsDB ?? []) {
+            if (!porCat[c.category]) porCat[c.category] = { total: 0, efectivo: 0, transferencia: 0, debito: 0, credito: 0 };
+            porCat[c.category].total         += c.total ?? 0;
+            porCat[c.category].efectivo      += c.efectivo ?? 0;
+            porCat[c.category].transferencia += c.transferencia ?? 0;
+            porCat[c.category].debito        += c.debito ?? 0;
+            porCat[c.category].credito       += c.credito ?? 0;
+        }
+
+        const categorias = Object.entries(porCat);
         const fechaLabel = new Date(fechaISO + "T12:00:00").toLocaleDateString("es-AR", {
             weekday: "long", day: "numeric", month: "long", year: "numeric"
         });
 
-        const metodosItems: [string, number][] = [
-            ["Efectivo",      efectivo],
-            ["Transferencia", transferencias],
-            ["Débito",        debito],
-            ["Crédito",       credito],
-        ].filter(([, v]) => (v as number) > 0) as [string, number][];
+        const metodosGlobales: { key: string; label: string; valor: number }[] = [
+            { key: "efectivo",      label: "Efectivo",      valor: totalEfectivo },
+            { key: "transferencia", label: "Transferencia",  valor: totalTransferencia },
+            { key: "debito",        label: "Débito",         valor: totalDebito },
+            { key: "credito",       label: "Crédito",        valor: totalCredito },
+        ].filter(m => m.valor > 0);
 
+        // El resto del HTML es igual que antes — copiá desde acá hasta el final de la función
         let html = `
-        <div class="px-4 sm:px-5 py-4 bg-gradient-to-br from-slate-50 to-white">
-            <div class="flex items-start justify-between gap-3 mb-4">
+        <div class="px-4 sm:px-6 py-5 bg-gradient-to-br from-slate-50 to-white space-y-5">
+            <div class="flex items-start justify-between gap-3">
                 <div>
                     <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Resumen del día</p>
                     <p class="text-sm font-bold text-slate-800 capitalize mt-0.5">${fechaLabel}</p>
                 </div>
                 <button id="cerrar-banner-btn"
-                    class="text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors p-1.5 rounded-lg"
+                    class="text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors p-1.5 rounded-lg shrink-0"
                     aria-label="Cerrar resumen">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -821,67 +851,87 @@ const rowsJSON = JSON.stringify(rows.map(r => ({
                 </button>
             </div>
 
-            <div class="flex items-center justify-between bg-emerald-600 rounded-2xl px-5 py-4 mb-3 text-white">
+            <div class="flex items-center justify-between bg-emerald-600 rounded-2xl px-5 py-4 text-white">
                 <div>
                     <p class="text-xs font-semibold opacity-75 uppercase tracking-wide">Total del día</p>
-                    <p class="text-2xl font-bold mt-0.5">${formatARS(total)}</p>
+                    <p class="text-2xl sm:text-3xl font-bold mt-0.5">${formatARS(totalDia)}</p>
                 </div>
-                <svg class="w-8 h-8 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg class="w-9 h-9 opacity-25 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
                 </svg>
             </div>
 
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">`;
-
-        for (const [label, val] of metodosItems) {
-            html += `
-                <div class="bg-white border border-slate-200 rounded-xl px-3 py-2.5">
-                    <p class="text-xs text-slate-400 mb-1">${label}</p>
-                    <p class="text-sm font-bold text-slate-800">${formatARS(val)}</p>
-                </div>`;
-        }
-
-        html += `</div>`;
-
-        if (categorias.length > 0) {
-            html += `<div class="mt-2 space-y-2">
-                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mt-3">Por rubro</p>`;
-            for (const cat of categorias) {
-                const m = porCatMetodos[cat];
-                const subMetodos: [string, number][] = [
-                    ["Efectivo",      m.efectivo],
-                    ["Transferencia", m.transferencia],
-                    ["Débito",        m.debito],
-                    ["Crédito",       m.credito],
-                ].filter(([, v]) => (v as number) > 0) as [string, number][];
-
-                html += `
-                <div class="bg-white border border-slate-100 rounded-xl px-3 py-2.5">
-                    <div class="flex justify-between items-center mb-1">
-                        <p class="text-xs font-semibold text-slate-600 uppercase tracking-wide">${cat}</p>
-                        <p class="text-sm font-bold text-slate-700">${formatARS(porCat[cat] ?? 0)}</p>
-                    </div>
-                    ${subMetodos.length > 0 ? `<div class="space-y-0.5 pt-1 border-t border-slate-100">
-                        ${subMetodos.map(([label, val]) => `
-                            <div class="flex justify-between items-center">
-                                <span class="text-xs text-slate-400">↳ ${label}</span>
-                                <span class="text-xs font-medium text-slate-500">${formatARS(val)}</span>
+            ${metodosGlobales.length > 0 ? `
+            <div>
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2.5">Por método de pago</p>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    ${metodosGlobales.map(m => {
+                        const st = METODO_STYLES[m.key] ?? { bg: "bg-slate-50", text: "text-slate-700", dot: "bg-slate-400", label: m.label };
+                        return `
+                        <div class="${st.bg} border border-slate-100 rounded-xl px-3 py-3">
+                            <div class="flex items-center gap-1.5 mb-1.5">
+                                <span class="w-2 h-2 rounded-full ${st.dot} shrink-0"></span>
+                                <p class="text-xs font-medium text-slate-500">${st.label}</p>
                             </div>
-                        `).join("")}
-                    </div>` : ""}
-                </div>`;
-            }
-            html += `</div>`;
-        }
+                            <p class="text-sm font-bold ${st.text}">${formatARS(m.valor)}</p>
+                        </div>`;
+                    }).join("")}
+                </div>
+            </div>` : ""}
 
-        html += `</div>`;
+            ${categorias.length > 0 ? `
+            <div>
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2.5">Por rubro</p>
+                <div class="space-y-2">
+                    ${categorias.map(([catName, data]) => {
+                        const rubMetodos: { key: string; label: string; valor: number }[] = [
+                            { key: "efectivo",      label: "Efectivo",      valor: data.efectivo },
+                            { key: "transferencia", label: "Transferencia",  valor: data.transferencia },
+                            { key: "debito",        label: "Débito",         valor: data.debito },
+                            { key: "credito",       label: "Crédito",        valor: data.credito },
+                        ].filter(m => m.valor > 0);
+
+                        return `
+                        <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+                            <div class="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-100">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-2 h-2 rounded-full bg-slate-400 shrink-0"></span>
+                                    <p class="text-xs font-bold text-slate-700 uppercase tracking-wide">${catName}</p>
+                                </div>
+                                <p class="text-sm font-bold text-slate-800">${formatARS(data.total)}</p>
+                            </div>
+                            ${rubMetodos.length > 0 ? `
+                            <div class="grid grid-cols-${Math.min(rubMetodos.length, 4)} divide-x divide-slate-100">
+                                ${rubMetodos.map(m => {
+                                    const pct = data.total > 0 ? Math.round((m.valor / data.total) * 100) : 0;
+                                    const st  = METODO_STYLES[m.key] ?? { bg: "bg-white", text: "text-slate-700", dot: "bg-slate-400", label: m.label };
+                                    return `
+                                    <div class="px-3 py-2.5 flex flex-col gap-0.5">
+                                        <div class="flex items-center gap-1 mb-0.5">
+                                            <span class="w-1.5 h-1.5 rounded-full ${st.dot} shrink-0"></span>
+                                            <p class="text-xs text-slate-400 font-medium">${st.label}</p>
+                                        </div>
+                                        <p class="text-xs font-bold ${st.text}">${formatARS(m.valor)}</p>
+                                        <p class="text-xs text-slate-400">${pct}%</p>
+                                    </div>`;
+                                }).join("")}
+                            </div>` : `<div class="px-4 py-2 text-xs text-slate-400">Sin desglose guardado</div>`}
+                        </div>`;
+                    }).join("")}
+                </div>
+                <div class="mt-3 bg-slate-800 rounded-xl px-4 py-3 flex items-center justify-between">
+                    <p class="text-xs font-semibold text-slate-300 uppercase tracking-wide">Total rubros</p>
+                    <p class="text-sm font-bold text-white">${formatARS(categorias.reduce((acc, [, d]) => acc + d.total, 0))}</p>
+                </div>
+            </div>` : `
+            <div class="text-center py-4">
+                <p class="text-xs text-slate-400">No hay datos de rubro para este día.</p>
+                <p class="text-xs text-slate-400 mt-1">Es posible que la caja fue cerrada antes de que se registraran los rubros.</p>
+            </div>`}
+
+        </div>`;
 
         bannerEl.innerHTML = html;
-        bannerEl.classList.remove("hidden");
-        bannerVisible = true;
-
-        if (verResumenLabel) verResumenLabel.textContent = "Ocultar resumen";
-
         $("cerrar-banner-btn")?.addEventListener("click", ocultarBanner);
     }
 
