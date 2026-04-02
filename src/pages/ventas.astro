@@ -79,13 +79,30 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                     {notifications?.map((n) => {
                         let parsed: any = null;
                         try { parsed = JSON.parse(n.data ?? "{}"); } catch {}
+
+                        // ── ¿Es un presupuesto? ──
+                        const isBudget = parsed?.is_budget === true;
+
                         return (
-                            <div class="sale-card bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden" data-notification-id={n.id}>
+                            <div class="sale-card bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden"
+                                data-notification-id={n.id}
+                                data-is-budget={isBudget ? "true" : "false"}>
 
                                 <!-- Cabecera -->
-                                <div class="flex items-start sm:items-center justify-between px-4 sm:px-5 py-4 border-b border-slate-100 gap-3">
+                                <div class={`flex items-start sm:items-center justify-between px-4 sm:px-5 py-4 border-b gap-3
+                                    ${isBudget ? "border-violet-100 bg-violet-50" : "border-slate-100"}`}>
                                     <div class="min-w-0 flex-1">
-                                        <p class="text-sm font-semibold text-slate-800 leading-snug">{n.message}</p>
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <p class="text-sm font-semibold text-slate-800 leading-snug">{n.message}</p>
+                                            {isBudget && (
+                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-100 text-violet-700 border border-violet-200">
+                                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                                    </svg>
+                                                    Presupuesto
+                                                </span>
+                                            )}
+                                        </div>
                                         <p class="text-xs text-slate-400 mt-0.5">
                                             {new Date(n.created_at).toLocaleString("es-AR", {
                                                 day: "2-digit", month: "2-digit", year: "numeric",
@@ -93,7 +110,9 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                                             })}
                                         </p>
                                     </div>
-                                    <span class="text-base sm:text-lg font-bold text-emerald-600 shrink-0">{formatMoney(parsed?.total ?? 0)}</span>
+                                    <span class={`text-base sm:text-lg font-bold shrink-0 ${isBudget ? "text-violet-600" : "text-emerald-600"}`}>
+                                        {formatMoney(parsed?.total ?? 0)}
+                                    </span>
                                 </div>
 
                                 <!-- Items -->
@@ -106,134 +125,191 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                                     ))}
                                 </div>
 
-                                <!-- Formulario de cobro -->
-                                <div class="cobro-form px-4 sm:px-5 py-4 space-y-3">
-
-                                    <!-- Cliente -->
-                                    <div>
-                                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                                            Cliente <span class="client-required hidden text-red-500">*</span>
-                                        </label>
-                                        <select class="client-select w-full py-2 pl-3 pr-8 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition appearance-none">
-                                            <option value="">Cliente general</option>
-                                            {clients?.map((c) => (
-                                                <option value={c.id}>{c.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    <!-- Método de pago -->
-                                    <div>
-                                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Método de pago</label>
-                                        <div class="grid grid-cols-2 gap-2">
-                                            {[
-                                                { value: "efectivo",      label: "Efectivo",      surcharge: "0",  span: false },
-                                                { value: "transferencia", label: "Transferencia", surcharge: "0",  span: false },
-                                                { value: "debito",        label: "Débito +8%",    surcharge: "8",  span: false },
-                                                { value: "credito",       label: "Crédito +15%",  surcharge: "15", span: false },
-                                                { value: "deudor",        label: "Deudor",        surcharge: "0",  span: true  },
-                                            ].map((m) => (
-                                                <button type="button"
-                                                    class={`payment-btn py-2.5 rounded-xl text-xs font-semibold border transition-all
-                                                    ${m.span ? "col-span-2" : ""}
-                                                    ${m.value === "deudor"
-                                                        ? "border-red-200 text-red-500 hover:bg-red-50 hover:border-red-400"
-                                                        : "border-slate-200 text-slate-600 hover:border-emerald-400 hover:text-emerald-700 hover:bg-emerald-50"}`}
-                                                    data-method={m.value}
-                                                    data-surcharge={m.surcharge}>
-                                                    {m.label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                        <input type="hidden" class="payment-method-value" value=""/>
-                                        <input type="hidden" class="surcharge-value" value="0"/>
-                                    </div>
-
-                                    <!-- ── Dropdown cuenta transferencia (reemplaza el input de alias) ── -->
-                                    <div class="transfer-info hidden">
-                                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Cuenta destino</label>
-                                        <select class="transfer-account w-full py-2 pl-3 pr-8 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition appearance-none">
-                                            <option value="">— Seleccioná una cuenta —</option>
-                                            {CUENTAS.map((c) => (
-                                                <option value={c}>{c}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    <!-- Info recargo -->
-                                    <div class="surcharge-info hidden px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl">
-                                        <p class="surcharge-label text-xs text-amber-700 font-medium"></p>
-                                    </div>
-
-                                    <!-- Info deudor -->
-                                    <div class="debtor-info hidden px-3 py-2 bg-red-50 border border-red-200 rounded-xl">
-                                        <p class="text-xs text-red-700 font-medium">Se registrará como deuda. Seleccioná un cliente.</p>
-                                    </div>
-
-                                    <!-- Resumen totales -->
-                                    <div class="bg-slate-50 rounded-xl px-4 py-3 space-y-1">
-                                        <div class="flex items-center justify-between">
-                                            <span class="text-xs text-slate-400">Subtotal</span>
-                                            <span class="subtotal-display text-xs text-slate-600">{formatMoney(parsed?.total ?? 0)}</span>
-                                        </div>
-                                        <div class="surcharge-row hidden flex items-center justify-between">
-                                            <span class="surcharge-row-label text-xs text-amber-600"></span>
-                                            <span class="surcharge-amount text-xs font-medium text-amber-600"></span>
-                                        </div>
-                                        <div class="flex items-center justify-between">
-                                            <span class="text-sm font-semibold text-slate-700">Total</span>
-                                            <span class="total-display text-base font-bold text-slate-800">{formatMoney(parsed?.total ?? 0)}</span>
-                                        </div>
-                                    </div>
-
-                                    <!-- Sección efectivo -->
-                                    <div class="cash-section hidden space-y-2">
-                                        <div class="flex items-center gap-3">
-                                            <div class="flex-1 space-y-1">
-                                                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Entregado</label>
-                                                <div class="relative">
-                                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none font-medium">$</span>
-                                                    <input type="number" min="0" step="1" placeholder="0"
-                                                        class="cash-received w-full pl-6 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"/>
-                                                </div>
-                                            </div>
-                                            <div class="flex-1 space-y-1">
-                                                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Vuelto</label>
-                                                <div class="change-display flex items-center justify-center py-2.5 px-3 rounded-xl bg-emerald-50 border border-emerald-100 min-h-[42px]">
-                                                    <span class="change-amount text-sm font-bold text-emerald-700">—</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="insufficient-alert hidden px-3 py-1.5 rounded-lg bg-red-50 border border-red-200">
-                                            <p class="text-xs text-red-600 font-medium">El monto entregado es menor al total.</p>
-                                        </div>
-                                    </div>
-
-                                    <!-- Error -->
-                                    <div class="cobro-error hidden px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs"></div>
-
-                                    <!-- Acciones -->
-                                    <div class="flex gap-2">
-                                        <button type="button"
-                                            class="discard-btn flex-none px-3 py-2.5 rounded-xl text-xs font-semibold border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
-                                            data-notification-id={n.id}>
-                                            Descartar
-                                        </button>
-                                        <button type="button"
-                                            class="cobrar-btn flex-1 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors flex items-center justify-center gap-2 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
-                                            data-notification-id={n.id}
-                                            data-sale-id={parsed?.sale_id}
-                                            data-base-total={parsed?.total}
-                                            data-items={n.data}>
-                                            <span class="cobrar-text">Confirmar cobro</span>
-                                            <svg class="cobrar-spinner hidden w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 12 0 12 0v4a8 8 0 00-8 8H0z"/>
+                                {isBudget ? (
+                                    <!-- ══════════════════════════════════════
+                                         PRESUPUESTO: solo ticket + descartar
+                                         ══════════════════════════════════════ -->
+                                    <div class="budget-panel px-4 sm:px-5 py-4 space-y-3">
+                                        <div class="flex items-center gap-2 px-3 py-2.5 bg-violet-50 border border-violet-100 rounded-xl">
+                                            <svg class="w-4 h-4 text-violet-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                             </svg>
-                                        </button>
+                                            <p class="text-xs text-violet-700 font-medium">
+                                                Este presupuesto no se cobra desde aquí. Solo podés imprimir el ticket o descartarlo.
+                                            </p>
+                                        </div>
+                                        <div class="flex gap-2">
+                                            <button type="button"
+                                                class="discard-btn flex-none px-3 py-2.5 rounded-xl text-xs font-semibold border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
+                                                data-notification-id={n.id}>
+                                                Descartar
+                                            </button>
+                                            <button type="button"
+                                                class="budget-print-btn flex-1 py-2.5 rounded-xl text-sm font-semibold border border-violet-200 text-violet-700 hover:bg-violet-50 transition-colors flex items-center justify-center gap-2"
+                                                data-items={n.data}>
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H9v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                                                </svg>
+                                                Imprimir ticket
+                                            </button>
+                                        </div>
                                     </div>
+                                ) : (
+                                    <!-- ══════════════════════════════════════
+                                         VENTA NORMAL: formulario de cobro
+                                         ══════════════════════════════════════ -->
+                                    <div class="cobro-form px-4 sm:px-5 py-4 space-y-3">
 
-                                </div>
+                                        <!-- Cliente -->
+                                        <div>
+                                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                                                Cliente <span class="client-required hidden text-red-500">*</span>
+                                            </label>
+                                            <select class="client-select w-full py-2 pl-3 pr-8 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition appearance-none">
+                                                <option value="">Cliente general</option>
+                                                {clients?.map((c) => (
+                                                    <option value={c.id}>{c.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <!-- Método de pago -->
+                                        <div>
+                                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Método de pago</label>
+                                            <div class="grid grid-cols-2 gap-2">
+                                                {[
+                                                    { value: "efectivo",      label: "Efectivo",      surcharge: "0",  span: false },
+                                                    { value: "transferencia", label: "Transferencia", surcharge: "0",  span: false },
+                                                    { value: "debito",        label: "Débito +8%",    surcharge: "8",  span: false },
+                                                    { value: "credito",       label: "Crédito +15%",  surcharge: "15", span: false },
+                                                    { value: "deudor",        label: "Deudor",        surcharge: "0",  span: true  },
+                                                ].map((m) => (
+                                                    <button type="button"
+                                                        class={`payment-btn py-2.5 rounded-xl text-xs font-semibold border transition-all
+                                                        ${m.span ? "col-span-2" : ""}
+                                                        ${m.value === "deudor"
+                                                            ? "border-red-200 text-red-500 hover:bg-red-50 hover:border-red-400"
+                                                            : "border-slate-200 text-slate-600 hover:border-emerald-400 hover:text-emerald-700 hover:bg-emerald-50"}`}
+                                                        data-method={m.value}
+                                                        data-surcharge={m.surcharge}>
+                                                        {m.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            <input type="hidden" class="payment-method-value" value=""/>
+                                            <input type="hidden" class="surcharge-value" value="0"/>
+                                        </div>
+
+                                        <!-- Dropdown cuenta transferencia -->
+                                        <div class="transfer-info hidden">
+                                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Cuenta destino</label>
+                                            <select class="transfer-account w-full py-2 pl-3 pr-8 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition appearance-none">
+                                                <option value="">— Seleccioná una cuenta —</option>
+                                                {CUENTAS.map((c) => (
+                                                    <option value={c}>{c}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <!-- Info recargo -->
+                                        <div class="surcharge-info hidden px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl">
+                                            <p class="surcharge-label text-xs text-amber-700 font-medium"></p>
+                                        </div>
+
+                                        <!-- Info deudor -->
+                                        <div class="debtor-info hidden px-3 py-2 bg-red-50 border border-red-200 rounded-xl">
+                                            <p class="text-xs text-red-700 font-medium">Se registrará como deuda. Seleccioná un cliente.</p>
+                                        </div>
+
+                                        <!-- Resumen totales -->
+                                        <div class="bg-slate-50 rounded-xl px-4 py-3 space-y-1">
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-xs text-slate-400">Subtotal</span>
+                                                <span class="subtotal-display text-xs text-slate-600">{formatMoney(parsed?.total ?? 0)}</span>
+                                            </div>
+                                            <div class="surcharge-row hidden flex items-center justify-between">
+                                                <span class="surcharge-row-label text-xs text-amber-600"></span>
+                                                <span class="surcharge-amount text-xs font-medium text-amber-600"></span>
+                                            </div>
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-sm font-semibold text-slate-700">Total</span>
+                                                <span class="total-display text-base font-bold text-slate-800">{formatMoney(parsed?.total ?? 0)}</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Sección efectivo: entregado + vuelto + total cobrado -->
+                                        <div class="cash-section hidden space-y-3">
+                                            <div class="flex items-center gap-3">
+                                                <div class="flex-1 space-y-1">
+                                                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Entregado</label>
+                                                    <div class="relative">
+                                                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none font-medium">$</span>
+                                                        <input type="number" min="0" step="1" placeholder="0"
+                                                            class="cash-received w-full pl-6 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"/>
+                                                    </div>
+                                                </div>
+                                                <div class="flex-1 space-y-1">
+                                                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Vuelto</label>
+                                                    <div class="change-display flex items-center justify-center py-2.5 px-3 rounded-xl bg-emerald-50 border border-emerald-100 min-h-[42px]">
+                                                        <span class="change-amount text-sm font-bold text-emerald-700">—</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="insufficient-alert hidden px-3 py-1.5 rounded-lg bg-red-50 border border-red-200">
+                                                <p class="text-xs text-red-600 font-medium">El monto entregado es menor al total.</p>
+                                            </div>
+
+                                            <!-- ── Total cobrado (lo que quedó en caja) ── -->
+                                            <div class="total-cobrado-section hidden space-y-1.5">
+                                                <div class="border-t border-slate-100 pt-2.5">
+                                                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                                                        Total cobrado
+                                                        <span class="ml-1 text-slate-400 font-normal normal-case">(lo que quedó en caja)</span>
+                                                    </label>
+                                                    <div class="flex items-center gap-2">
+                                                        <div class="relative flex-1">
+                                                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none font-medium">$</span>
+                                                            <input type="number" min="0" step="1" placeholder="0"
+                                                                class="cash-kept w-full pl-6 pr-3 py-2.5 border border-emerald-300 rounded-xl text-sm font-bold text-emerald-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition bg-emerald-50"/>
+                                                        </div>
+                                                        <button type="button"
+                                                            class="use-total-btn shrink-0 text-xs font-semibold px-3 py-2.5 rounded-xl border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition-colors">
+                                                            Usar total
+                                                        </button>
+                                                    </div>
+                                                    <p class="text-xs text-slate-400 mt-1">
+                                                        Si el cliente dejó el vuelto, ingresá el monto total. Si se le dio vuelto, ya está calculado automáticamente.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Error -->
+                                        <div class="cobro-error hidden px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs"></div>
+
+                                        <!-- Acciones -->
+                                        <div class="flex gap-2">
+                                            <button type="button"
+                                                class="discard-btn flex-none px-3 py-2.5 rounded-xl text-xs font-semibold border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
+                                                data-notification-id={n.id}>
+                                                Descartar
+                                            </button>
+                                            <button type="button"
+                                                class="cobrar-btn flex-1 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors flex items-center justify-center gap-2 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
+                                                data-notification-id={n.id}
+                                                data-sale-id={parsed?.sale_id}
+                                                data-base-total={parsed?.total}
+                                                data-items={n.data}>
+                                                <span class="cobrar-text">Confirmar cobro</span>
+                                                <svg class="cobrar-spinner hidden w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 12 0 12 0v4a8 8 0 00-8 8H0z"/>
+                                                </svg>
+                                            </button>
+                                        </div>
+
+                                    </div>
+                                )}
 
                                 <!-- Panel de éxito -->
                                 <div class="success-panel hidden px-4 sm:px-5 py-4 space-y-3">
@@ -339,6 +415,7 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
         fecha: string;
         surcharge: number;
         transferAccount: string | null;
+        isBudget?: boolean;
     };
 
     function buildTicketHTML(td: TicketData): string {
@@ -361,6 +438,15 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
             ? `<p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">Cuenta: ${td.transferAccount}</p>`
             : "";
 
+        const headerColor  = td.isBudget ? "#7c3aed" : "#059669";
+        const headerLabel  = td.isBudget ? "PRESUPUESTO" : "";
+        const headerLabelHTML = td.isBudget
+            ? `<p style="margin-top:5px;font-size:13px;font-weight:bold;letter-spacing:2px;color:#7c3aed;font-family:Arial,sans-serif;">PRESUPUESTO</p>`
+            : "";
+        const footerNote = td.isBudget
+            ? `<p style="text-align:center;font-size:10px;color:#aaa;font-style:italic;font-family:Arial,sans-serif;">Este presupuesto no constituye una factura</p>`
+            : "";
+
         return `<!DOCTYPE html>
         <html lang="es">
         <head>
@@ -376,9 +462,10 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
         <body>
         <div style="width:300px;max-width:100%;padding:14px 12px;margin:0 auto;">
         <div style="text-align:center;margin-bottom:10px;">
-            <div style="display:inline-block;background:#059669;color:#fff;font-size:10px;font-weight:bold;padding:5px 14px;border-radius:5px;letter-spacing:0.6px;font-family:Arial,sans-serif;">${EMPRESA_NOMBRE.toUpperCase()}</div>
+            <div style="display:inline-block;background:${headerColor};color:#fff;font-size:10px;font-weight:bold;padding:5px 14px;border-radius:5px;letter-spacing:0.6px;font-family:Arial,sans-serif;">${EMPRESA_NOMBRE.toUpperCase()}</div>
             <p style="margin-top:6px;font-size:11px;color:#555;font-family:Arial,sans-serif;">Tel: +${EMPRESA_TELEFONO}</p>
             <p style="font-size:11px;color:#555;font-family:Arial,sans-serif;">${td.fecha}</p>
+            ${headerLabelHTML}
         </div>
         <div style="border-top:1px dashed #bbb;margin-bottom:8px;"></div>
         <table style="width:100%;border-collapse:collapse;">
@@ -394,16 +481,17 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
         <div style="border-top:1px dashed #bbb;margin:8px 0;"></div>
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
             <span style="font-size:14px;font-weight:bold;font-family:Arial,sans-serif;">TOTAL</span>
-            <span style="font-size:16px;font-weight:bold;color:#059669;font-family:Arial,sans-serif;">${fmt(td.total)}</span>
+            <span style="font-size:16px;font-weight:bold;color:${headerColor};font-family:Arial,sans-serif;">${fmt(td.total)}</span>
         </div>
-        <p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">Pago: ${METODOS[td.paymentMethod] ?? td.paymentMethod}</p>
+        ${!td.isBudget ? `<p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">Pago: ${METODOS[td.paymentMethod] ?? td.paymentMethod}</p>` : ""}
         ${transferLine}
         ${td.clientName ? `<p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">Cliente: ${td.clientName}</p>` : ""}
         ${td.sellerName ? `<p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">Vendido por: <strong>${td.sellerName}</strong></p>` : ""}
         <div style="border-top:1px dashed #bbb;margin:10px 0 8px;"></div>
+        ${footerNote}
         <p style="text-align:center;font-size:11px;color:#aaa;font-style:italic;font-family:Arial,sans-serif;">¡Gracias por su compra!</p>
         <div class="no-print" style="margin-top:18px;text-align:center;display:flex;gap:8px;justify-content:center;">
-            <button onclick="window.print()" style="background:#059669;color:#fff;border:none;padding:9px 22px;border-radius:8px;font-size:13px;cursor:pointer;font-family:Arial,sans-serif;font-weight:600;">🖨️ Imprimir</button>
+            <button onclick="window.print()" style="background:${headerColor};color:#fff;border:none;padding:9px 22px;border-radius:8px;font-size:13px;cursor:pointer;font-family:Arial,sans-serif;font-weight:600;">🖨️ Imprimir</button>
             <button onclick="window.close()" style="background:#e2e8f0;color:#475569;border:none;padding:9px 18px;border-radius:8px;font-size:13px;cursor:pointer;font-family:Arial,sans-serif;">Cerrar</button>
         </div>
         </div>
@@ -428,7 +516,7 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                     .replace(/Ú/g,"U").replace(/ñ/g,"n").replace(/Ñ/g,"N")
                     .replace(/[^\x20-\x7E]/g, "");
 
-            const ANCHO = 32; // caracteres por línea (impresora 80mm)
+            const ANCHO = 32;
 
             const centrar = (txt: string): string => {
                 const t = sinAcentos(txt).slice(0, ANCHO);
@@ -443,18 +531,15 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                 return "$" + miles + "," + dec;
             };
 
-            // Fila producto: nombre a la izq, importe a la der
             const filaProducto = (nombre: string, importe: string): string => {
                 const n = sinAcentos(nombre);
                 const i = importe;
                 const espacio = ANCHO - n.length - i.length;
                 if (espacio >= 1) return n + " ".repeat(espacio) + i;
-                // Si no entra, cortar nombre
                 const maxNom = ANCHO - i.length - 1;
                 return n.slice(0, maxNom) + " " + i;
             };
 
-            // Fila dos columnas genérica
             const fila2col = (izq: string, der: string): string => {
                 const l = sinAcentos(izq);
                 const r = sinAcentos(der);
@@ -468,88 +553,69 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
 
             let t = "";
 
-            // ── INICIALIZAR impresora ──────────────────────────────
-            t += "\x1B\x40"; // ESC @ — reset
-
-            // ── ENCABEZADO ────────────────────────────────────────
-            t += "\x1B\x61\x01"; // centrar
-            t += "\x1B\x21\x30"; // doble alto + doble ancho
+            t += "\x1B\x40";
+            t += "\x1B\x61\x01";
+            t += "\x1B\x21\x30";
             t += "EL MUNDO\n";
             t += "DEL DESCARTABLE\n";
-            t += "\x1B\x21\x00"; // volver a normal
+            t += "\x1B\x21\x00";
             t += centrar("Tel: +5493572549909") + "\n";
             t += centrar(td.fecha) + "\n";
-            t += "\x1B\x61\x00"; // izquierda
+            if (td.isBudget) t += centrar("** PRESUPUESTO **") + "\n";
+            t += "\x1B\x61\x00";
 
             t += sep + "\n";
 
-            // ── VENDEDOR ──────────────────────────────────────────
-            if (td.sellerName) {
-                t += "Vendedor: " + sinAcentos(td.sellerName) + "\n";
-            }
-
-            // ── CLIENTE ───────────────────────────────────────────
-            if (td.clientName) {
-                t += "Cliente:  " + sinAcentos(td.clientName) + "\n";
-            }
+            if (td.sellerName) t += "Vendedor: " + sinAcentos(td.sellerName) + "\n";
+            if (td.clientName) t += "Cliente:  " + sinAcentos(td.clientName) + "\n";
 
             t += sep + "\n";
 
-            // ── PRODUCTOS ─────────────────────────────────────────
             td.items.forEach(item => {
-                const nombre    = sinAcentos(item.name);
-                const subtotal  = fmtRaw(item.subtotal);
-                const unitario  = item.qty > 0 ? fmtRaw(item.subtotal / item.qty) : "";
-
-                // Línea 1: nombre del producto
+                const nombre   = sinAcentos(item.name);
+                const subtotal = fmtRaw(item.subtotal);
+                const unitario = item.qty > 0 ? fmtRaw(item.subtotal / item.qty) : "";
                 t += nombre + "\n";
-                // Línea 2:   x qty  precio-unit → subtotal
-                const qty_str  = "x" + item.qty;
-                const det      = qty_str + (unitario ? "  " + unitario : "");
+                const qty_str = "x" + item.qty;
+                const det = qty_str + (unitario ? "  " + unitario : "");
                 t += "  " + filaProducto(det, subtotal) + "\n";
             });
 
             t += sep2 + "\n";
 
-            // ── RECARGO ───────────────────────────────────────────
             if (td.surcharge > 0 && (td.paymentMethod === "debito" || td.paymentMethod === "credito")) {
                 const base   = td.total / (1 + td.surcharge / 100);
                 const recAmt = fmtRaw(td.total - base);
                 t += fila2col("Recargo " + td.surcharge + "%", recAmt) + "\n";
             }
 
-            // ── TOTAL ─────────────────────────────────────────────
-            t += "\x1B\x61\x00"; // izquierda
-            t += "\x1B\x21\x10"; // solo negrita, sin doble ancho
-            t += "TOTAL" + "\n";
+            t += "\x1B\x61\x00";
+            t += "\x1B\x21\x10";
+            t += (td.isBudget ? "PRESUPUESTO\n" : "TOTAL\n");
             t += fmtRaw(td.total) + "\n";
-            t += "\x1B\x21\x00"; // normal
+            t += "\x1B\x21\x00";
 
             t += sep + "\n";
 
-            // ── PAGO ──────────────────────────────────────────────
-            const METODOS_PRINT: Record<string, string> = {
-                efectivo:      "Efectivo",
-                transferencia: "Transferencia",
-                debito:        "Debito",
-                credito:       "Credito",
-                deudor:        "Deuda",
-            };
-            t += "Pago: " + (METODOS_PRINT[td.paymentMethod] ?? td.paymentMethod) + "\n";
-
-            if (td.paymentMethod === "transferencia" && td.transferAccount) {
-                t += "Cuenta: " + sinAcentos(td.transferAccount) + "\n";
+            if (!td.isBudget) {
+                const METODOS_PRINT: Record<string, string> = {
+                    efectivo: "Efectivo", transferencia: "Transferencia",
+                    debito: "Debito", credito: "Credito", deudor: "Deuda",
+                };
+                t += "Pago: " + (METODOS_PRINT[td.paymentMethod] ?? td.paymentMethod) + "\n";
+                if (td.paymentMethod === "transferencia" && td.transferAccount) {
+                    t += "Cuenta: " + sinAcentos(td.transferAccount) + "\n";
+                }
+                t += sep + "\n";
+            } else {
+                t += centrar("No constituye factura") + "\n";
+                t += sep + "\n";
             }
 
-            t += sep + "\n";
-
-            // ── PIE ───────────────────────────────────────────────
-            t += "\x1B\x61\x01"; // centrar
+            t += "\x1B\x61\x01";
             t += "Gracias por su compra!\n";
             t += "\n\n";
-
-            // ── CORTE ─────────────────────────────────────────────
-            t += "\x1D\x56\x41\x00"; // GS V A — corte parcial
+            t += "\x1D\x56\x41\x00";
 
             const data = [{ type: "raw", format: "plain", data: t }];
             await qz.print(config, data);
@@ -661,7 +727,48 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
         }
     }
 
-    document.querySelectorAll<HTMLElement>(".sale-card").forEach(card => {
+    // ══════════════════════════════════════════════════════════
+    // TARJETAS DE PRESUPUESTO (solo imprimir / descartar)
+    // ══════════════════════════════════════════════════════════
+    document.querySelectorAll<HTMLElement>(".sale-card[data-is-budget='true']").forEach(card => {
+        // Descartar
+        card.querySelector<HTMLButtonElement>(".discard-btn")?.addEventListener("click", async () => {
+            const nid = card.dataset.notificationId!;
+            await supabase.from("notifications").update({ read: true }).eq("id", nid);
+            card.remove(); updateLabel();
+        });
+
+        // Imprimir ticket de presupuesto
+        card.querySelector<HTMLButtonElement>(".budget-print-btn")?.addEventListener("click", async () => {
+            const rawData = card.querySelector<HTMLButtonElement>(".budget-print-btn")!.dataset.items ?? "{}";
+            let parsed: any = {};
+            try { parsed = JSON.parse(rawData); } catch {}
+            const fecha = new Date().toLocaleString("es-AR", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
+            const td: TicketData = {
+                items:           parsed.items ?? [],
+                total:           parsed.total ?? 0,
+                paymentMethod:   "efectivo",
+                clientName:      parsed.client_name ?? null,
+                sellerName:      parsed.seller_name ?? null,
+                fecha,
+                surcharge:       0,
+                transferAccount: null,
+                isBudget:        true,
+            };
+            // Intentar imprimir por QZ, si falla abrir ventana HTML
+            try {
+                await imprimirTicket(td);
+            } catch {
+                const win = window.open("", "_blank", "width=400,height=600");
+                if (win) { win.document.write(buildTicketHTML(td)); win.document.close(); setTimeout(() => win.print(), 500); }
+            }
+        });
+    });
+
+    // ══════════════════════════════════════════════════════════
+    // TARJETAS DE VENTA NORMAL
+    // ══════════════════════════════════════════════════════════
+    document.querySelectorAll<HTMLElement>(".sale-card[data-is-budget='false']").forEach(card => {
         const pmInput      = card.querySelector<HTMLInputElement>(".payment-method-value")!;
         const srInput      = card.querySelector<HTMLInputElement>(".surcharge-value")!;
         const clientSel    = card.querySelector<HTMLSelectElement>(".client-select")!;
@@ -673,6 +780,9 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
         const srAmt        = card.querySelector<HTMLElement>(".surcharge-amount")!;
         const cashSec      = card.querySelector<HTMLElement>(".cash-section")!;
         const cashIn       = card.querySelector<HTMLInputElement>(".cash-received")!;
+        const cashKept     = card.querySelector<HTMLInputElement>(".cash-kept")!;
+        const useTotalBtn  = card.querySelector<HTMLButtonElement>(".use-total-btn")!;
+        const totalCobradoSec = card.querySelector<HTMLElement>(".total-cobrado-section")!;
         const changeEl     = card.querySelector<HTMLElement>(".change-amount")!;
         const changeDsp    = card.querySelector<HTMLElement>(".change-display")!;
         const insuf        = card.querySelector<HTMLElement>(".insufficient-alert")!;
@@ -680,6 +790,11 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
         const baseTotal    = Number(cobrarBtn.dataset.baseTotal ?? 0);
 
         const getTotal = () => baseTotal + baseTotal * (Number(srInput.value) / 100);
+
+        // "Usar total" → pone el total calculado en el campo "cobrado"
+        useTotalBtn.addEventListener("click", () => {
+            cashKept.value = String(Math.round(getTotal()));
+        });
 
         function refreshTotals() {
             const pct = Number(srInput.value), amt = baseTotal * (pct / 100);
@@ -695,18 +810,27 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
             if (!cashIn.value || isNaN(recv)) {
                 changeEl.textContent = "—"; changeEl.className = "change-amount text-sm font-bold text-emerald-700";
                 changeDsp.className  = "change-display flex items-center justify-center py-2.5 px-3 rounded-xl bg-emerald-50 border border-emerald-100 min-h-[42px]";
-                insuf.classList.add("hidden"); return;
+                insuf.classList.add("hidden");
+                totalCobradoSec.classList.add("hidden");
+                return;
             }
             const diff = recv - total;
-            changeEl.textContent = fmt(diff);
+            changeEl.textContent = fmt(Math.abs(diff));
             if (diff < 0) {
                 changeEl.className  = "change-amount text-sm font-bold text-red-600";
                 changeDsp.className = "change-display flex items-center justify-center py-2.5 px-3 rounded-xl bg-red-50 border border-red-200 min-h-[42px]";
                 insuf.classList.remove("hidden");
+                totalCobradoSec.classList.add("hidden");
             } else {
                 changeEl.className  = "change-amount text-sm font-bold text-emerald-700";
                 changeDsp.className = "change-display flex items-center justify-center py-2.5 px-3 rounded-xl bg-emerald-50 border border-emerald-100 min-h-[42px]";
                 insuf.classList.add("hidden");
+                // Mostrar sección "total cobrado" solo cuando hay vuelto
+                totalCobradoSec.classList.remove("hidden");
+                // Si el campo está vacío, pre-rellenar con el total (caso más común: no se queda el vuelto)
+                if (!cashKept.value) {
+                    cashKept.value = String(Math.round(total));
+                }
             }
         }
 
@@ -726,7 +850,6 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                     btn.classList.add("bg-emerald-600","border-emerald-600","text-white","shadow-sm");
                 }
                 pmInput.value = m; srInput.value = sr;
-                // Mostrar/ocultar dropdown de cuenta transferencia
                 card.querySelector(".transfer-info")?.classList.toggle("hidden", m !== "transferencia");
                 if (m !== "transferencia" && transferSel) transferSel.value = "";
                 card.querySelector(".surcharge-info")?.classList.toggle("hidden", sr === "0");
@@ -734,7 +857,12 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                 card.querySelector<HTMLElement>(".client-required")?.classList.toggle("hidden", m !== "deudor");
                 if (sr !== "0") { const sl = card.querySelector<HTMLElement>(".surcharge-label"); if (sl) sl.textContent = `Se aplica un recargo del ${sr}%`; }
                 cashSec.classList.toggle("hidden", m !== "efectivo");
-                if (m === "efectivo") { cashIn.value = ""; refreshChange(); setTimeout(() => cashIn.focus(), 50); }
+                if (m === "efectivo") {
+                    cashIn.value = ""; cashKept.value = "";
+                    totalCobradoSec.classList.add("hidden");
+                    refreshChange();
+                    setTimeout(() => cashIn.focus(), 50);
+                }
                 clientSel.classList.toggle("border-red-400", m === "deudor");
                 clientSel.classList.toggle("border-slate-200", m !== "deudor");
                 refreshTotals();
@@ -755,18 +883,32 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
             const pm       = pmInput.value;
             const sr       = Number(srInput.value);
             const clientId = clientSel.value || null;
-            const total    = getTotal();
-            // Leer el dropdown en lugar del input de texto
             const transferAccount = (pm === "transferencia" && transferSel?.value) ? transferSel.value : null;
             const cobTxt   = cobrarBtn.querySelector<HTMLElement>(".cobrar-text")!;
             const spinner  = cobrarBtn.querySelector<HTMLElement>(".cobrar-spinner")!;
+
+            // ── Calcular el total que realmente se cobra ──
+            // Para efectivo: si hay vuelto y el cajero ingresó un "total cobrado", usar ese.
+            // De lo contrario, usar el total calculado.
+            let finalTotal = getTotal();
+            if (pm === "efectivo") {
+                const recv = parseFloat(cashIn.value);
+                if (!isNaN(recv) && recv >= finalTotal) {
+                    // Hay vuelto → ver si el cajero ingresó manualmente cuánto cobró
+                    const kept = parseFloat(cashKept.value);
+                    if (!isNaN(kept) && kept > 0) {
+                        finalTotal = kept;
+                    }
+                    // Si no ingresó nada en "total cobrado", usar el total de la venta (sin vuelto)
+                }
+            }
 
             errorEl.classList.add("hidden");
             if (!pm) { errorEl.textContent = "Seleccioná un método de pago."; errorEl.classList.remove("hidden"); return; }
             if (pm === "deudor" && !clientId) { errorEl.textContent = "Para registrar una deuda debés seleccionar un cliente."; errorEl.classList.remove("hidden"); clientSel.focus(); return; }
             if (pm === "efectivo") {
                 const recv = parseFloat(cashIn.value);
-                if (!isNaN(recv) && recv < total) { errorEl.textContent = "El monto entregado es menor al total a cobrar."; errorEl.classList.remove("hidden"); return; }
+                if (!isNaN(recv) && recv < getTotal()) { errorEl.textContent = "El monto entregado es menor al total a cobrar."; errorEl.classList.remove("hidden"); return; }
             }
 
             cobrarBtn.disabled = true; cobTxt.textContent = "Procesando..."; spinner.classList.remove("hidden");
@@ -777,10 +919,13 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                     const { data: cd } = await supabase.from("clients").select("name").eq("id", clientId).single();
                     clientName = cd?.name ?? null;
                 }
+
+                // Guardar final_total con el monto realmente cobrado
                 const { error: upErr } = await supabase.from("sales").update({
                     client_id: clientId, client_name: clientName,
-                    final_total: total, payment_method: pm, surcharge: sr,
-                    transfer_account: transferAccount,   // 👈 línea nueva
+                    final_total: finalTotal,       // ← monto real cobrado
+                    payment_method: pm, surcharge: sr,
+                    transfer_account: transferAccount,
                     note: transferAccount ? `Transferencia a: ${transferAccount}` : null,
                     status: pm === "deudor" ? "deuda" : "pagado",
                 }).eq("id", saleId);
@@ -788,15 +933,21 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
 
                 if (pm === "deudor" && clientId) {
                     const { data: cd } = await supabase.from("clients").select("debt").eq("id", clientId).single();
-                    await supabase.from("clients").update({ debt: (cd?.debt ?? 0) + total }).eq("id", clientId);
-                    await supabase.from("debts").insert([{ client_id: clientId, sale_id: saleId, original_total: total, current_total: total, paid: false }]);
+                    await supabase.from("clients").update({ debt: (cd?.debt ?? 0) + getTotal() }).eq("id", clientId);
+                    await supabase.from("debts").insert([{ client_id: clientId, sale_id: saleId, original_total: getTotal(), current_total: getTotal(), paid: false }]);
                 }
                 await supabase.from("notifications").update({ read: true }).eq("id", nid);
 
                 let changeMsg = "";
                 if (pm === "efectivo") {
                     const recv = parseFloat(cashIn.value);
-                    if (!isNaN(recv) && recv >= total) changeMsg = ` — Vuelto: <span class="font-bold text-emerald-700">${fmt(recv - total)}</span>`;
+                    const total = getTotal();
+                    if (!isNaN(recv) && recv >= total) {
+                        const vuelto = recv - total;
+                        if (vuelto > 0 && finalTotal < recv) {
+                            changeMsg = ` — Cobrado: <span class="font-bold text-emerald-700">${fmt(finalTotal)}</span>`;
+                        }
+                    }
                 }
 
                 let parsed: any = {};
@@ -804,7 +955,7 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                 const fecha = new Date().toLocaleString("es-AR", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
                 const td: TicketData = {
                     items: parsed.items ?? [],
-                    total,
+                    total: getTotal(),   // el ticket siempre muestra el total de la venta
                     paymentMethod: pm,
                     clientName,
                     sellerName: parsed.seller_name ?? null,
@@ -812,10 +963,9 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                     surcharge: sr,
                     transferAccount,
                 };
-                showSuccess(card, total, pm, clientName, changeMsg, td);
+                showSuccess(card, finalTotal, pm, clientName, changeMsg, td);
 
-                // 🔥 IMPRIMIR AUTOMÁTICO
-                if (pm !== "deudor") { // opcional: no imprimir deudas
+                if (pm !== "deudor") {
                     await imprimirTicket(td);
                 }
 
