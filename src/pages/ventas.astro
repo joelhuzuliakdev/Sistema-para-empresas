@@ -10,7 +10,6 @@ const { data: notifications } = await supabase
     .eq("type", "nueva_venta")
     .order("created_at", { ascending: false });
 
-// FIX $Â
 const formatMoney = (amount: number | null) => {
     if (amount == null) return "—";
     return "$ " + new Intl.NumberFormat("es-AR", {
@@ -21,16 +20,9 @@ const formatMoney = (amount: number | null) => {
 
 const pendingCount = notifications?.length ?? 0;
 
-// Cuentas de transferencia
-const { data: categoriesData } = await supabase
-    .from("categories")
-    .select("name")
-    .order("name");
+const { data: categoriesData } = await supabase.from("categories").select("name").order("name");
 const CATEGORIAS = categoriesData?.map(c => c.name) ?? [];
-const { data: cuentasData } = await supabase
-    .from("cash_register_categories")
-    .select("name")
-    .order("name");
+const { data: cuentasData } = await supabase.from("cash_register_categories").select("name").order("name");
 const CUENTAS = cuentasData?.map(c => c.name) ?? [];
 ---
 
@@ -79,8 +71,6 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                     {notifications?.map((n) => {
                         let parsed: any = null;
                         try { parsed = JSON.parse(n.data ?? "{}"); } catch {}
-
-                        // ── ¿Es un presupuesto? ──
                         const isBudget = parsed?.is_budget === true;
 
                         return (
@@ -89,25 +79,19 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                                 data-is-budget={isBudget ? "true" : "false"}>
 
                                 <!-- Cabecera -->
-                                <div class={`flex items-start sm:items-center justify-between px-4 sm:px-5 py-4 border-b gap-3
-                                    ${isBudget ? "border-violet-100 bg-violet-50" : "border-slate-100"}`}>
+                                <div class={`flex items-start sm:items-center justify-between px-4 sm:px-5 py-4 border-b gap-3 ${isBudget ? "border-violet-100 bg-violet-50" : "border-slate-100"}`}>
                                     <div class="min-w-0 flex-1">
                                         <div class="flex items-center gap-2 flex-wrap">
                                             <p class="text-sm font-semibold text-slate-800 leading-snug">{n.message}</p>
                                             {isBudget && (
                                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-100 text-violet-700 border border-violet-200">
-                                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                                    </svg>
+                                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                                                     Presupuesto
                                                 </span>
                                             )}
                                         </div>
                                         <p class="text-xs text-slate-400 mt-0.5">
-                                            {new Date(n.created_at).toLocaleString("es-AR", {
-                                                day: "2-digit", month: "2-digit", year: "numeric",
-                                                hour: "2-digit", minute: "2-digit"
-                                            })}
+                                            {new Date(n.created_at).toLocaleString("es-AR", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" })}
                                         </p>
                                     </div>
                                     <span class={`text-base sm:text-lg font-bold shrink-0 ${isBudget ? "text-violet-600" : "text-emerald-600"}`}>
@@ -126,88 +110,119 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                                 </div>
 
                                 {isBudget ? (
-                                    <!-- ══════════════════════════════════════
-                                         PRESUPUESTO: solo ticket + descartar
-                                         ══════════════════════════════════════ -->
                                     <div class="budget-panel px-4 sm:px-5 py-4 space-y-3">
                                         <div class="flex items-center gap-2 px-3 py-2.5 bg-violet-50 border border-violet-100 rounded-xl">
-                                            <svg class="w-4 h-4 text-violet-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                            </svg>
-                                            <p class="text-xs text-violet-700 font-medium">
-                                                Este presupuesto no se cobra desde aquí. Solo podés imprimir el ticket o descartarlo.
-                                            </p>
+                                            <svg class="w-4 h-4 text-violet-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                            <p class="text-xs text-violet-700 font-medium">Este presupuesto no se cobra desde aquí. Solo podés imprimir el ticket o descartarlo.</p>
                                         </div>
                                         <div class="flex gap-2">
-                                            <button type="button"
-                                                class="discard-btn flex-none px-3 py-2.5 rounded-xl text-xs font-semibold border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
-                                                data-notification-id={n.id}>
-                                                Descartar
-                                            </button>
-                                            <button type="button"
-                                                class="budget-print-btn flex-1 py-2.5 rounded-xl text-sm font-semibold border border-violet-200 text-violet-700 hover:bg-violet-50 transition-colors flex items-center justify-center gap-2"
-                                                data-items={n.data}>
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H9v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
-                                                </svg>
+                                            <button type="button" class="discard-btn flex-none px-3 py-2.5 rounded-xl text-xs font-semibold border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors" data-notification-id={n.id}>Descartar</button>
+                                            <button type="button" class="budget-print-btn flex-1 py-2.5 rounded-xl text-sm font-semibold border border-violet-200 text-violet-700 hover:bg-violet-50 transition-colors flex items-center justify-center gap-2" data-items={n.data}>
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H9v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                                                 Imprimir ticket
                                             </button>
                                         </div>
                                     </div>
                                 ) : (
-                                    <!-- ══════════════════════════════════════
-                                         VENTA NORMAL: formulario de cobro
-                                         ══════════════════════════════════════ -->
                                     <div class="cobro-form px-4 sm:px-5 py-4 space-y-3">
 
                                         <!-- Cliente -->
                                         <div>
-                                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                                                Cliente <span class="client-required hidden text-red-500">*</span>
-                                            </label>
+                                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Cliente <span class="client-required hidden text-red-500">*</span></label>
                                             <select class="client-select w-full py-2 pl-3 pr-8 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition appearance-none">
                                                 <option value="">Cliente general</option>
-                                                {clients?.map((c) => (
-                                                    <option value={c.id}>{c.name}</option>
-                                                ))}
+                                                {clients?.map((c) => (<option value={c.id}>{c.name}</option>))}
                                             </select>
                                         </div>
 
-                                        <!-- Método de pago -->
+                                        <!-- Métodos de pago -->
                                         <div>
-                                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Método de pago</label>
+                                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                                                Método de pago
+                                                <span class="ml-1 text-slate-400 font-normal normal-case">(podés elegir hasta 2)</span>
+                                            </label>
                                             <div class="grid grid-cols-2 gap-2">
                                                 {[
-                                                    { value: "efectivo",      label: "Efectivo",      surcharge: "0",  span: false },
-                                                    { value: "transferencia", label: "Transferencia", surcharge: "0",  span: false },
-                                                    { value: "debito",        label: "Débito +8%",    surcharge: "8",  span: false },
-                                                    { value: "credito",       label: "Crédito +15%",  surcharge: "15", span: false },
-                                                    { value: "deudor",        label: "Deudor",        surcharge: "0",  span: true  },
+                                                    { value:"efectivo",      label:"Efectivo",      surcharge:"0",  span:false },
+                                                    { value:"transferencia", label:"Transferencia", surcharge:"0",  span:false },
+                                                    { value:"debito",        label:"Débito +8%",    surcharge:"8",  span:false },
+                                                    { value:"credito",       label:"Crédito +15%",  surcharge:"15", span:false },
+                                                    { value:"deudor",        label:"Deudor",        surcharge:"0",  span:true  },
                                                 ].map((m) => (
                                                     <button type="button"
-                                                        class={`payment-btn py-2.5 rounded-xl text-xs font-semibold border transition-all
+                                                        class={`payment-btn py-2.5 rounded-xl text-xs font-semibold border transition-all relative
                                                         ${m.span ? "col-span-2" : ""}
-                                                        ${m.value === "deudor"
-                                                            ? "border-red-200 text-red-500 hover:bg-red-50 hover:border-red-400"
-                                                            : "border-slate-200 text-slate-600 hover:border-emerald-400 hover:text-emerald-700 hover:bg-emerald-50"}`}
+                                                        ${m.value === "deudor" ? "border-red-200 text-red-500 hover:bg-red-50 hover:border-red-400" : "border-slate-200 text-slate-600 hover:border-emerald-400 hover:text-emerald-700 hover:bg-emerald-50"}`}
                                                         data-method={m.value}
                                                         data-surcharge={m.surcharge}>
                                                         {m.label}
+                                                        <span class="payment-badge hidden absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-emerald-600 text-white text-[9px] font-bold flex items-center justify-center leading-none"></span>
                                                     </button>
                                                 ))}
                                             </div>
-                                            <input type="hidden" class="payment-method-value" value=""/>
-                                            <input type="hidden" class="surcharge-value" value="0"/>
                                         </div>
 
-                                        <!-- Dropdown cuenta transferencia -->
+                                        <!-- ── PANEL PAGO SIMPLE: rubro único ── -->
+                                        <div class="single-payment-panel hidden space-y-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                                            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Rubro <span class="ml-1 font-normal normal-case text-slate-400">(para el cierre de caja)</span></p>
+                                            <select class="rubro-single w-full py-2 pl-3 pr-8 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition appearance-none">
+                                                <option value="">— Sin rubro específico —</option>
+                                                {CATEGORIAS.map((c) => (<option value={c}>{c}</option>))}
+                                            </select>
+                                        </div>
+
+                                        <!-- ── PANEL PAGO MIXTO: monto + rubro por método ── -->
+                                        <div class="mixed-payment-panel hidden space-y-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-3">
+                                            <div class="flex items-center gap-2 mb-1">
+                                                <svg class="w-4 h-4 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                                                <p class="text-xs text-blue-700 font-semibold">Pago combinado — asigná monto y rubro a cada método</p>
+                                            </div>
+
+                                            <!-- Método 1 -->
+                                            <div class="rounded-xl border border-slate-200 bg-white p-3 space-y-2">
+                                                <p class="text-xs font-bold text-slate-600 uppercase tracking-wide mixed-label-1"></p>
+                                                <div class="flex gap-2">
+                                                    <div class="relative w-36 shrink-0">
+                                                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none font-medium">$</span>
+                                                        <input type="number" min="0" step="1" placeholder="0"
+                                                            class="mixed-amount-1 w-full pl-6 pr-2 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"/>
+                                                    </div>
+                                                    <select class="rubro-mixed-1 flex-1 py-2 pl-3 pr-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition appearance-none">
+                                                        <option value="">Sin rubro</option>
+                                                        {CATEGORIAS.map((c) => (<option value={c}>{c}</option>))}
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            <!-- Método 2 -->
+                                            <div class="rounded-xl border border-blue-200 bg-white p-3 space-y-2">
+                                                <p class="text-xs font-bold text-blue-600 uppercase tracking-wide mixed-label-2"></p>
+                                                <div class="flex gap-2">
+                                                    <div class="relative w-36 shrink-0">
+                                                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none font-medium">$</span>
+                                                        <input type="number" min="0" step="1" placeholder="0"
+                                                            class="mixed-amount-2 w-full pl-6 pr-2 py-2 border border-blue-200 rounded-xl text-sm font-semibold text-blue-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"/>
+                                                    </div>
+                                                    <select class="rubro-mixed-2 flex-1 py-2 pl-3 pr-2 bg-slate-50 border border-blue-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition appearance-none">
+                                                        <option value="">Sin rubro</option>
+                                                        {CATEGORIAS.map((c) => (<option value={c}>{c}</option>))}
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            <!-- Validación suma -->
+                                            <div class="flex items-center justify-between px-2 py-1.5 rounded-lg bg-white border border-slate-200">
+                                                <span class="text-xs text-slate-500">Resta asignar</span>
+                                                <span class="mixed-diff-amount text-xs font-bold text-slate-700">—</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Cuenta transferencia -->
                                         <div class="transfer-info hidden">
                                             <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Cuenta destino</label>
                                             <select class="transfer-account w-full py-2 pl-3 pr-8 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition appearance-none">
                                                 <option value="">— Seleccioná una cuenta —</option>
-                                                {CUENTAS.map((c) => (
-                                                    <option value={c}>{c}</option>
-                                                ))}
+                                                {CUENTAS.map((c) => (<option value={c}>{c}</option>))}
                                             </select>
                                         </div>
 
@@ -237,15 +252,14 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                                             </div>
                                         </div>
 
-                                        <!-- Sección efectivo: entregado + vuelto + total cobrado -->
+                                        <!-- Sección efectivo (solo cuando es el único método) -->
                                         <div class="cash-section hidden space-y-3">
                                             <div class="flex items-center gap-3">
                                                 <div class="flex-1 space-y-1">
-                                                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Entregado</label>
+                                                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Entregado en efectivo</label>
                                                     <div class="relative">
                                                         <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none font-medium">$</span>
-                                                        <input type="number" min="0" step="1" placeholder="0"
-                                                            class="cash-received w-full pl-6 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"/>
+                                                        <input type="number" min="0" step="1" placeholder="0" class="cash-received w-full pl-6 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"/>
                                                     </div>
                                                 </div>
                                                 <div class="flex-1 space-y-1">
@@ -256,30 +270,21 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                                                 </div>
                                             </div>
                                             <div class="insufficient-alert hidden px-3 py-1.5 rounded-lg bg-red-50 border border-red-200">
-                                                <p class="text-xs text-red-600 font-medium">El monto entregado es menor al total.</p>
+                                                <p class="text-xs text-red-600 font-medium">El monto entregado es menor al total en efectivo.</p>
                                             </div>
-
-                                            <!-- ── Total cobrado (lo que quedó en caja) ── -->
                                             <div class="total-cobrado-section hidden space-y-1.5">
                                                 <div class="border-t border-slate-100 pt-2.5">
                                                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                                                        Total cobrado
-                                                        <span class="ml-1 text-slate-400 font-normal normal-case">(lo que quedó en caja)</span>
+                                                        Total cobrado <span class="ml-1 text-slate-400 font-normal normal-case">(lo que quedó en caja)</span>
                                                     </label>
                                                     <div class="flex items-center gap-2">
                                                         <div class="relative flex-1">
                                                             <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none font-medium">$</span>
-                                                            <input type="number" min="0" step="1" placeholder="0"
-                                                                class="cash-kept w-full pl-6 pr-3 py-2.5 border border-emerald-300 rounded-xl text-sm font-bold text-emerald-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition bg-emerald-50"/>
+                                                            <input type="number" min="0" step="1" placeholder="0" class="cash-kept w-full pl-6 pr-3 py-2.5 border border-emerald-300 rounded-xl text-sm font-bold text-emerald-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition bg-emerald-50"/>
                                                         </div>
-                                                        <button type="button"
-                                                            class="use-total-btn shrink-0 text-xs font-semibold px-3 py-2.5 rounded-xl border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition-colors">
-                                                            Usar total
-                                                        </button>
+                                                        <button type="button" class="use-total-btn shrink-0 text-xs font-semibold px-3 py-2.5 rounded-xl border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition-colors">Usar total</button>
                                                     </div>
-                                                    <p class="text-xs text-slate-400 mt-1">
-                                                        Si el cliente dejó el vuelto, ingresá el monto total. Si se le dio vuelto, ya está calculado automáticamente.
-                                                    </p>
+                                                    <p class="text-xs text-slate-400 mt-1">Si el cliente dejó el vuelto, ingresá el monto total. Si se le dio vuelto, ya está calculado automáticamente.</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -289,17 +294,10 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
 
                                         <!-- Acciones -->
                                         <div class="flex gap-2">
-                                            <button type="button"
-                                                class="discard-btn flex-none px-3 py-2.5 rounded-xl text-xs font-semibold border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
-                                                data-notification-id={n.id}>
-                                                Descartar
-                                            </button>
+                                            <button type="button" class="discard-btn flex-none px-3 py-2.5 rounded-xl text-xs font-semibold border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors" data-notification-id={n.id}>Descartar</button>
                                             <button type="button"
                                                 class="cobrar-btn flex-1 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors flex items-center justify-center gap-2 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
-                                                data-notification-id={n.id}
-                                                data-sale-id={parsed?.sale_id}
-                                                data-base-total={parsed?.total}
-                                                data-items={n.data}>
+                                                data-notification-id={n.id} data-sale-id={parsed?.sale_id} data-base-total={parsed?.total} data-items={n.data}>
                                                 <span class="cobrar-text">Confirmar cobro</span>
                                                 <svg class="cobrar-spinner hidden w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
@@ -311,35 +309,27 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                                     </div>
                                 )}
 
-                                <!-- Panel de éxito -->
+                                <!-- Panel éxito -->
                                 <div class="success-panel hidden px-4 sm:px-5 py-4 space-y-3">
                                     <div class="success-msg flex items-center gap-3"></div>
                                     <div class="border-t border-slate-100 pt-3">
                                         <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Comprobante</p>
                                         <div class="grid grid-cols-3 gap-2">
                                             <button type="button" class="ticket-print-btn flex flex-col items-center justify-center gap-1.5 py-3 rounded-xl text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H9v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
-                                                </svg>
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H9v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                                                 Imprimir
                                             </button>
                                             <button type="button" class="ticket-pdf-btn flex flex-col items-center justify-center gap-1.5 py-3 rounded-xl text-xs font-semibold border border-emerald-200 text-emerald-700 hover:bg-emerald-50 transition-colors">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                                                </svg>
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                                                 Descargar
                                             </button>
                                             <button type="button" class="ticket-wa-btn flex flex-col items-center justify-center gap-1.5 py-3 rounded-xl text-xs font-semibold border border-green-200 text-green-700 hover:bg-green-50 transition-colors">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                                                </svg>
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                                                 WhatsApp
                                             </button>
                                         </div>
                                     </div>
-                                    <button type="button" class="done-btn w-full py-2.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors">
-                                        ✓ Listo, cerrar
-                                    </button>
+                                    <button type="button" class="done-btn w-full py-2.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors">✓ Listo, cerrar</button>
                                 </div>
 
                             </div>
@@ -356,9 +346,7 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 sm:p-6 space-y-4">
             <div class="flex items-center gap-3">
                 <div class="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-green-600" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-green-600" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                 </div>
                 <div>
                     <p class="text-sm font-bold text-slate-800">Enviar por WhatsApp</p>
@@ -369,23 +357,17 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                 <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Número con código de país</label>
                 <div class="flex items-center gap-2">
                     <span class="px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl text-sm text-slate-500 font-medium select-none">+</span>
-                    <input id="wa-phone-input" type="tel" inputmode="numeric" placeholder="5493515551234"
-                        class="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500 transition"/>
+                    <input id="wa-phone-input" type="tel" inputmode="numeric" placeholder="5493515551234" class="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500 transition"/>
                 </div>
                 <p class="text-xs text-slate-400 mt-1.5">Ej: 549 + código de área sin 0 + número sin 15</p>
             </div>
             <div id="wa-modal-error" class="hidden px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs"></div>
             <div class="flex gap-2">
-                <button id="wa-cancel-btn" type="button" class="flex-none px-4 py-2.5 rounded-xl text-xs font-semibold border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
-                    Cancelar
-                </button>
-                <button id="wa-confirm-btn" type="button" class="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-green-600 hover:bg-green-700 text-white transition-colors">
-                    Abrir WhatsApp
-                </button>
+                <button id="wa-cancel-btn" type="button" class="flex-none px-4 py-2.5 rounded-xl text-xs font-semibold border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">Cancelar</button>
+                <button id="wa-confirm-btn" type="button" class="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-green-600 hover:bg-green-700 text-white transition-colors">Abrir WhatsApp</button>
             </div>
         </div>
     </div>
-
 </Layout>
 
 <script>
@@ -398,588 +380,380 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
         efectivo:"Efectivo", transferencia:"Transferencia",
         debito:"Débito", credito:"Crédito", deudor:"Deuda",
     };
+    const fmt = (n: number) => "$ " + new Intl.NumberFormat("es-AR",{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
 
-    // FIX $Â
-    const fmt = (n: number) =>
-        "$ " + new Intl.NumberFormat("es-AR", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-        }).format(n);
-
+    type PaymentEntry = { method: string; amount: number; rubro: string|null; transferAccount?: string|null; };
     type TicketData = {
-        items: { name: string; qty: number; subtotal: number }[];
-        total: number;
-        paymentMethod: string;
-        clientName: string | null;
-        sellerName: string | null;
-        fecha: string;
-        surcharge: number;
-        transferAccount: string | null;
-        isBudget?: boolean;
+        items: {name:string;qty:number;subtotal:number}[];
+        total: number; paymentMethod: string; clientName: string|null;
+        sellerName: string|null; fecha: string; surcharge: number;
+        transferAccount: string|null; isBudget?: boolean;
+        payments?: PaymentEntry[];
     };
 
+    // ── Ticket HTML ────────────────────────────────────────
     function buildTicketHTML(td: TicketData): string {
-        const rows = td.items.map(it => `
-            <tr>
-            <td style="padding:4px 0 4px 0;font-size:12px;color:#111;vertical-align:top;">${it.name}</td>
+        const rows = td.items.map(it=>`<tr>
+            <td style="padding:4px 0;font-size:12px;color:#111;vertical-align:top;">${it.name}</td>
             <td style="padding:4px 8px;font-size:12px;color:#111;text-align:center;">${it.qty}</td>
-            <td style="padding:4px 0;font-size:12px;color:#111;text-align:right;white-space:nowrap;">${fmt(it.subtotal)}</td>
-            </tr>`).join("");
-
-        const srRow = (td.surcharge > 0 && (td.paymentMethod === "debito" || td.paymentMethod === "credito")) ? (() => {
-            const base = td.total / (1 + td.surcharge / 100);
-            return `<tr>
-            <td colspan="2" style="padding:3px 0;font-size:11px;color:#b45309;">Recargo ${td.surcharge}%</td>
-            <td style="padding:3px 0;font-size:11px;color:#b45309;text-align:right;">+${fmt(td.total - base)}</td>
-            </tr>`;
-        })() : "";
-
-        const transferLine = td.paymentMethod === "transferencia" && td.transferAccount
-            ? `<p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">Cuenta: ${td.transferAccount}</p>`
-            : "";
-
-        const headerColor  = td.isBudget ? "#7c3aed" : "#059669";
-        const headerLabel  = td.isBudget ? "PRESUPUESTO" : "";
-        const headerLabelHTML = td.isBudget
-            ? `<p style="margin-top:5px;font-size:13px;font-weight:bold;letter-spacing:2px;color:#7c3aed;font-family:Arial,sans-serif;">PRESUPUESTO</p>`
-            : "";
-        const footerNote = td.isBudget
-            ? `<p style="text-align:center;font-size:10px;color:#aaa;font-style:italic;font-family:Arial,sans-serif;">Este presupuesto no constituye una factura</p>`
-            : "";
-
-        return `<!DOCTYPE html>
-        <html lang="es">
-        <head>
-        <meta charset="utf-8">
-        <title>Ticket</title>
-        <style>
-        *{margin:0;padding:0;box-sizing:border-box;}
-        body{font-family:"Courier New",Courier,monospace;background:#fff;}
-        @page{margin:0;size:80mm auto;}
-        @media print{html,body{width:80mm;}.no-print{display:none!important;}}
-        </style>
-        </head>
-        <body>
-        <div style="width:300px;max-width:100%;padding:14px 12px;margin:0 auto;">
-        <div style="text-align:center;margin-bottom:10px;">
-            <div style="display:inline-block;background:${headerColor};color:#fff;font-size:10px;font-weight:bold;padding:5px 14px;border-radius:5px;letter-spacing:0.6px;font-family:Arial,sans-serif;">${EMPRESA_NOMBRE.toUpperCase()}</div>
-            <p style="margin-top:6px;font-size:11px;color:#555;font-family:Arial,sans-serif;">Tel: +${EMPRESA_TELEFONO}</p>
-            <p style="font-size:11px;color:#555;font-family:Arial,sans-serif;">${td.fecha}</p>
-            ${headerLabelHTML}
-        </div>
-        <div style="border-top:1px dashed #bbb;margin-bottom:8px;"></div>
-        <table style="width:100%;border-collapse:collapse;">
-            <thead>
-            <tr style="border-bottom:1px solid #ddd;">
-                <th style="padding:2px 0;font-size:10px;color:#888;text-align:left;font-family:Arial,sans-serif;">PRODUCTO</th>
-                <th style="padding:2px 8px;font-size:10px;color:#888;text-align:center;font-family:Arial,sans-serif;">CANT</th>
-                <th style="padding:2px 0;font-size:10px;color:#888;text-align:right;font-family:Arial,sans-serif;">IMPORTE</th>
-            </tr>
-            </thead>
-            <tbody>${rows}${srRow}</tbody>
-        </table>
-        <div style="border-top:1px dashed #bbb;margin:8px 0;"></div>
-        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
-            <span style="font-size:14px;font-weight:bold;font-family:Arial,sans-serif;">TOTAL</span>
-            <span style="font-size:16px;font-weight:bold;color:${headerColor};font-family:Arial,sans-serif;">${fmt(td.total)}</span>
-        </div>
-        ${!td.isBudget ? `<p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">Pago: ${METODOS[td.paymentMethod] ?? td.paymentMethod}</p>` : ""}
-        ${transferLine}
-        ${td.clientName ? `<p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">Cliente: ${td.clientName}</p>` : ""}
-        ${td.sellerName ? `<p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">Vendido por: <strong>${td.sellerName}</strong></p>` : ""}
-        <div style="border-top:1px dashed #bbb;margin:10px 0 8px;"></div>
-        ${footerNote}
-        <p style="text-align:center;font-size:11px;color:#aaa;font-style:italic;font-family:Arial,sans-serif;">¡Gracias por su compra!</p>
-        <div class="no-print" style="margin-top:18px;text-align:center;display:flex;gap:8px;justify-content:center;">
-            <button onclick="window.print()" style="background:${headerColor};color:#fff;border:none;padding:9px 22px;border-radius:8px;font-size:13px;cursor:pointer;font-family:Arial,sans-serif;font-weight:600;">🖨️ Imprimir</button>
-            <button onclick="window.close()" style="background:#e2e8f0;color:#475569;border:none;padding:9px 18px;border-radius:8px;font-size:13px;cursor:pointer;font-family:Arial,sans-serif;">Cerrar</button>
-        </div>
-        </div>
-        </body>
-        </html>`;
+            <td style="padding:4px 0;font-size:12px;color:#111;text-align:right;white-space:nowrap;">${fmt(it.subtotal)}</td></tr>`).join("");
+        const srRow = td.surcharge>0 ? (()=>{ const base=td.total/(1+td.surcharge/100); return `<tr><td colspan="2" style="padding:3px 0;font-size:11px;color:#b45309;">Recargo ${td.surcharge}%</td><td style="padding:3px 0;font-size:11px;color:#b45309;text-align:right;">+${fmt(td.total-base)}</td></tr>`; })() : "";
+        let pagoLines = "";
+        if (td.payments && td.payments.length>0) {
+            pagoLines = td.payments.map(p=>{
+                const rubroTag = p.rubro?` <span style="color:#888;font-size:10px;">[${p.rubro}]</span>`:"";
+                let s=`<p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">${METODOS[p.method]??p.method}: ${fmt(p.amount)}${rubroTag}</p>`;
+                if(p.method==="transferencia"&&p.transferAccount) s+=`<p style="font-size:11px;color:#555;margin-bottom:2px;padding-left:10px;font-family:Arial,sans-serif;">↳ Cuenta: ${p.transferAccount}</p>`;
+                return s;
+            }).join("");
+        } else {
+            pagoLines=`<p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">Pago: ${METODOS[td.paymentMethod]??td.paymentMethod}</p>`;
+            if(td.paymentMethod==="transferencia"&&td.transferAccount) pagoLines+=`<p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">Cuenta: ${td.transferAccount}</p>`;
+        }
+        const hc=td.isBudget?"#7c3aed":"#059669";
+        const hLabel=td.isBudget?`<p style="margin-top:5px;font-size:13px;font-weight:bold;letter-spacing:2px;color:#7c3aed;font-family:Arial,sans-serif;">PRESUPUESTO</p>`:"";
+        const footer=td.isBudget?`<p style="text-align:center;font-size:10px;color:#aaa;font-style:italic;font-family:Arial,sans-serif;">Este presupuesto no constituye una factura</p>`:"";
+        return `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Ticket</title>
+<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:"Courier New",Courier,monospace;background:#fff;}
+@page{margin:0;size:80mm auto;}@media print{html,body{width:80mm;}.no-print{display:none!important;}}</style></head>
+<body><div style="width:300px;max-width:100%;padding:14px 12px;margin:0 auto;">
+<div style="text-align:center;margin-bottom:10px;">
+<div style="display:inline-block;background:${hc};color:#fff;font-size:10px;font-weight:bold;padding:5px 14px;border-radius:5px;font-family:Arial,sans-serif;">${EMPRESA_NOMBRE.toUpperCase()}</div>
+<p style="margin-top:6px;font-size:11px;color:#555;font-family:Arial,sans-serif;">Tel: +${EMPRESA_TELEFONO}</p>
+<p style="font-size:11px;color:#555;font-family:Arial,sans-serif;">${td.fecha}</p>${hLabel}</div>
+<div style="border-top:1px dashed #bbb;margin-bottom:8px;"></div>
+<table style="width:100%;border-collapse:collapse;"><thead><tr style="border-bottom:1px solid #ddd;">
+<th style="padding:2px 0;font-size:10px;color:#888;text-align:left;font-family:Arial,sans-serif;">PRODUCTO</th>
+<th style="padding:2px 8px;font-size:10px;color:#888;text-align:center;font-family:Arial,sans-serif;">CANT</th>
+<th style="padding:2px 0;font-size:10px;color:#888;text-align:right;font-family:Arial,sans-serif;">IMPORTE</th>
+</tr></thead><tbody>${rows}${srRow}</tbody></table>
+<div style="border-top:1px dashed #bbb;margin:8px 0;"></div>
+<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+<span style="font-size:14px;font-weight:bold;font-family:Arial,sans-serif;">TOTAL</span>
+<span style="font-size:16px;font-weight:bold;color:${hc};font-family:Arial,sans-serif;">${fmt(td.total)}</span></div>
+${!td.isBudget?pagoLines:""}
+${td.clientName?`<p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">Cliente: ${td.clientName}</p>`:""}
+${td.sellerName?`<p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">Vendido por: <strong>${td.sellerName}</strong></p>`:""}
+<div style="border-top:1px dashed #bbb;margin:10px 0 8px;"></div>${footer}
+<p style="text-align:center;font-size:11px;color:#aaa;font-style:italic;font-family:Arial,sans-serif;">¡Gracias por su compra!</p>
+<div class="no-print" style="margin-top:18px;text-align:center;display:flex;gap:8px;justify-content:center;">
+<button onclick="window.print()" style="background:${hc};color:#fff;border:none;padding:9px 22px;border-radius:8px;font-size:13px;cursor:pointer;font-family:Arial,sans-serif;font-weight:600;">🖨️ Imprimir</button>
+<button onclick="window.close()" style="background:#e2e8f0;color:#475569;border:none;padding:9px 18px;border-radius:8px;font-size:13px;cursor:pointer;font-family:Arial,sans-serif;">Cerrar</button>
+</div></div></body></html>`;
     }
 
+    // ── QZ Tray ────────────────────────────────────────────
     async function imprimirTicket(td: TicketData) {
         try {
-            if (!qz.websocket.isActive()) {
-                await qz.websocket.connect();
-            }
-
-            const printer = "Generic / Text Only";
-            const config = qz.configs.create(printer);
-
-            const sinAcentos = (txt: string): string =>
-                txt
-                    .replace(/á/g,"a").replace(/é/g,"e").replace(/í/g,"i")
-                    .replace(/ó/g,"o").replace(/ú/g,"u").replace(/Á/g,"A")
-                    .replace(/É/g,"E").replace(/Í/g,"I").replace(/Ó/g,"O")
-                    .replace(/Ú/g,"U").replace(/ñ/g,"n").replace(/Ñ/g,"N")
-                    .replace(/[^\x20-\x7E]/g, "");
-
-            const ANCHO = 32;
-
-            const centrar = (txt: string): string => {
-                const t = sinAcentos(txt).slice(0, ANCHO);
-                const pad = Math.max(0, Math.floor((ANCHO - t.length) / 2));
-                return " ".repeat(pad) + t;
-            };
-
-            const fmtRaw = (n: number): string => {
-                const fixed = n.toFixed(2);
-                const [entero, dec] = fixed.split(".");
-                const miles = entero.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-                return "$" + miles + "," + dec;
-            };
-
-            const filaProducto = (nombre: string, importe: string): string => {
-                const n = sinAcentos(nombre);
-                const i = importe;
-                const espacio = ANCHO - n.length - i.length;
-                if (espacio >= 1) return n + " ".repeat(espacio) + i;
-                const maxNom = ANCHO - i.length - 1;
-                return n.slice(0, maxNom) + " " + i;
-            };
-
-            const fila2col = (izq: string, der: string): string => {
-                const l = sinAcentos(izq);
-                const r = sinAcentos(der);
-                const espacio = ANCHO - l.length - r.length;
-                if (espacio >= 1) return l + " ".repeat(espacio) + r;
-                return l.slice(0, ANCHO - r.length - 1) + " " + r;
-            };
-
-            const sep  = "-".repeat(ANCHO);
-            const sep2 = "=".repeat(ANCHO);
-
-            let t = "";
-
-            t += "\x1B\x40";
-            t += "\x1B\x61\x01";
-            t += "\x1B\x21\x30";
-            t += "EL MUNDO\n";
-            t += "DEL DESCARTABLE\n";
-            t += "\x1B\x21\x00";
-            t += centrar("Tel: +5493572549909") + "\n";
-            t += centrar(td.fecha) + "\n";
-            if (td.isBudget) t += centrar("** PRESUPUESTO **") + "\n";
-            t += "\x1B\x61\x00";
-
-            t += sep + "\n";
-
-            if (td.sellerName) t += "Vendedor: " + sinAcentos(td.sellerName) + "\n";
-            if (td.clientName) t += "Cliente:  " + sinAcentos(td.clientName) + "\n";
-
-            t += sep + "\n";
-
-            td.items.forEach(item => {
-                const nombre   = sinAcentos(item.name);
-                const subtotal = fmtRaw(item.subtotal);
-                const unitario = item.qty > 0 ? fmtRaw(item.subtotal / item.qty) : "";
-                t += nombre + "\n";
-                const qty_str = "x" + item.qty;
-                const det = qty_str + (unitario ? "  " + unitario : "");
-                t += "  " + filaProducto(det, subtotal) + "\n";
-            });
-
-            t += sep2 + "\n";
-
-            if (td.surcharge > 0 && (td.paymentMethod === "debito" || td.paymentMethod === "credito")) {
-                const base   = td.total / (1 + td.surcharge / 100);
-                const recAmt = fmtRaw(td.total - base);
-                t += fila2col("Recargo " + td.surcharge + "%", recAmt) + "\n";
-            }
-
-            t += "\x1B\x61\x00";
-            t += "\x1B\x21\x10";
-            t += (td.isBudget ? "PRESUPUESTO\n" : "TOTAL\n");
-            t += fmtRaw(td.total) + "\n";
-            t += "\x1B\x21\x00";
-
-            t += sep + "\n";
-
-            if (!td.isBudget) {
-                const METODOS_PRINT: Record<string, string> = {
-                    efectivo: "Efectivo", transferencia: "Transferencia",
-                    debito: "Debito", credito: "Credito", deudor: "Deuda",
-                };
-                t += "Pago: " + (METODOS_PRINT[td.paymentMethod] ?? td.paymentMethod) + "\n";
-                if (td.paymentMethod === "transferencia" && td.transferAccount) {
-                    t += "Cuenta: " + sinAcentos(td.transferAccount) + "\n";
+            if(!qz.websocket.isActive()) await qz.websocket.connect();
+            const config=qz.configs.create("Generic / Text Only");
+            const sa=(s:string)=>s.replace(/[áàäâ]/g,"a").replace(/[éèëê]/g,"e").replace(/[íìïî]/g,"i").replace(/[óòöô]/g,"o").replace(/[úùüû]/g,"u")
+                .replace(/[ÁÀÄÂ]/g,"A").replace(/[ÉÈËÊ]/g,"E").replace(/[ÍÌÏÎ]/g,"I").replace(/[ÓÒÖÔ]/g,"O").replace(/[ÚÙÜÛ]/g,"U")
+                .replace(/ñ/g,"n").replace(/Ñ/g,"N").replace(/[^\x20-\x7E]/g,"");
+            const W=32;
+            const ctr=(s:string)=>{ const t=sa(s).slice(0,W); const p=Math.max(0,Math.floor((W-t.length)/2)); return " ".repeat(p)+t; };
+            const raw=(n:number)=>{ const [e,d]=n.toFixed(2).split("."); return "$"+e.replace(/\B(?=(\d{3})+(?!\d))/g,".")+","+d; };
+            const f2=(l:string,r:string)=>{ const a=sa(l),b=sa(r),sp=W-a.length-b.length; return sp>=1?a+" ".repeat(sp)+b:a.slice(0,W-b.length-1)+" "+b; };
+            const fp=(nom:string,imp:string)=>{ const n=sa(nom),sp=W-n.length-imp.length; return sp>=1?n+" ".repeat(sp)+imp:n.slice(0,W-imp.length-1)+" "+imp; };
+            const sep="-".repeat(W), sep2="=".repeat(W);
+            let t="\x1B\x40\x1B\x61\x01\x1B\x21\x30EL MUNDO\nDEL DESCARTABLE\n\x1B\x21\x00"+ctr("Tel: +5493572549909")+"\n"+ctr(td.fecha)+"\n";
+            if(td.isBudget) t+=ctr("** PRESUPUESTO **")+"\n";
+            t+="\x1B\x61\x00"+sep+"\n";
+            if(td.sellerName) t+="Vendedor: "+sa(td.sellerName)+"\n";
+            if(td.clientName)  t+="Cliente:  "+sa(td.clientName)+"\n";
+            t+=sep+"\n";
+            td.items.forEach(it=>{ t+=sa(it.name)+"\n"; t+="  "+fp("x"+it.qty+(it.qty>0?"  "+raw(it.subtotal/it.qty):""),raw(it.subtotal))+"\n"; });
+            t+=sep2+"\n";
+            if(td.surcharge>0){ const base=td.total/(1+td.surcharge/100); t+=f2("Recargo "+td.surcharge+"%",raw(td.total-base))+"\n"; }
+            t+="\x1B\x61\x00\x1B\x21\x10"+(td.isBudget?"PRESUPUESTO\n":"TOTAL\n")+raw(td.total)+"\n\x1B\x21\x00"+sep+"\n";
+            if(!td.isBudget){
+                const MP:Record<string,string>={efectivo:"Efectivo",transferencia:"Transf.",debito:"Debito",credito:"Credito",deudor:"Deuda"};
+                if(td.payments&&td.payments.length>0){
+                    td.payments.forEach(p=>{
+                        const rb=p.rubro?" ["+sa(p.rubro)+"]":"";
+                        t+=f2((MP[p.method]??p.method)+rb,raw(p.amount))+"\n";
+                        if(p.method==="transferencia"&&p.transferAccount) t+="  Cta: "+sa(p.transferAccount)+"\n";
+                    });
+                } else {
+                    t+="Pago: "+(MP[td.paymentMethod]??td.paymentMethod)+"\n";
+                    if(td.paymentMethod==="transferencia"&&td.transferAccount) t+="Cuenta: "+sa(td.transferAccount)+"\n";
                 }
-                t += sep + "\n";
-            } else {
-                t += centrar("No constituye factura") + "\n";
-                t += sep + "\n";
-            }
-
-            t += "\x1B\x61\x01";
-            t += "Gracias por su compra!\n";
-            t += "\n\n";
-            t += "\x1D\x56\x41\x00";
-
-            const data = [{ type: "raw", format: "plain", data: t }];
-            await qz.print(config, data);
-
-        } catch (err) {
-            console.error("Error al imprimir:", err);
-            alert("Error al imprimir. Revisa QZ Tray o la impresora.");
-        }
+                t+=sep+"\n";
+            } else { t+=ctr("No constituye factura")+"\n"+sep+"\n"; }
+            t+="\x1B\x61\x01Gracias por su compra!\n\n\n\x1D\x56\x41\x00";
+            await qz.print(config,[{type:"raw",format:"plain",data:t}]);
+        } catch(e){ console.error(e); alert("Error al imprimir. Revisa QZ Tray o la impresora."); }
     }
 
-    function descargarTicket(td: TicketData) {
-        const blob  = new Blob([buildTicketHTML(td)], { type: "text/html;charset=utf-8" });
-        const url   = URL.createObjectURL(blob);
-        const fecha = td.fecha.replace(/[/:, ]/g, "-");
-        const a     = document.createElement("a");
-        a.href = url; a.download = `ticket-${fecha}.html`; a.style.display = "none";
-        document.body.appendChild(a); a.click();
-        setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
+    function descargarTicket(td:TicketData){
+        const a=Object.assign(document.createElement("a"),{href:URL.createObjectURL(new Blob([buildTicketHTML(td)],{type:"text/html;charset=utf-8"})),download:`ticket-${td.fecha.replace(/[/:, ]/g,"-")}.html`,style:"display:none"});
+        document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);
     }
 
-    function buildWAText(td: TicketData): string {
-        const lineas = td.items.map(i => `• ${i.name} x${i.qty}: ${fmt(i.subtotal)}`).join("\n");
-        const lines = [
-            `🧾 *Ticket de compra*`, `📅 ${td.fecha}`, `🏪 ${EMPRESA_NOMBRE}`, ``,
-            lineas,
-            (td.surcharge > 0 && (td.paymentMethod === "debito" || td.paymentMethod === "credito")) ? `Recargo ${td.surcharge}%: incluido` : null,
-            ``, `*TOTAL: ${fmt(td.total)}*`,
-            `💳 Pago: ${METODOS[td.paymentMethod] ?? td.paymentMethod}`,
-            td.transferAccount ? `🏦 Cuenta: ${td.transferAccount}` : null,
-            td.clientName ? `👤 ${td.clientName}` : null,
-            td.sellerName ? `🧑‍💼 Vendido por: ${td.sellerName}` : null,
-            ``, `📞 Consultas: +${EMPRESA_TELEFONO}`,
-        ];
-        return lines.filter(l => l !== null).join("\n");
+    function buildWAText(td:TicketData):string{
+        const lineas=td.items.map(i=>`• ${i.name} x${i.qty}: ${fmt(i.subtotal)}`).join("\n");
+        let pagoWA="";
+        if(td.payments&&td.payments.length>0){
+            pagoWA=td.payments.map(p=>{ let s=`💳 ${METODOS[p.method]??p.method}: ${fmt(p.amount)}`; if(p.rubro) s+=` [${p.rubro}]`; if(p.method==="transferencia"&&p.transferAccount) s+=` → ${p.transferAccount}`; return s; }).join("\n");
+        } else { pagoWA=`💳 Pago: ${METODOS[td.paymentMethod]??td.paymentMethod}`; if(td.transferAccount) pagoWA+=`\n🏦 Cuenta: ${td.transferAccount}`; }
+        return [`🧾 *Ticket de compra*`,`📅 ${td.fecha}`,`🏪 ${EMPRESA_NOMBRE}`,``,lineas,``,`*TOTAL: ${fmt(td.total)}*`,pagoWA,td.clientName?`👤 ${td.clientName}`:null,td.sellerName?`🧑‍💼 Vendido por: ${td.sellerName}`:null,``,`📞 Consultas: +${EMPRESA_TELEFONO}`].filter(l=>l!==null).join("\n");
     }
 
-    let waResolve: ((v: string | null) => void) | null = null;
-    const waModal = document.getElementById("wa-modal")!;
-    const waInput = document.getElementById("wa-phone-input") as HTMLInputElement;
-    const waErr   = document.getElementById("wa-modal-error")!;
-    const waCfm   = document.getElementById("wa-confirm-btn")!;
-    const waCncl  = document.getElementById("wa-cancel-btn")!;
+    // ── Modal WhatsApp ─────────────────────────────────────
+    let waRes:((v:string|null)=>void)|null=null;
+    const waModal=document.getElementById("wa-modal")!,waInput=document.getElementById("wa-phone-input") as HTMLInputElement,waErr=document.getElementById("wa-modal-error")!,waCfm=document.getElementById("wa-confirm-btn")!,waCncl=document.getElementById("wa-cancel-btn")!;
+    const askPhone=():Promise<string|null>=>new Promise(r=>{ waRes=r;waInput.value="";waErr.classList.add("hidden");waModal.classList.remove("hidden");waModal.classList.add("flex");setTimeout(()=>waInput.focus(),80); });
+    const closeWA=(v:string|null)=>{ waModal.classList.add("hidden");waModal.classList.remove("flex");waRes?.(v);waRes=null; };
+    waCncl.addEventListener("click",()=>closeWA(null));
+    waModal.addEventListener("click",e=>{if(e.target===waModal)closeWA(null);});
+    waCfm.addEventListener("click",()=>{ const p=waInput.value.replace(/\D/g,""); if(p.length<10){waErr.textContent="Ingresá un número válido.";waErr.classList.remove("hidden");return;} closeWA(p); });
+    waInput.addEventListener("keydown",e=>{if(e.key==="Enter")waCfm.click();if(e.key==="Escape")closeWA(null);});
 
-    function askPhone(): Promise<string | null> {
-        return new Promise(resolve => {
-            waResolve = resolve;
-            waInput.value = ""; waErr.classList.add("hidden");
-            waModal.classList.remove("hidden"); waModal.classList.add("flex");
-            setTimeout(() => waInput.focus(), 80);
-        });
-    }
-    function closeWA(val: string | null) {
-        waModal.classList.add("hidden"); waModal.classList.remove("flex");
-        waResolve?.(val); waResolve = null;
-    }
-    waCncl.addEventListener("click", () => closeWA(null));
-    waModal.addEventListener("click", e => { if (e.target === waModal) closeWA(null); });
-    waCfm.addEventListener("click", () => {
-        const phone = waInput.value.replace(/\D/g, "");
-        if (phone.length < 10) { waErr.textContent = "Ingresá un número válido (mínimo 10 dígitos)."; waErr.classList.remove("hidden"); return; }
-        closeWA(phone);
-    });
-    waInput.addEventListener("keydown", e => { if (e.key === "Enter") waCfm.click(); if (e.key === "Escape") closeWA(null); });
-
-    function bindTicketButtons(card: HTMLElement, td: TicketData) {
-        card.querySelector(".ticket-print-btn")?.addEventListener("click", () => imprimirTicket(td));
-        card.querySelector(".ticket-pdf-btn")?.addEventListener("click", () => descargarTicket(td));
-        card.querySelector(".ticket-wa-btn")?.addEventListener("click", async () => {
-            const phone = await askPhone();
-            if (!phone) return;
-            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(buildWAText(td))}`, "_blank");
-        });
+    function bindTicketButtons(card:HTMLElement,td:TicketData){
+        card.querySelector(".ticket-print-btn")?.addEventListener("click",()=>imprimirTicket(td));
+        card.querySelector(".ticket-pdf-btn")?.addEventListener("click",()=>descargarTicket(td));
+        card.querySelector(".ticket-wa-btn")?.addEventListener("click",async()=>{ const p=await askPhone();if(!p)return;window.open(`https://wa.me/${p}?text=${encodeURIComponent(buildWAText(td))}`,"_blank"); });
     }
 
-    function showSuccess(card: HTMLElement, total: number, pm: string, clientName: string | null, changeMsg: string, td: TicketData) {
+    function showSuccess(card:HTMLElement,total:number,td:TicketData){
         card.querySelector(".cobro-form")?.classList.add("hidden");
-        const panel = card.querySelector<HTMLElement>(".success-panel")!;
+        const panel=card.querySelector<HTMLElement>(".success-panel")!;
         panel.classList.remove("hidden");
-        const accountLine = td.transferAccount ? ` · ${td.transferAccount}` : "";
-        panel.querySelector<HTMLElement>(".success-msg")!.innerHTML = `
+        let metodoTexto="";
+        if(td.payments&&td.payments.length>0){
+            metodoTexto=td.payments.map(p=>{ let s=`${METODOS[p.method]??p.method} ${fmt(p.amount)}`; if(p.rubro) s+=` [${p.rubro}]`; return s; }).join(" + ");
+        } else { metodoTexto=METODOS[td.paymentMethod]??td.paymentMethod; if(td.transferAccount) metodoTexto+=` · ${td.transferAccount}`; }
+        panel.querySelector<HTMLElement>(".success-msg")!.innerHTML=`
             <div class="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-            </svg>
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
             </div>
             <div>
-            <p class="text-sm font-semibold text-slate-800">Cobro registrado por ${fmt(total)}${changeMsg}</p>
-            <p class="text-xs text-slate-400">${METODOS[pm] ?? pm}${accountLine}${clientName ? ` — ${clientName}` : ""}${td.sellerName ? ` · Vendido por ${td.sellerName}` : ""}</p>
+                <p class="text-sm font-semibold text-slate-800">Cobro registrado por ${fmt(total)}</p>
+                <p class="text-xs text-slate-400">${metodoTexto}${td.clientName?` — ${td.clientName}`:""}${td.sellerName?` · Vendido por ${td.sellerName}`:""}</p>
             </div>`;
-        bindTicketButtons(card, td);
-        panel.querySelector(".done-btn")?.addEventListener("click", () => { card.remove(); updateLabel(); });
+        bindTicketButtons(card,td);
+        panel.querySelector(".done-btn")?.addEventListener("click",()=>{card.remove();updateLabel();});
     }
 
-    function updateLabel() {
-        const n   = document.querySelectorAll(".sale-card").length;
-        const lbl = document.getElementById("pending-label");
-        if (lbl) lbl.textContent = `${n} ${n === 1 ? "venta pendiente" : "ventas pendientes"}`;
-        if (n === 0) {
-            document.getElementById("sales-list")!.innerHTML = `
+    function updateLabel(){
+        const n=document.querySelectorAll(".sale-card").length;
+        const lbl=document.getElementById("pending-label");
+        if(lbl) lbl.textContent=`${n} ${n===1?"venta pendiente":"ventas pendientes"}`;
+        if(n===0) document.getElementById("sales-list")!.innerHTML=`
             <div class="bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col items-center justify-center py-14 text-center px-4">
                 <div class="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center mb-3">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                 </div>
                 <p class="text-slate-700 font-semibold text-sm">Todo al día</p>
                 <p class="text-slate-400 text-xs mt-1">No hay ventas pendientes de cobro</p>
             </div>`;
-        }
     }
 
-    // ══════════════════════════════════════════════════════════
-    // TARJETAS DE PRESUPUESTO (solo imprimir / descartar)
-    // ══════════════════════════════════════════════════════════
-    document.querySelectorAll<HTMLElement>(".sale-card[data-is-budget='true']").forEach(card => {
-        // Descartar
-        card.querySelector<HTMLButtonElement>(".discard-btn")?.addEventListener("click", async () => {
-            const nid = card.dataset.notificationId!;
-            await supabase.from("notifications").update({ read: true }).eq("id", nid);
-            card.remove(); updateLabel();
+    // ── Presupuestos ───────────────────────────────────────
+    document.querySelectorAll<HTMLElement>(".sale-card[data-is-budget='true']").forEach(card=>{
+        card.querySelector<HTMLButtonElement>(".discard-btn")?.addEventListener("click",async()=>{
+            await supabase.from("notifications").update({read:true}).eq("id",card.dataset.notificationId!);
+            card.remove();updateLabel();
         });
-
-        // Imprimir ticket de presupuesto
-        card.querySelector<HTMLButtonElement>(".budget-print-btn")?.addEventListener("click", async () => {
-            const rawData = card.querySelector<HTMLButtonElement>(".budget-print-btn")!.dataset.items ?? "{}";
-            let parsed: any = {};
-            try { parsed = JSON.parse(rawData); } catch {}
-            const fecha = new Date().toLocaleString("es-AR", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
-            const td: TicketData = {
-                items:           parsed.items ?? [],
-                total:           parsed.total ?? 0,
-                paymentMethod:   "efectivo",
-                clientName:      parsed.client_name ?? null,
-                sellerName:      parsed.seller_name ?? null,
-                fecha,
-                surcharge:       0,
-                transferAccount: null,
-                isBudget:        true,
-            };
-            // Intentar imprimir por QZ, si falla abrir ventana HTML
-            try {
-                await imprimirTicket(td);
-            } catch {
-                const win = window.open("", "_blank", "width=400,height=600");
-                if (win) { win.document.write(buildTicketHTML(td)); win.document.close(); setTimeout(() => win.print(), 500); }
-            }
+        card.querySelector<HTMLButtonElement>(".budget-print-btn")?.addEventListener("click",async()=>{
+            let p:any={};try{p=JSON.parse(card.querySelector<HTMLButtonElement>(".budget-print-btn")!.dataset.items??"{}");}catch{}
+            const fecha=new Date().toLocaleString("es-AR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+            const td:TicketData={items:p.items??[],total:p.total??0,paymentMethod:"efectivo",clientName:p.client_name??null,sellerName:p.seller_name??null,fecha,surcharge:0,transferAccount:null,isBudget:true};
+            try{await imprimirTicket(td);}catch{const w=window.open("","_blank","width=400,height=600");if(w){w.document.write(buildTicketHTML(td));w.document.close();setTimeout(()=>w.print(),500);}}
         });
     });
 
-    // ══════════════════════════════════════════════════════════
-    // TARJETAS DE VENTA NORMAL
-    // ══════════════════════════════════════════════════════════
-    document.querySelectorAll<HTMLElement>(".sale-card[data-is-budget='false']").forEach(card => {
-        const pmInput      = card.querySelector<HTMLInputElement>(".payment-method-value")!;
-        const srInput      = card.querySelector<HTMLInputElement>(".surcharge-value")!;
-        const clientSel    = card.querySelector<HTMLSelectElement>(".client-select")!;
-        const transferSel  = card.querySelector<HTMLSelectElement>(".transfer-account")!;
-        const cobrarBtn    = card.querySelector<HTMLButtonElement>(".cobrar-btn")!;
-        const totalDisp    = card.querySelector<HTMLElement>(".total-display")!;
-        const srRow        = card.querySelector<HTMLElement>(".surcharge-row")!;
-        const srLbl        = card.querySelector<HTMLElement>(".surcharge-row-label")!;
-        const srAmt        = card.querySelector<HTMLElement>(".surcharge-amount")!;
-        const cashSec      = card.querySelector<HTMLElement>(".cash-section")!;
-        const cashIn       = card.querySelector<HTMLInputElement>(".cash-received")!;
-        const cashKept     = card.querySelector<HTMLInputElement>(".cash-kept")!;
-        const useTotalBtn  = card.querySelector<HTMLButtonElement>(".use-total-btn")!;
+    // ── Ventas normales ────────────────────────────────────
+    document.querySelectorAll<HTMLElement>(".sale-card[data-is-budget='false']").forEach(card=>{
+        const clientSel       = card.querySelector<HTMLSelectElement>(".client-select")!;
+        const transferSel     = card.querySelector<HTMLSelectElement>(".transfer-account")!;
+        const cobrarBtn       = card.querySelector<HTMLButtonElement>(".cobrar-btn")!;
+        const totalDisp       = card.querySelector<HTMLElement>(".total-display")!;
+        const srRow           = card.querySelector<HTMLElement>(".surcharge-row")!;
+        const srLbl           = card.querySelector<HTMLElement>(".surcharge-row-label")!;
+        const srAmt           = card.querySelector<HTMLElement>(".surcharge-amount")!;
+        const cashSec         = card.querySelector<HTMLElement>(".cash-section")!;
+        const cashIn          = card.querySelector<HTMLInputElement>(".cash-received")!;
+        const cashKept        = card.querySelector<HTMLInputElement>(".cash-kept")!;
+        const useTotalBtn     = card.querySelector<HTMLButtonElement>(".use-total-btn")!;
         const totalCobradoSec = card.querySelector<HTMLElement>(".total-cobrado-section")!;
-        const changeEl     = card.querySelector<HTMLElement>(".change-amount")!;
-        const changeDsp    = card.querySelector<HTMLElement>(".change-display")!;
-        const insuf        = card.querySelector<HTMLElement>(".insufficient-alert")!;
-        const errorEl      = card.querySelector<HTMLElement>(".cobro-error")!;
-        const baseTotal    = Number(cobrarBtn.dataset.baseTotal ?? 0);
+        const changeEl        = card.querySelector<HTMLElement>(".change-amount")!;
+        const changeDsp       = card.querySelector<HTMLElement>(".change-display")!;
+        const insuf           = card.querySelector<HTMLElement>(".insufficient-alert")!;
+        const errorEl         = card.querySelector<HTMLElement>(".cobro-error")!;
+        const baseTotal       = Number(cobrarBtn.dataset.baseTotal??0);
 
-        const getTotal = () => baseTotal + baseTotal * (Number(srInput.value) / 100);
+        const singlePanel  = card.querySelector<HTMLElement>(".single-payment-panel")!;
+        const rubroSingle  = card.querySelector<HTMLSelectElement>(".rubro-single")!;
+        const mixedPanel   = card.querySelector<HTMLElement>(".mixed-payment-panel")!;
+        const mixedLabel1  = card.querySelector<HTMLElement>(".mixed-label-1")!;
+        const mixedLabel2  = card.querySelector<HTMLElement>(".mixed-label-2")!;
+        const mixedAmt1    = card.querySelector<HTMLInputElement>(".mixed-amount-1")!;
+        const mixedAmt2    = card.querySelector<HTMLInputElement>(".mixed-amount-2")!;
+        const mixedDiff    = card.querySelector<HTMLElement>(".mixed-diff-amount")!;
+        const rubroMixed1  = card.querySelector<HTMLSelectElement>(".rubro-mixed-1")!;
+        const rubroMixed2  = card.querySelector<HTMLSelectElement>(".rubro-mixed-2")!;
 
-        // "Usar total" → pone el total calculado en el campo "cobrado"
-        useTotalBtn.addEventListener("click", () => {
-            cashKept.value = String(Math.round(getTotal()));
-        });
+        let sel: {method:string;surcharge:number}[] = [];
+        const LABELS:Record<string,string>={efectivo:"Efectivo",transferencia:"Transferencia",debito:"Débito",credito:"Crédito",deudor:"Deuda"};
+        const SOLO=["deudor","debito","credito"];
 
-        function refreshTotals() {
-            const pct = Number(srInput.value), amt = baseTotal * (pct / 100);
-            if (pct > 0) {
-                srRow.classList.remove("hidden"); srLbl.textContent = `Recargo ${pct}%`; srAmt.textContent = `+ ${fmt(amt)}`;
-            } else { srRow.classList.add("hidden"); }
-            totalDisp.textContent = fmt(baseTotal + amt);
-            refreshChange();
+        const getTotal=()=>{ const sr=sel.reduce((mx,m)=>Math.max(mx,m.surcharge),0); return baseTotal+baseTotal*(sr/100); };
+        const getSR=()=>sel.reduce((mx,m)=>Math.max(mx,m.surcharge),0);
+
+        function refreshDiff(){
+            const total=getTotal(),a1=parseFloat(mixedAmt1.value)||0,a2=parseFloat(mixedAmt2.value)||0,r=total-a1-a2;
+            if(Math.abs(r)<0.01){mixedDiff.textContent="✓ OK";mixedDiff.className="mixed-diff-amount text-xs font-bold text-emerald-600";}
+            else if(r>0){mixedDiff.textContent=fmt(r);mixedDiff.className="mixed-diff-amount text-xs font-bold text-amber-600";}
+            else{mixedDiff.textContent=`Excede ${fmt(Math.abs(r))}`;mixedDiff.className="mixed-diff-amount text-xs font-bold text-red-600";}
+        }
+        mixedAmt1.addEventListener("input",()=>{ const total=getTotal(),a1=parseFloat(mixedAmt1.value)||0,resto=Math.max(0,total-a1); mixedAmt2.value=resto>0?String(Math.round(resto)):""; refreshDiff(); });
+        mixedAmt2.addEventListener("input",refreshDiff);
+
+        function updateUI(){
+            const total=getTotal(),isMixed=sel.length===2;
+            const hasEf=sel.some(m=>m.method==="efectivo"),hasTr=sel.some(m=>m.method==="transferencia"),hasDeb=sel.some(m=>m.method==="deudor");
+            const sr=getSR(),amt=baseTotal*(sr/100);
+
+            // Recargo
+            if(sr>0){ srRow.classList.remove("hidden");srLbl.textContent=`Recargo ${sr}%`;srAmt.textContent=`+ ${fmt(amt)}`; card.querySelector(".surcharge-info")?.classList.remove("hidden"); const sl=card.querySelector<HTMLElement>(".surcharge-label");if(sl)sl.textContent=`Se aplica un recargo del ${sr}%`; }
+            else { srRow.classList.add("hidden");card.querySelector(".surcharge-info")?.classList.add("hidden"); }
+            totalDisp.textContent=fmt(total);
+
+            // Panel simple (1 método, no deudor)
+            const showSingle=sel.length===1&&!hasDeb;
+            singlePanel.classList.toggle("hidden",!showSingle);
+            if(!showSingle) rubroSingle.value="";
+
+            // Panel mixto (2 métodos)
+            if(isMixed){
+                mixedPanel.classList.remove("hidden");
+                mixedLabel1.textContent=LABELS[sel[0].method]??sel[0].method;
+                mixedLabel2.textContent=LABELS[sel[1].method]??sel[1].method;
+                if(!mixedAmt1.value&&!mixedAmt2.value){ const h=Math.round(total/2); mixedAmt1.value=String(h);mixedAmt2.value=String(total-h); refreshDiff(); }
+            } else { mixedPanel.classList.add("hidden");mixedAmt1.value="";mixedAmt2.value="";rubroMixed1.value="";rubroMixed2.value=""; }
+
+            // Cuenta transferencia
+            card.querySelector(".transfer-info")?.classList.toggle("hidden",!hasTr);
+            if(!hasTr&&transferSel) transferSel.value="";
+
+            // Efectivo solo
+            const showCash=hasEf&&!isMixed;
+            cashSec.classList.toggle("hidden",!showCash);
+            if(showCash){ cashIn.value="";cashKept.value="";totalCobradoSec.classList.add("hidden");refreshChange();setTimeout(()=>cashIn.focus(),50); }
+
+            // Deudor
+            card.querySelector(".debtor-info")?.classList.toggle("hidden",!hasDeb);
+            card.querySelector<HTMLElement>(".client-required")?.classList.toggle("hidden",!hasDeb);
+            clientSel.classList.toggle("border-red-400",hasDeb);clientSel.classList.toggle("border-slate-200",!hasDeb);
         }
 
-        function refreshChange() {
-            const total = getTotal(), recv = parseFloat(cashIn.value);
-            if (!cashIn.value || isNaN(recv)) {
-                changeEl.textContent = "—"; changeEl.className = "change-amount text-sm font-bold text-emerald-700";
-                changeDsp.className  = "change-display flex items-center justify-center py-2.5 px-3 rounded-xl bg-emerald-50 border border-emerald-100 min-h-[42px]";
-                insuf.classList.add("hidden");
-                totalCobradoSec.classList.add("hidden");
-                return;
-            }
-            const diff = recv - total;
-            changeEl.textContent = fmt(Math.abs(diff));
-            if (diff < 0) {
-                changeEl.className  = "change-amount text-sm font-bold text-red-600";
-                changeDsp.className = "change-display flex items-center justify-center py-2.5 px-3 rounded-xl bg-red-50 border border-red-200 min-h-[42px]";
-                insuf.classList.remove("hidden");
-                totalCobradoSec.classList.add("hidden");
-            } else {
-                changeEl.className  = "change-amount text-sm font-bold text-emerald-700";
-                changeDsp.className = "change-display flex items-center justify-center py-2.5 px-3 rounded-xl bg-emerald-50 border border-emerald-100 min-h-[42px]";
-                insuf.classList.add("hidden");
-                // Mostrar sección "total cobrado" solo cuando hay vuelto
-                totalCobradoSec.classList.remove("hidden");
-                // Si el campo está vacío, pre-rellenar con el total (caso más común: no se queda el vuelto)
-                if (!cashKept.value) {
-                    cashKept.value = String(Math.round(total));
-                }
-            }
-        }
-
-        card.querySelectorAll<HTMLButtonElement>(".payment-btn").forEach(btn => {
-            btn.addEventListener("click", () => {
-                card.querySelectorAll<HTMLButtonElement>(".payment-btn").forEach(b => {
-                    const d = b.dataset.method === "deudor";
-                    b.classList.remove("bg-emerald-600","border-emerald-600","bg-red-600","border-red-600","text-white","shadow-sm");
-                    b.classList.add(d ? "border-red-200" : "border-slate-200", d ? "text-red-500" : "text-slate-600");
+        card.querySelectorAll<HTMLButtonElement>(".payment-btn").forEach(btn=>{
+            btn.addEventListener("click",()=>{
+                const m=btn.dataset.method!,sr=Number(btn.dataset.surcharge??0),idx=sel.findIndex(s=>s.method===m);
+                if(idx!==-1){ sel.splice(idx,1); }
+                else { const nSolo=SOLO.includes(m),hSolo=sel.some(s=>SOLO.includes(s.method)); if(nSolo||hSolo||sel.length>=2) sel=[{method:m,surcharge:sr}]; else sel.push({method:m,surcharge:sr}); }
+                card.querySelectorAll<HTMLButtonElement>(".payment-btn").forEach(b=>{
+                    const bm=b.dataset.method!,bDeb=bm==="deudor",bidx=sel.findIndex(s=>s.method===bm);
+                    const badge=b.querySelector<HTMLElement>(".payment-badge")!;
+                    b.classList.remove("bg-emerald-600","border-emerald-600","text-white","shadow-sm","bg-red-600","border-red-600");
+                    b.classList.add(bDeb?"border-red-200":"border-slate-200",bDeb?"text-red-500":"text-slate-600");
+                    badge.classList.add("hidden");badge.textContent="";
+                    if(bidx!==-1){
+                        if(bDeb){b.classList.remove("border-red-200","text-red-500");b.classList.add("bg-red-600","border-red-600","text-white","shadow-sm");}
+                        else{b.classList.remove("border-slate-200","text-slate-600");b.classList.add("bg-emerald-600","border-emerald-600","text-white","shadow-sm");}
+                        if(sel.length===2){badge.classList.remove("hidden");badge.textContent=String(bidx+1);}
+                    }
                 });
-                const m = btn.dataset.method!, sr = btn.dataset.surcharge ?? "0";
-                if (m === "deudor") {
-                    btn.classList.remove("border-red-200","text-red-500");
-                    btn.classList.add("bg-red-600","border-red-600","text-white","shadow-sm");
-                } else {
-                    btn.classList.remove("border-slate-200","text-slate-600");
-                    btn.classList.add("bg-emerald-600","border-emerald-600","text-white","shadow-sm");
-                }
-                pmInput.value = m; srInput.value = sr;
-                card.querySelector(".transfer-info")?.classList.toggle("hidden", m !== "transferencia");
-                if (m !== "transferencia" && transferSel) transferSel.value = "";
-                card.querySelector(".surcharge-info")?.classList.toggle("hidden", sr === "0");
-                card.querySelector(".debtor-info")?.classList.toggle("hidden", m !== "deudor");
-                card.querySelector<HTMLElement>(".client-required")?.classList.toggle("hidden", m !== "deudor");
-                if (sr !== "0") { const sl = card.querySelector<HTMLElement>(".surcharge-label"); if (sl) sl.textContent = `Se aplica un recargo del ${sr}%`; }
-                cashSec.classList.toggle("hidden", m !== "efectivo");
-                if (m === "efectivo") {
-                    cashIn.value = ""; cashKept.value = "";
-                    totalCobradoSec.classList.add("hidden");
-                    refreshChange();
-                    setTimeout(() => cashIn.focus(), 50);
-                }
-                clientSel.classList.toggle("border-red-400", m === "deudor");
-                clientSel.classList.toggle("border-slate-200", m !== "deudor");
-                refreshTotals();
+                updateUI();
             });
         });
 
-        cashIn.addEventListener("input", refreshChange);
+        useTotalBtn.addEventListener("click",()=>{cashKept.value=String(Math.round(getTotal()));});
 
-        card.querySelector<HTMLButtonElement>(".discard-btn")?.addEventListener("click", async () => {
-            await supabase.from("notifications").update({ read: true }).eq("id", cobrarBtn.dataset.notificationId!);
-            card.remove(); updateLabel();
+        function refreshChange(){
+            const total=getTotal(),recv=parseFloat(cashIn.value);
+            if(!cashIn.value||isNaN(recv)){ changeEl.textContent="—";changeEl.className="change-amount text-sm font-bold text-emerald-700";changeDsp.className="change-display flex items-center justify-center py-2.5 px-3 rounded-xl bg-emerald-50 border border-emerald-100 min-h-[42px]";insuf.classList.add("hidden");totalCobradoSec.classList.add("hidden");return; }
+            const diff=recv-total;changeEl.textContent=fmt(Math.abs(diff));
+            if(diff<0){ changeEl.className="change-amount text-sm font-bold text-red-600";changeDsp.className="change-display flex items-center justify-center py-2.5 px-3 rounded-xl bg-red-50 border border-red-200 min-h-[42px]";insuf.classList.remove("hidden");totalCobradoSec.classList.add("hidden"); }
+            else { changeEl.className="change-amount text-sm font-bold text-emerald-700";changeDsp.className="change-display flex items-center justify-center py-2.5 px-3 rounded-xl bg-emerald-50 border border-emerald-100 min-h-[42px]";insuf.classList.add("hidden");totalCobradoSec.classList.remove("hidden");if(!cashKept.value) cashKept.value=String(Math.round(total)); }
+        }
+        cashIn.addEventListener("input",refreshChange);
+
+        card.querySelector<HTMLButtonElement>(".discard-btn")?.addEventListener("click",async()=>{
+            await supabase.from("notifications").update({read:true}).eq("id",cobrarBtn.dataset.notificationId!);
+            card.remove();updateLabel();
         });
 
-        cobrarBtn.addEventListener("click", async () => {
-            const nid      = cobrarBtn.dataset.notificationId!;
-            const saleId   = cobrarBtn.dataset.saleId!;
-            const rawData  = cobrarBtn.dataset.items ?? "{}";
-            const pm       = pmInput.value;
-            const sr       = Number(srInput.value);
-            const clientId = clientSel.value || null;
-            const transferAccount = (pm === "transferencia" && transferSel?.value) ? transferSel.value : null;
-            const cobTxt   = cobrarBtn.querySelector<HTMLElement>(".cobrar-text")!;
-            const spinner  = cobrarBtn.querySelector<HTMLElement>(".cobrar-spinner")!;
-
-            // ── Calcular el total que realmente se cobra ──
-            // Para efectivo: si hay vuelto y el cajero ingresó un "total cobrado", usar ese.
-            // De lo contrario, usar el total calculado.
-            let finalTotal = getTotal();
-            if (pm === "efectivo") {
-                const recv = parseFloat(cashIn.value);
-                if (!isNaN(recv) && recv >= finalTotal) {
-                    // Hay vuelto → ver si el cajero ingresó manualmente cuánto cobró
-                    const kept = parseFloat(cashKept.value);
-                    if (!isNaN(kept) && kept > 0) {
-                        finalTotal = kept;
-                    }
-                    // Si no ingresó nada en "total cobrado", usar el total de la venta (sin vuelto)
-                }
-            }
+        cobrarBtn.addEventListener("click",async()=>{
+            const nid=cobrarBtn.dataset.notificationId!,saleId=cobrarBtn.dataset.saleId!,rawData=cobrarBtn.dataset.items??"{}";
+            const clientId=clientSel.value||null;
+            const cobTxt=cobrarBtn.querySelector<HTMLElement>(".cobrar-text")!,spinner=cobrarBtn.querySelector<HTMLElement>(".cobrar-spinner")!;
+            const isMixed=sel.length===2,hasDeb=sel.some(m=>m.method==="deudor"),hasEf=sel.some(m=>m.method==="efectivo"),hasTr=sel.some(m=>m.method==="transferencia");
+            const sr=getSR(),totalFinal=getTotal(),pm=sel[0]?.method??"";
+            const transferAccount=(hasTr&&transferSel?.value)?transferSel.value:null;
 
             errorEl.classList.add("hidden");
-            if (!pm) { errorEl.textContent = "Seleccioná un método de pago."; errorEl.classList.remove("hidden"); return; }
-            if (pm === "deudor" && !clientId) { errorEl.textContent = "Para registrar una deuda debés seleccionar un cliente."; errorEl.classList.remove("hidden"); clientSel.focus(); return; }
-            if (pm === "efectivo") {
-                const recv = parseFloat(cashIn.value);
-                if (!isNaN(recv) && recv < getTotal()) { errorEl.textContent = "El monto entregado es menor al total a cobrar."; errorEl.classList.remove("hidden"); return; }
-            }
+            if(sel.length===0){errorEl.textContent="Seleccioná un método de pago.";errorEl.classList.remove("hidden");return;}
+            if(hasDeb&&!clientId){errorEl.textContent="Para registrar una deuda debés seleccionar un cliente.";errorEl.classList.remove("hidden");clientSel.focus();return;}
+            if(isMixed){ const a1=parseFloat(mixedAmt1.value)||0,a2=parseFloat(mixedAmt2.value)||0; if(Math.abs(a1+a2-totalFinal)>1){errorEl.textContent=`Los montos no suman el total. Falta: ${fmt(totalFinal-a1-a2)}`;errorEl.classList.remove("hidden");return;} }
+            if(hasEf&&!isMixed){ const recv=parseFloat(cashIn.value); if(!isNaN(recv)&&recv<totalFinal){errorEl.textContent="El monto entregado es menor al total a cobrar.";errorEl.classList.remove("hidden");return;} }
 
-            cobrarBtn.disabled = true; cobTxt.textContent = "Procesando..."; spinner.classList.remove("hidden");
+            cobrarBtn.disabled=true;cobTxt.textContent="Procesando...";spinner.classList.remove("hidden");
 
             try {
-                let clientName: string | null = null;
-                if (clientId) {
-                    const { data: cd } = await supabase.from("clients").select("name").eq("id", clientId).single();
-                    clientName = cd?.name ?? null;
+                let clientName:string|null=null;
+                if(clientId){const{data:cd}=await supabase.from("clients").select("name").eq("id",clientId).single();clientName=cd?.name??null;}
+
+                let finalTotal=totalFinal;
+                if(hasEf&&!isMixed){ const recv=parseFloat(cashIn.value); if(!isNaN(recv)&&recv>=totalFinal){const kept=parseFloat(cashKept.value);if(!isNaN(kept)&&kept>0) finalTotal=kept;} }
+
+                // Construir array de pagos con rubro
+                let paymentsData:PaymentEntry[];
+                if(isMixed){
+                    const a1=parseFloat(mixedAmt1.value)||0,a2=parseFloat(mixedAmt2.value)||0;
+                    paymentsData=[
+                        {method:sel[0].method,amount:a1,rubro:rubroMixed1.value||null,transferAccount:sel[0].method==="transferencia"?transferAccount:null},
+                        {method:sel[1].method,amount:a2,rubro:rubroMixed2.value||null,transferAccount:sel[1].method==="transferencia"?transferAccount:null},
+                    ];
+                } else {
+                    paymentsData=[{method:pm,amount:finalTotal,rubro:rubroSingle.value||null,transferAccount}];
                 }
 
-                // Guardar final_total con el monto realmente cobrado
-                const { error: upErr } = await supabase.from("sales").update({
-                    client_id: clientId, client_name: clientName,
-                    final_total: finalTotal,       // ← monto real cobrado
-                    payment_method: pm, surcharge: sr,
-                    transfer_account: transferAccount,
-                    note: transferAccount ? `Transferencia a: ${transferAccount}` : null,
-                    status: pm === "deudor" ? "deuda" : "pagado",
-                }).eq("id", saleId);
-                if (upErr) throw upErr;
+                // Nota legible para el cierre de caja
+                const nota=paymentsData.map(p=>{ let s=`${LABELS[p.method]??p.method}: $${p.amount}`; if(p.rubro) s+=` [${p.rubro}]`; if(p.transferAccount) s+=` (${p.transferAccount})`; return s; }).join(" | ");
+                const pmGuardar=isMixed?sel.map(m=>m.method).join("/"):pm;
 
-                if (pm === "deudor" && clientId) {
-                    const { data: cd } = await supabase.from("clients").select("debt").eq("id", clientId).single();
-                    await supabase.from("clients").update({ debt: (cd?.debt ?? 0) + getTotal() }).eq("id", clientId);
-                    await supabase.from("debts").insert([{ client_id: clientId, sale_id: saleId, original_total: getTotal(), current_total: getTotal(), paid: false }]);
+                const{error:upErr}=await supabase.from("sales").update({
+                    client_id:clientId,client_name:clientName,final_total:finalTotal,
+                    payment_method:pmGuardar,surcharge:sr,transfer_account:transferAccount,
+                    note:nota,status:hasDeb?"deuda":"pagado",
+                }).eq("id",saleId);
+                if(upErr) throw upErr;
+
+                if(hasDeb&&clientId){
+                    const{data:cd}=await supabase.from("clients").select("debt").eq("id",clientId).single();
+                    await supabase.from("clients").update({debt:(cd?.debt??0)+totalFinal}).eq("id",clientId);
+                    await supabase.from("debts").insert([{client_id:clientId,sale_id:saleId,original_total:totalFinal,current_total:totalFinal,paid:false}]);
                 }
-                await supabase.from("notifications").update({ read: true }).eq("id", nid);
+                await supabase.from("notifications").update({read:true}).eq("id",nid);
 
-                let changeMsg = "";
-                if (pm === "efectivo") {
-                    const recv = parseFloat(cashIn.value);
-                    const total = getTotal();
-                    if (!isNaN(recv) && recv >= total) {
-                        const vuelto = recv - total;
-                        if (vuelto > 0 && finalTotal < recv) {
-                            changeMsg = ` — Cobrado: <span class="font-bold text-emerald-700">${fmt(finalTotal)}</span>`;
-                        }
-                    }
-                }
+                let parsed:any={};try{parsed=JSON.parse(rawData);}catch{}
+                const fecha=new Date().toLocaleString("es-AR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+                const td:TicketData={items:parsed.items??[],total:totalFinal,paymentMethod:pm,clientName,sellerName:parsed.seller_name??null,fecha,surcharge:sr,transferAccount,payments:paymentsData};
+                showSuccess(card,finalTotal,td);
+                if(!hasDeb) await imprimirTicket(td);
 
-                let parsed: any = {};
-                try { parsed = JSON.parse(rawData); } catch {}
-                const fecha = new Date().toLocaleString("es-AR", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
-                const td: TicketData = {
-                    items: parsed.items ?? [],
-                    total: getTotal(),   // el ticket siempre muestra el total de la venta
-                    paymentMethod: pm,
-                    clientName,
-                    sellerName: parsed.seller_name ?? null,
-                    fecha,
-                    surcharge: sr,
-                    transferAccount,
-                };
-                showSuccess(card, finalTotal, pm, clientName, changeMsg, td);
-
-                if (pm !== "deudor") {
-                    await imprimirTicket(td);
-                }
-
-            } catch (err: any) {
-                errorEl.textContent = err?.message ?? "Error al procesar el cobro.";
-                errorEl.classList.remove("hidden");
-                cobrarBtn.disabled = false; cobTxt.textContent = "Confirmar cobro"; spinner.classList.add("hidden");
+            } catch(err:any){
+                errorEl.textContent=err?.message??"Error al procesar el cobro.";errorEl.classList.remove("hidden");
+                cobrarBtn.disabled=false;cobTxt.textContent="Confirmar cobro";spinner.classList.add("hidden");
             }
         });
     });
 
-    document.getElementById("mark-all-read")?.addEventListener("click", async () => {
-        await supabase.from("notifications").update({ read: true }).eq("type", "nueva_venta").eq("read", false);
-        document.querySelectorAll<HTMLElement>(".sale-card").forEach(c => c.remove());
+    document.getElementById("mark-all-read")?.addEventListener("click",async()=>{
+        await supabase.from("notifications").update({read:true}).eq("type","nueva_venta").eq("read",false);
+        document.querySelectorAll<HTMLElement>(".sale-card").forEach(c=>c.remove());
         updateLabel();
     });
-</script>
+</script> <!-- FALTA ARREGLAR EL CIERRE DE CAJA CUANDO SE UTILIZA 2 CUENTAS PARA VER A CUAL SE TRANSFIERE Y A CUAL QUEDA EN EFECTIVO -->
