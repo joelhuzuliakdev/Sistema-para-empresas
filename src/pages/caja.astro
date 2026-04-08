@@ -638,7 +638,7 @@ const rowsJSON = JSON.stringify(rows.map(r => ({
                 .eq("id", cajaId);
             if (error) throw error;
 
-            // 2. Traer ventas pagadas desde la apertura de esta caja
+            // 2. Traer ventas pagadas desde la apertura
             const cajaAbiertaDesde = cerrarBtn.dataset.cajaAbiertaDesde!;
             const { data: ventasCaja } = await supabase
                 .from("sales")
@@ -648,40 +648,101 @@ const rowsJSON = JSON.stringify(rows.map(r => ({
 
             if (ventasCaja && ventasCaja.length > 0) {
                 const ventasIds = ventasCaja.map(v => v.id);
-                const ventasMap: Record<string, string> = {};
-                ventasCaja.forEach(v => { ventasMap[v.id] = v.payment_method; });
 
-                // 3. Traer items con categoría
-                const { data: items } = await supabase
-                    .from("sale_items")
-                    .select("sale_id, quantity, price, discount_pct, product_id, products(category)")
+                // 3. Leer sale_payments para tener method + rubro + amount por venta
+                const { data: salePayments } = await supabase
+                    .from("sale_payments")
+                    .select("sale_id, method, amount, rubro")
                     .in("sale_id", ventasIds);
 
-                console.log("items con productos:", items);
+                // 4. Si una venta NO tiene sale_payments (cobros viejos), usar payment_method de sales
+                const ventasConPayments = new Set((salePayments ?? []).map(p => p.sale_id));
 
-                // 4. Agrupar por categoría
-                const porCat: Record<string, { total: number; efectivo: number; transferencia: number; debito: number; credito: number }> = {};
+                // Construir mapa: sale_id → payments[]
+                const paymentsMap: Record<string, { method: string; amount: number; rubro: string | null }[]> = {};
+                for (const p of salePayments ?? []) {
+                    if (!paymentsMap[p.sale_id]) paymentsMap[p.sale_id] = [];
+                    paymentsMap[p.sale_id].push({ method: p.method, amount: p.amount, rubro: p.rubro });
+                }
+
+                // Para ventas viejas sin sale_payments, crear entrada sintética
+                for (const v of ventasCaja) {
+                    if (!ventasConPayments.has(v.id)) {
+                        // método simple sin rubro
+                        const methods = v.payment_method?.split("/") ?? ["efectivo"];
+                        const total = v.final_total ?? v.total ?? 0;
+                        paymentsMap[v.id] = methods.map(m => ({ method: m.trim(), amount: total / methods.length, rubro: null }));
+                    }
+                }
+
+                // 5. Traer items con categoría para las ventas
+                const { data: items } = await supabase
+                    .from("sale_items")
+                    .select("sale_id, quantity, price, discount_pct, products!inner(category)")
+                    .in("sale_id", ventasIds);
+
+                // Construir: por cada item → su categoría → distribuir entre los payments de esa venta
+                // La distribución proporcional: si una venta tiene efectivo $300 y transferencia $700
+                // un item de $200 se divide 60/140 entre los métodos.
+                // Para rubros: el rubro del payment se asigna directamente.
+
+                // Primero acumulamos subtotal por (sale_id, categoría)
+                const itemsBySaleAndCat: Record<string, Record<string, number>> = {};
+                // itemsBySaleAndCat[sale_id][category] = subtotal
 
                 for (const item of items ?? []) {
                     const cat: string = (Array.isArray(item.products)
                         ? item.products[0]?.category
                         : (item.products as any)?.category) ?? "";
                     if (!cat) continue;
-
-                    const metodo = ventasMap[item.sale_id] ?? "";
                     const subtotal = (item.price ?? 0) * (item.quantity ?? 1) * (1 - (item.discount_pct ?? 0) / 100);
-
-                    if (!porCat[cat]) porCat[cat] = { total: 0, efectivo: 0, transferencia: 0, debito: 0, credito: 0 };
-                    porCat[cat].total += subtotal;
-                    if (metodo === "efectivo")      porCat[cat].efectivo      += subtotal;
-                    if (metodo === "transferencia") porCat[cat].transferencia += subtotal;
-                    if (metodo === "debito")        porCat[cat].debito        += subtotal;
-                    if (metodo === "credito")       porCat[cat].credito       += subtotal;
+                    if (!itemsBySaleAndCat[item.sale_id]) itemsBySaleAndCat[item.sale_id] = {};
+                    itemsBySaleAndCat[item.sale_id][cat] = (itemsBySaleAndCat[item.sale_id][cat] ?? 0) + subtotal;
                 }
 
-                console.log("desglose por categoría calculado:", porCat);
+                // 6. Agrupar por categoría + método usando los rubros de sale_payments
+                const porCat: Record<string, { total: number; efectivo: number; transferencia: number; debito: number; credito: number }> = {};
 
-                // 5. Insertar en cash_register_categories
+                for (const v of ventasCaja) {
+                    const ventaTotal = v.final_total ?? v.total ?? 0;
+                    const payments = paymentsMap[v.id] ?? [];
+                    const catSubtotals = itemsBySaleAndCat[v.id] ?? {};
+
+                    for (const [cat, catSubtotal] of Object.entries(catSubtotals)) {
+                        if (!porCat[cat]) porCat[cat] = { total: 0, efectivo: 0, transferencia: 0, debito: 0, credito: 0 };
+                        porCat[cat].total += catSubtotal;
+
+                        // Distribuir el subtotal de esta categoría entre los payments proporcionalmente
+                        // Si hay rubro en el payment, solo ese payment "cubre" esa categoría
+                        // Si no hay rubros, distribuir proporcional al monto del payment
+                        const paymentsConRubro = payments.filter(p => p.rubro === cat);
+
+                        if (paymentsConRubro.length > 0) {
+                            // Distribuir entre los payments que tienen este rubro
+                            const totalRubroPayments = paymentsConRubro.reduce((s, p) => s + p.amount, 0);
+                            for (const p of paymentsConRubro) {
+                                const proporcion = totalRubroPayments > 0 ? p.amount / totalRubroPayments : 1 / paymentsConRubro.length;
+                                const monto = catSubtotal * proporcion;
+                                if (p.method === "efectivo")      porCat[cat].efectivo      += monto;
+                                if (p.method === "transferencia") porCat[cat].transferencia += monto;
+                                if (p.method === "debito")        porCat[cat].debito        += monto;
+                                if (p.method === "credito")       porCat[cat].credito       += monto;
+                            }
+                        } else {
+                            // Sin rubros → distribuir proporcional al monto de cada payment
+                            for (const p of payments) {
+                                const proporcion = ventaTotal > 0 ? p.amount / ventaTotal : 1 / payments.length;
+                                const monto = catSubtotal * proporcion;
+                                if (p.method === "efectivo")      porCat[cat].efectivo      += monto;
+                                if (p.method === "transferencia") porCat[cat].transferencia += monto;
+                                if (p.method === "debito")        porCat[cat].debito        += monto;
+                                if (p.method === "credito")       porCat[cat].credito       += monto;
+                            }
+                        }
+                    }
+                }
+
+                // 7. Insertar en cash_register_categories
                 const filas = Object.entries(porCat)
                     .filter(([, d]) => d.total > 0)
                     .map(([cat, d]) => ({
@@ -694,14 +755,10 @@ const rowsJSON = JSON.stringify(rows.map(r => ({
                         credito:          d.credito,
                     }));
 
-                console.log("filas a insertar:", filas);
-
                 if (filas.length > 0) {
-                    const { data: inserted, error: catError } = await supabase
+                    const { error: catError } = await supabase
                         .from("cash_register_categories")
-                        .insert(filas)
-                        .select();
-                    console.log("insertado:", inserted, "error:", catError);
+                        .insert(filas);
                     if (catError) throw catError;
                 }
             }

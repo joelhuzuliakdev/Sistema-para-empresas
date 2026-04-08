@@ -162,7 +162,7 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                                             </div>
                                         </div>
 
-                                        <!-- ── PANEL PAGO SIMPLE: rubro único ── -->
+                                        <!-- Panel pago simple -->
                                         <div class="single-payment-panel hidden space-y-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
                                             <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Rubro <span class="ml-1 font-normal normal-case text-slate-400">(para el cierre de caja)</span></p>
                                             <select class="rubro-single w-full py-2 pl-3 pr-8 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition appearance-none">
@@ -171,7 +171,7 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                                             </select>
                                         </div>
 
-                                        <!-- ── PANEL PAGO MIXTO: monto + rubro por método ── -->
+                                        <!-- Panel pago mixto -->
                                         <div class="mixed-payment-panel hidden space-y-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-3">
                                             <div class="flex items-center gap-2 mb-1">
                                                 <svg class="w-4 h-4 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
@@ -187,6 +187,9 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                                                         <input type="number" min="0" step="1" placeholder="0"
                                                             class="mixed-amount-1 w-full pl-6 pr-2 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"/>
                                                     </div>
+                                                    <select class="abono-mixed-1 py-2 pl-3 pr-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition appearance-none w-28 shrink-0">
+                                                        <option value="">Sin abono</option>
+                                                    </select>
                                                     <select class="rubro-mixed-1 flex-1 py-2 pl-3 pr-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition appearance-none">
                                                         <option value="">Sin rubro</option>
                                                         {CATEGORIAS.map((c) => (<option value={c}>{c}</option>))}
@@ -203,6 +206,9 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                                                         <input type="number" min="0" step="1" placeholder="0"
                                                             class="mixed-amount-2 w-full pl-6 pr-2 py-2 border border-blue-200 rounded-xl text-sm font-semibold text-blue-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"/>
                                                     </div>
+                                                    <select class="abono-mixed-2 py-2 pl-3 pr-2 bg-slate-50 border border-blue-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition appearance-none w-28 shrink-0">
+                                                        <option value="">Sin abono</option>
+                                                    </select>
                                                     <select class="rubro-mixed-2 flex-1 py-2 pl-3 pr-2 bg-slate-50 border border-blue-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition appearance-none">
                                                         <option value="">Sin rubro</option>
                                                         {CATEGORIAS.map((c) => (<option value={c}>{c}</option>))}
@@ -215,15 +221,6 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                                                 <span class="text-xs text-slate-500">Resta asignar</span>
                                                 <span class="mixed-diff-amount text-xs font-bold text-slate-700">—</span>
                                             </div>
-                                        </div>
-
-                                        <!-- Cuenta transferencia -->
-                                        <div class="transfer-info hidden">
-                                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Cuenta destino</label>
-                                            <select class="transfer-account w-full py-2 pl-3 pr-8 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition appearance-none">
-                                                <option value="">— Seleccioná una cuenta —</option>
-                                                {CUENTAS.map((c) => (<option value={c}>{c}</option>))}
-                                            </select>
                                         </div>
 
                                         <!-- Info recargo -->
@@ -252,7 +249,7 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                                             </div>
                                         </div>
 
-                                        <!-- Sección efectivo (solo cuando es el único método) -->
+                                        <!-- Sección efectivo -->
                                         <div class="cash-section hidden space-y-3">
                                             <div class="flex items-center gap-3">
                                                 <div class="flex-1 space-y-1">
@@ -294,7 +291,9 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
 
                                         <!-- Acciones -->
                                         <div class="flex gap-2">
-                                            <button type="button" class="discard-btn flex-none px-3 py-2.5 rounded-xl text-xs font-semibold border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors" data-notification-id={n.id}>Descartar</button>
+                                            <button type="button" class="discard-btn flex-none px-3 py-2.5 rounded-xl text-xs font-semibold border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors" data-notification-id={n.id}>
+                                                Descartar
+                                            </button>
                                             <button type="button"
                                                 class="cobrar-btn flex-1 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors flex items-center justify-center gap-2 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
                                                 data-notification-id={n.id} data-sale-id={parsed?.sale_id} data-base-total={parsed?.total} data-items={n.data}>
@@ -303,6 +302,20 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                                                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 12 0 12 0v4a8 8 0 00-8 8H0z"/>
                                                 </svg>
+                                            </button>
+                                        </div>
+
+                                        <!-- ── CANCELAR VENTA ── -->
+                                        <div class="border-t border-slate-100 pt-3">
+                                            <button type="button"
+                                                class="cancel-sale-btn w-full py-2.5 rounded-xl text-xs font-semibold border border-red-200 text-red-500 hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
+                                                data-notification-id={n.id}
+                                                data-sale-id={parsed?.sale_id}
+                                                data-items={n.data}>
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                                </svg>
+                                                Cancelar venta y devolver stock
                                             </button>
                                         </div>
 
@@ -368,6 +381,35 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
             </div>
         </div>
     </div>
+
+    <!-- Modal confirmar cancelación -->
+    <div id="cancel-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-4">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm font-bold text-slate-800">Cancelar venta</p>
+                    <p class="text-xs text-slate-400">Esta acción no se puede deshacer</p>
+                </div>
+            </div>
+            <p class="text-sm text-slate-600">Se cancelará la venta y se devolverá el stock de todos los productos. ¿Confirmás?</p>
+            <div id="cancel-modal-error" class="hidden px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs"></div>
+            <div class="flex gap-2">
+                <button id="cancel-modal-no" type="button" class="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">No, volver</button>
+                <button id="cancel-modal-yes" type="button" class="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-red-500 hover:bg-red-600 text-white transition-colors flex items-center justify-center gap-2">
+                    <span id="cancel-modal-text">Sí, cancelar</span>
+                    <svg id="cancel-modal-spinner" class="hidden w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 12 0 12 0v4a8 8 0 00-8 8H0z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
 </Layout>
 
 <script>
@@ -382,7 +424,7 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
     };
     const fmt = (n: number) => "$ " + new Intl.NumberFormat("es-AR",{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
 
-    type PaymentEntry = { method: string; amount: number; rubro: string|null; transferAccount?: string|null; };
+    type PaymentEntry = { method: string; amount: number; rubro: string|null; transferAccount?: string|null; abono?: string|null; };
     type TicketData = {
         items: {name:string;qty:number;subtotal:number}[];
         total: number; paymentMethod: string; clientName: string|null;
@@ -402,44 +444,42 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
         if (td.payments && td.payments.length>0) {
             pagoLines = td.payments.map(p=>{
                 const rubroTag = p.rubro?` <span style="color:#888;font-size:10px;">[${p.rubro}]</span>`:"";
-                let s=`<p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">${METODOS[p.method]??p.method}: ${fmt(p.amount)}${rubroTag}</p>`;
-                if(p.method==="transferencia"&&p.transferAccount) s+=`<p style="font-size:11px;color:#555;margin-bottom:2px;padding-left:10px;font-family:Arial,sans-serif;">↳ Cuenta: ${p.transferAccount}</p>`;
-                return s;
+                const abonoTag = p.abono?` <span style="color:#888;font-size:10px;">→ ${METODOS[p.abono]??p.abono}</span>`:"";
+                return `<p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">${METODOS[p.method]??p.method}: ${fmt(p.amount)}${rubroTag}${abonoTag}</p>`;
             }).join("");
         } else {
             pagoLines=`<p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">Pago: ${METODOS[td.paymentMethod]??td.paymentMethod}</p>`;
-            if(td.paymentMethod==="transferencia"&&td.transferAccount) pagoLines+=`<p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">Cuenta: ${td.transferAccount}</p>`;
         }
         const hc=td.isBudget?"#7c3aed":"#059669";
         const hLabel=td.isBudget?`<p style="margin-top:5px;font-size:13px;font-weight:bold;letter-spacing:2px;color:#7c3aed;font-family:Arial,sans-serif;">PRESUPUESTO</p>`:"";
         const footer=td.isBudget?`<p style="text-align:center;font-size:10px;color:#aaa;font-style:italic;font-family:Arial,sans-serif;">Este presupuesto no constituye una factura</p>`:"";
         return `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Ticket</title>
-<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:"Courier New",Courier,monospace;background:#fff;}
-@page{margin:0;size:80mm auto;}@media print{html,body{width:80mm;}.no-print{display:none!important;}}</style></head>
-<body><div style="width:300px;max-width:100%;padding:14px 12px;margin:0 auto;">
-<div style="text-align:center;margin-bottom:10px;">
-<div style="display:inline-block;background:${hc};color:#fff;font-size:10px;font-weight:bold;padding:5px 14px;border-radius:5px;font-family:Arial,sans-serif;">${EMPRESA_NOMBRE.toUpperCase()}</div>
-<p style="margin-top:6px;font-size:11px;color:#555;font-family:Arial,sans-serif;">Tel: +${EMPRESA_TELEFONO}</p>
-<p style="font-size:11px;color:#555;font-family:Arial,sans-serif;">${td.fecha}</p>${hLabel}</div>
-<div style="border-top:1px dashed #bbb;margin-bottom:8px;"></div>
-<table style="width:100%;border-collapse:collapse;"><thead><tr style="border-bottom:1px solid #ddd;">
-<th style="padding:2px 0;font-size:10px;color:#888;text-align:left;font-family:Arial,sans-serif;">PRODUCTO</th>
-<th style="padding:2px 8px;font-size:10px;color:#888;text-align:center;font-family:Arial,sans-serif;">CANT</th>
-<th style="padding:2px 0;font-size:10px;color:#888;text-align:right;font-family:Arial,sans-serif;">IMPORTE</th>
-</tr></thead><tbody>${rows}${srRow}</tbody></table>
-<div style="border-top:1px dashed #bbb;margin:8px 0;"></div>
-<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
-<span style="font-size:14px;font-weight:bold;font-family:Arial,sans-serif;">TOTAL</span>
-<span style="font-size:16px;font-weight:bold;color:${hc};font-family:Arial,sans-serif;">${fmt(td.total)}</span></div>
-${!td.isBudget?pagoLines:""}
-${td.clientName?`<p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">Cliente: ${td.clientName}</p>`:""}
-${td.sellerName?`<p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">Vendido por: <strong>${td.sellerName}</strong></p>`:""}
-<div style="border-top:1px dashed #bbb;margin:10px 0 8px;"></div>${footer}
-<p style="text-align:center;font-size:11px;color:#aaa;font-style:italic;font-family:Arial,sans-serif;">¡Gracias por su compra!</p>
-<div class="no-print" style="margin-top:18px;text-align:center;display:flex;gap:8px;justify-content:center;">
-<button onclick="window.print()" style="background:${hc};color:#fff;border:none;padding:9px 22px;border-radius:8px;font-size:13px;cursor:pointer;font-family:Arial,sans-serif;font-weight:600;">🖨️ Imprimir</button>
-<button onclick="window.close()" style="background:#e2e8f0;color:#475569;border:none;padding:9px 18px;border-radius:8px;font-size:13px;cursor:pointer;font-family:Arial,sans-serif;">Cerrar</button>
-</div></div></body></html>`;
+    <style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:"Courier New",Courier,monospace;background:#fff;}
+    @page{margin:0;size:80mm auto;}@media print{html,body{width:80mm;}.no-print{display:none!important;}}</style></head>
+    <body><div style="width:300px;max-width:100%;padding:14px 12px;margin:0 auto;">
+    <div style="text-align:center;margin-bottom:10px;">
+    <div style="display:inline-block;background:${hc};color:#fff;font-size:10px;font-weight:bold;padding:5px 14px;border-radius:5px;font-family:Arial,sans-serif;">${EMPRESA_NOMBRE.toUpperCase()}</div>
+    <p style="margin-top:6px;font-size:11px;color:#555;font-family:Arial,sans-serif;">Tel: +${EMPRESA_TELEFONO}</p>
+    <p style="font-size:11px;color:#555;font-family:Arial,sans-serif;">${td.fecha}</p>${hLabel}</div>
+    <div style="border-top:1px dashed #bbb;margin-bottom:8px;"></div>
+    <table style="width:100%;border-collapse:collapse;"><thead><tr style="border-bottom:1px solid #ddd;">
+    <th style="padding:2px 0;font-size:10px;color:#888;text-align:left;font-family:Arial,sans-serif;">PRODUCTO</th>
+    <th style="padding:2px 8px;font-size:10px;color:#888;text-align:center;font-family:Arial,sans-serif;">CANT</th>
+    <th style="padding:2px 0;font-size:10px;color:#888;text-align:right;font-family:Arial,sans-serif;">IMPORTE</th>
+    </tr></thead><tbody>${rows}${srRow}</tbody></table>
+    <div style="border-top:1px dashed #bbb;margin:8px 0;"></div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+    <span style="font-size:14px;font-weight:bold;font-family:Arial,sans-serif;">TOTAL</span>
+    <span style="font-size:16px;font-weight:bold;color:${hc};font-family:Arial,sans-serif;">${fmt(td.total)}</span></div>
+    ${!td.isBudget?pagoLines:""}
+    ${td.clientName?`<p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">Cliente: ${td.clientName}</p>`:""}
+    ${td.sellerName?`<p style="font-size:11px;color:#555;margin-bottom:2px;font-family:Arial,sans-serif;">Vendido por: <strong>${td.sellerName}</strong></p>`:""}
+    <div style="border-top:1px dashed #bbb;margin:10px 0 8px;"></div>${footer}
+    <p style="text-align:center;font-size:11px;color:#aaa;font-style:italic;font-family:Arial,sans-serif;">¡Gracias por su compra!</p>
+    <div class="no-print" style="margin-top:18px;text-align:center;display:flex;gap:8px;justify-content:center;">
+    <button onclick="window.print()" style="background:${hc};color:#fff;border:none;padding:9px 22px;border-radius:8px;font-size:13px;cursor:pointer;font-family:Arial,sans-serif;font-weight:600;">🖨️ Imprimir</button>
+    <button onclick="window.close()" style="background:#e2e8f0;color:#475569;border:none;padding:9px 18px;border-radius:8px;font-size:13px;cursor:pointer;font-family:Arial,sans-serif;">Cerrar</button>
+    </div></div></body></html>`;
     }
 
     // ── QZ Tray ────────────────────────────────────────────
@@ -471,12 +511,11 @@ ${td.sellerName?`<p style="font-size:11px;color:#555;margin-bottom:2px;font-fami
                 if(td.payments&&td.payments.length>0){
                     td.payments.forEach(p=>{
                         const rb=p.rubro?" ["+sa(p.rubro)+"]":"";
-                        t+=f2((MP[p.method]??p.method)+rb,raw(p.amount))+"\n";
-                        if(p.method==="transferencia"&&p.transferAccount) t+="  Cta: "+sa(p.transferAccount)+"\n";
+                        const ab=p.abono?" ->"+sa(MP[p.abono]??p.abono):"";
+                        t+=f2((MP[p.method]??p.method)+rb+ab,raw(p.amount))+"\n";
                     });
                 } else {
                     t+="Pago: "+(MP[td.paymentMethod]??td.paymentMethod)+"\n";
-                    if(td.paymentMethod==="transferencia"&&td.transferAccount) t+="Cuenta: "+sa(td.transferAccount)+"\n";
                 }
                 t+=sep+"\n";
             } else { t+=ctr("No constituye factura")+"\n"+sep+"\n"; }
@@ -494,8 +533,13 @@ ${td.sellerName?`<p style="font-size:11px;color:#555;margin-bottom:2px;font-fami
         const lineas=td.items.map(i=>`• ${i.name} x${i.qty}: ${fmt(i.subtotal)}`).join("\n");
         let pagoWA="";
         if(td.payments&&td.payments.length>0){
-            pagoWA=td.payments.map(p=>{ let s=`💳 ${METODOS[p.method]??p.method}: ${fmt(p.amount)}`; if(p.rubro) s+=` [${p.rubro}]`; if(p.method==="transferencia"&&p.transferAccount) s+=` → ${p.transferAccount}`; return s; }).join("\n");
-        } else { pagoWA=`💳 Pago: ${METODOS[td.paymentMethod]??td.paymentMethod}`; if(td.transferAccount) pagoWA+=`\n🏦 Cuenta: ${td.transferAccount}`; }
+            pagoWA=td.payments.map(p=>{
+                let s=`💳 ${METODOS[p.method]??p.method}: ${fmt(p.amount)}`;
+                if(p.rubro) s+=` [${p.rubro}]`;
+                if(p.abono) s+=` → abona ${METODOS[p.abono]??p.abono}`;
+                return s;
+            }).join("\n");
+        } else { pagoWA=`💳 Pago: ${METODOS[td.paymentMethod]??td.paymentMethod}`; }
         return [`🧾 *Ticket de compra*`,`📅 ${td.fecha}`,`🏪 ${EMPRESA_NOMBRE}`,``,lineas,``,`*TOTAL: ${fmt(td.total)}*`,pagoWA,td.clientName?`👤 ${td.clientName}`:null,td.sellerName?`🧑‍💼 Vendido por: ${td.sellerName}`:null,``,`📞 Consultas: +${EMPRESA_TELEFONO}`].filter(l=>l!==null).join("\n");
     }
 
@@ -509,6 +553,105 @@ ${td.sellerName?`<p style="font-size:11px;color:#555;margin-bottom:2px;font-fami
     waCfm.addEventListener("click",()=>{ const p=waInput.value.replace(/\D/g,""); if(p.length<10){waErr.textContent="Ingresá un número válido.";waErr.classList.remove("hidden");return;} closeWA(p); });
     waInput.addEventListener("keydown",e=>{if(e.key==="Enter")waCfm.click();if(e.key==="Escape")closeWA(null);});
 
+    // ── Modal cancelar venta ───────────────────────────────
+    const cancelModal     = document.getElementById("cancel-modal")!;
+    const cancelModalNo   = document.getElementById("cancel-modal-no")!;
+    const cancelModalYes  = document.getElementById("cancel-modal-yes") as HTMLButtonElement;
+    const cancelModalText = document.getElementById("cancel-modal-text")!;
+    const cancelSpinner   = document.getElementById("cancel-modal-spinner")!;
+    const cancelModalErr  = document.getElementById("cancel-modal-error")!;
+
+    let pendingCancelCard: HTMLElement | null = null;
+    let pendingCancelData: { notificationId: string; saleId: string; items: any[] } | null = null;
+
+    function openCancelModal(card: HTMLElement, notificationId: string, saleId: string, items: any[]) {
+        pendingCancelCard = card;
+        pendingCancelData = { notificationId, saleId, items };
+        cancelModalErr.classList.add("hidden");
+        cancelModalText.textContent = "Sí, cancelar";
+        cancelSpinner.classList.add("hidden");
+        cancelModalYes.disabled = false;
+        cancelModal.classList.remove("hidden");
+        cancelModal.classList.add("flex");
+    }
+    function closeCancelModal() {
+        cancelModal.classList.add("hidden");
+        cancelModal.classList.remove("flex");
+        pendingCancelCard = null;
+        pendingCancelData = null;
+    }
+    cancelModalNo.addEventListener("click", closeCancelModal);
+    cancelModal.addEventListener("click", e => { if (e.target === cancelModal) closeCancelModal(); });
+
+    cancelModalYes.addEventListener("click", async () => {
+        if (!pendingCancelData) return;
+        const { notificationId, saleId, items } = pendingCancelData;
+
+        cancelModalText.textContent = "Cancelando...";
+        cancelSpinner.classList.remove("hidden");
+        cancelModalYes.disabled = true;
+        cancelModalErr.classList.add("hidden");
+
+        try {
+            // 1. Marcar venta como cancelada
+            const { error: saleErr } = await supabase
+                .from("sales")
+                .update({ status: "cancelada" })
+                .eq("id", saleId);
+            if (saleErr) throw saleErr;
+
+            // 2. Marcar notificación como leída
+            await supabase.from("notifications").update({ read: true }).eq("id", notificationId);
+
+            // 3. Devolver stock por cada item
+            for (const item of items) {
+                if (!item.product_id && !item.productId) continue;
+                const productId = item.product_id ?? item.productId;
+                const qty = item.qty ?? item.quantity ?? 1;
+
+                // Obtener stock actual
+                const { data: prod } = await supabase
+                    .from("products")
+                    .select("stock, name")
+                    .eq("id", productId)
+                    .single();
+
+                if (!prod) continue;
+
+                const stockAntes = prod.stock ?? 0;
+                const stockDespues = stockAntes + qty;
+
+                // Actualizar stock
+                await supabase
+                    .from("products")
+                    .update({ stock: stockDespues })
+                    .eq("id", productId);
+
+                // Registrar movimiento
+                await supabase.from("stock_movements").insert({
+                    product_id:   productId,
+                    product_name: prod.name ?? item.name ?? null,
+                    type:         "entrada",
+                    quantity:     qty,
+                    stock_before: stockAntes,
+                    stock_after:  stockDespues,
+                    reason:       "Devolución por cancelación de venta",
+                });
+            }
+
+            closeCancelModal();
+            pendingCancelCard?.remove();
+            updateLabel();
+
+        } catch (err: any) {
+            cancelModalErr.textContent = err?.message ?? "Error al cancelar la venta.";
+            cancelModalErr.classList.remove("hidden");
+            cancelModalText.textContent = "Sí, cancelar";
+            cancelSpinner.classList.add("hidden");
+            cancelModalYes.disabled = false;
+        }
+    });
+
     function bindTicketButtons(card:HTMLElement,td:TicketData){
         card.querySelector(".ticket-print-btn")?.addEventListener("click",()=>imprimirTicket(td));
         card.querySelector(".ticket-pdf-btn")?.addEventListener("click",()=>descargarTicket(td));
@@ -521,8 +664,13 @@ ${td.sellerName?`<p style="font-size:11px;color:#555;margin-bottom:2px;font-fami
         panel.classList.remove("hidden");
         let metodoTexto="";
         if(td.payments&&td.payments.length>0){
-            metodoTexto=td.payments.map(p=>{ let s=`${METODOS[p.method]??p.method} ${fmt(p.amount)}`; if(p.rubro) s+=` [${p.rubro}]`; return s; }).join(" + ");
-        } else { metodoTexto=METODOS[td.paymentMethod]??td.paymentMethod; if(td.transferAccount) metodoTexto+=` · ${td.transferAccount}`; }
+            metodoTexto=td.payments.map(p=>{
+                let s=`${METODOS[p.method]??p.method} ${fmt(p.amount)}`;
+                if(p.rubro) s+=` [${p.rubro}]`;
+                if(p.abono) s+=` → ${METODOS[p.abono]??p.abono}`;
+                return s;
+            }).join(" + ");
+        } else { metodoTexto=METODOS[td.paymentMethod]??td.paymentMethod; }
         panel.querySelector<HTMLElement>(".success-msg")!.innerHTML=`
             <div class="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
@@ -566,7 +714,6 @@ ${td.sellerName?`<p style="font-size:11px;color:#555;margin-bottom:2px;font-fami
     // ── Ventas normales ────────────────────────────────────
     document.querySelectorAll<HTMLElement>(".sale-card[data-is-budget='false']").forEach(card=>{
         const clientSel       = card.querySelector<HTMLSelectElement>(".client-select")!;
-        const transferSel     = card.querySelector<HTMLSelectElement>(".transfer-account")!;
         const cobrarBtn       = card.querySelector<HTMLButtonElement>(".cobrar-btn")!;
         const totalDisp       = card.querySelector<HTMLElement>(".total-display")!;
         const srRow           = card.querySelector<HTMLElement>(".surcharge-row")!;
@@ -593,6 +740,8 @@ ${td.sellerName?`<p style="font-size:11px;color:#555;margin-bottom:2px;font-fami
         const mixedDiff    = card.querySelector<HTMLElement>(".mixed-diff-amount")!;
         const rubroMixed1  = card.querySelector<HTMLSelectElement>(".rubro-mixed-1")!;
         const rubroMixed2  = card.querySelector<HTMLSelectElement>(".rubro-mixed-2")!;
+        const abonoMixed1  = card.querySelector<HTMLSelectElement>(".abono-mixed-1")!;
+        const abonoMixed2  = card.querySelector<HTMLSelectElement>(".abono-mixed-2")!;
 
         let sel: {method:string;surcharge:number}[] = [];
         const LABELS:Record<string,string>={efectivo:"Efectivo",transferencia:"Transferencia",debito:"Débito",credito:"Crédito",deudor:"Deuda"};
@@ -612,37 +761,41 @@ ${td.sellerName?`<p style="font-size:11px;color:#555;margin-bottom:2px;font-fami
 
         function updateUI(){
             const total=getTotal(),isMixed=sel.length===2;
-            const hasEf=sel.some(m=>m.method==="efectivo"),hasTr=sel.some(m=>m.method==="transferencia"),hasDeb=sel.some(m=>m.method==="deudor");
+            const hasEf=sel.some(m=>m.method==="efectivo"),hasDeb=sel.some(m=>m.method==="deudor");
             const sr=getSR(),amt=baseTotal*(sr/100);
 
-            // Recargo
             if(sr>0){ srRow.classList.remove("hidden");srLbl.textContent=`Recargo ${sr}%`;srAmt.textContent=`+ ${fmt(amt)}`; card.querySelector(".surcharge-info")?.classList.remove("hidden"); const sl=card.querySelector<HTMLElement>(".surcharge-label");if(sl)sl.textContent=`Se aplica un recargo del ${sr}%`; }
             else { srRow.classList.add("hidden");card.querySelector(".surcharge-info")?.classList.add("hidden"); }
             totalDisp.textContent=fmt(total);
 
-            // Panel simple (1 método, no deudor)
             const showSingle=sel.length===1&&!hasDeb;
             singlePanel.classList.toggle("hidden",!showSingle);
             if(!showSingle) rubroSingle.value="";
 
-            // Panel mixto (2 métodos)
             if(isMixed){
                 mixedPanel.classList.remove("hidden");
                 mixedLabel1.textContent=LABELS[sel[0].method]??sel[0].method;
                 mixedLabel2.textContent=LABELS[sel[1].method]??sel[1].method;
+                const prevA1=abonoMixed1.value, prevA2=abonoMixed2.value;
+                [abonoMixed1, abonoMixed2].forEach(s=>{
+                    s.innerHTML=`<option value="">Sin abono</option>`+
+                        sel.map(m=>`<option value="${m.method}">${LABELS[m.method]??m.method}</option>`).join("");
+                });
+                abonoMixed1.value=prevA1;
+                abonoMixed2.value=prevA2;
                 if(!mixedAmt1.value&&!mixedAmt2.value){ const h=Math.round(total/2); mixedAmt1.value=String(h);mixedAmt2.value=String(total-h); refreshDiff(); }
-            } else { mixedPanel.classList.add("hidden");mixedAmt1.value="";mixedAmt2.value="";rubroMixed1.value="";rubroMixed2.value=""; }
+            } else {
+                mixedPanel.classList.add("hidden");
+                mixedAmt1.value="";mixedAmt2.value="";
+                rubroMixed1.value="";rubroMixed2.value="";
+                abonoMixed1.innerHTML=`<option value="">Sin abono</option>`;
+                abonoMixed2.innerHTML=`<option value="">Sin abono</option>`;
+            }
 
-            // Cuenta transferencia
-            card.querySelector(".transfer-info")?.classList.toggle("hidden",!hasTr);
-            if(!hasTr&&transferSel) transferSel.value="";
-
-            // Efectivo solo
             const showCash=hasEf&&!isMixed;
             cashSec.classList.toggle("hidden",!showCash);
             if(showCash){ cashIn.value="";cashKept.value="";totalCobradoSec.classList.add("hidden");refreshChange();setTimeout(()=>cashIn.focus(),50); }
 
-            // Deudor
             card.querySelector(".debtor-info")?.classList.toggle("hidden",!hasDeb);
             card.querySelector<HTMLElement>(".client-required")?.classList.toggle("hidden",!hasDeb);
             clientSel.classList.toggle("border-red-400",hasDeb);clientSel.classList.toggle("border-slate-200",!hasDeb);
@@ -685,13 +838,28 @@ ${td.sellerName?`<p style="font-size:11px;color:#555;margin-bottom:2px;font-fami
             card.remove();updateLabel();
         });
 
+        // ── Cancelar venta ─────────────────────────────────
+        card.querySelector<HTMLButtonElement>(".cancel-sale-btn")?.addEventListener("click", () => {
+            let rawItems: any[] = [];
+            try {
+                const parsed = JSON.parse(cobrarBtn.dataset.items ?? "{}");
+                rawItems = parsed.items ?? [];
+            } catch {}
+            openCancelModal(
+                card,
+                cobrarBtn.dataset.notificationId!,
+                cobrarBtn.dataset.saleId!,
+                rawItems
+            );
+        });
+
+        // ── Confirmar cobro ────────────────────────────────
         cobrarBtn.addEventListener("click",async()=>{
             const nid=cobrarBtn.dataset.notificationId!,saleId=cobrarBtn.dataset.saleId!,rawData=cobrarBtn.dataset.items??"{}";
             const clientId=clientSel.value||null;
             const cobTxt=cobrarBtn.querySelector<HTMLElement>(".cobrar-text")!,spinner=cobrarBtn.querySelector<HTMLElement>(".cobrar-spinner")!;
-            const isMixed=sel.length===2,hasDeb=sel.some(m=>m.method==="deudor"),hasEf=sel.some(m=>m.method==="efectivo"),hasTr=sel.some(m=>m.method==="transferencia");
+            const isMixed=sel.length===2,hasDeb=sel.some(m=>m.method==="deudor"),hasEf=sel.some(m=>m.method==="efectivo");
             const sr=getSR(),totalFinal=getTotal(),pm=sel[0]?.method??"";
-            const transferAccount=(hasTr&&transferSel?.value)?transferSel.value:null;
 
             errorEl.classList.add("hidden");
             if(sel.length===0){errorEl.textContent="Seleccioná un método de pago.";errorEl.classList.remove("hidden");return;}
@@ -708,28 +876,41 @@ ${td.sellerName?`<p style="font-size:11px;color:#555;margin-bottom:2px;font-fami
                 let finalTotal=totalFinal;
                 if(hasEf&&!isMixed){ const recv=parseFloat(cashIn.value); if(!isNaN(recv)&&recv>=totalFinal){const kept=parseFloat(cashKept.value);if(!isNaN(kept)&&kept>0) finalTotal=kept;} }
 
-                // Construir array de pagos con rubro
-                let paymentsData:PaymentEntry[];
+                // Construir array de pagos
+                let paymentsData: PaymentEntry[];
                 if(isMixed){
                     const a1=parseFloat(mixedAmt1.value)||0,a2=parseFloat(mixedAmt2.value)||0;
                     paymentsData=[
-                        {method:sel[0].method,amount:a1,rubro:rubroMixed1.value||null,transferAccount:sel[0].method==="transferencia"?transferAccount:null},
-                        {method:sel[1].method,amount:a2,rubro:rubroMixed2.value||null,transferAccount:sel[1].method==="transferencia"?transferAccount:null},
+                        {method:sel[0].method,amount:a1,rubro:rubroMixed1.value||null,transferAccount:null,abono:abonoMixed1.value||null},
+                        {method:sel[1].method,amount:a2,rubro:rubroMixed2.value||null,transferAccount:null,abono:abonoMixed2.value||null},
                     ];
                 } else {
-                    paymentsData=[{method:pm,amount:finalTotal,rubro:rubroSingle.value||null,transferAccount}];
+                    paymentsData=[{method:pm,amount:finalTotal,rubro:rubroSingle.value||null,transferAccount:null,abono:null}];
                 }
 
-                // Nota legible para el cierre de caja
-                const nota=paymentsData.map(p=>{ let s=`${LABELS[p.method]??p.method}: $${p.amount}`; if(p.rubro) s+=` [${p.rubro}]`; if(p.transferAccount) s+=` (${p.transferAccount})`; return s; }).join(" | ");
+                const nota=paymentsData.map(p=>{ let s=`${LABELS[p.method]??p.method}: $${p.amount}`; if(p.rubro) s+=` [${p.rubro}]`; if(p.abono) s+=` → ${LABELS[p.abono]??p.abono}`; return s; }).join(" | ");
                 const pmGuardar=isMixed?sel.map(m=>m.method).join("/"):pm;
 
+                // 1. Actualizar venta
                 const{error:upErr}=await supabase.from("sales").update({
                     client_id:clientId,client_name:clientName,final_total:finalTotal,
-                    payment_method:pmGuardar,surcharge:sr,transfer_account:transferAccount,
+                    payment_method:pmGuardar,surcharge:sr,transfer_account:null,
                     note:nota,status:hasDeb?"deuda":"pagado",
                 }).eq("id",saleId);
                 if(upErr) throw upErr;
+
+                // 2. ── NUEVO: insertar en sale_payments ──
+                const salePaymentRows = paymentsData.map(p => ({
+                    sale_id: saleId,
+                    method:  p.method,
+                    amount:  p.amount,
+                    rubro:   p.rubro ?? null,
+                    abono:   p.abono ?? null,
+                }));
+                const { error: spErr } = await supabase
+                    .from("sale_payments")
+                    .insert(salePaymentRows);
+                if (spErr) throw spErr;
 
                 if(hasDeb&&clientId){
                     const{data:cd}=await supabase.from("clients").select("debt").eq("id",clientId).single();
@@ -740,7 +921,7 @@ ${td.sellerName?`<p style="font-size:11px;color:#555;margin-bottom:2px;font-fami
 
                 let parsed:any={};try{parsed=JSON.parse(rawData);}catch{}
                 const fecha=new Date().toLocaleString("es-AR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
-                const td:TicketData={items:parsed.items??[],total:totalFinal,paymentMethod:pm,clientName,sellerName:parsed.seller_name??null,fecha,surcharge:sr,transferAccount,payments:paymentsData};
+                const td:TicketData={items:parsed.items??[],total:finalTotal,paymentMethod:pm,clientName,sellerName:parsed.seller_name??null,fecha,surcharge:sr,transferAccount:null,payments:paymentsData};
                 showSuccess(card,finalTotal,td);
                 if(!hasDeb) await imprimirTicket(td);
 
@@ -756,4 +937,4 @@ ${td.sellerName?`<p style="font-size:11px;color:#555;margin-bottom:2px;font-fami
         document.querySelectorAll<HTMLElement>(".sale-card").forEach(c=>c.remove());
         updateLabel();
     });
-</script> <!-- FALTA ARREGLAR EL CIERRE DE CAJA CUANDO SE UTILIZA 2 CUENTAS PARA VER A CUAL SE TRANSFIERE Y A CUAL QUEDA EN EFECTIVO -->
+</script>
