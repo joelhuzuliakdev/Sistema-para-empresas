@@ -639,8 +639,9 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                 });
             }
 
+            const cardToRemove = pendingCancelCard;
             closeCancelModal();
-            pendingCancelCard?.remove();
+            cardToRemove?.remove();
             updateLabel();
 
         } catch (err: any) {
