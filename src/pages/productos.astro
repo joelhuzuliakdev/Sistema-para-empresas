@@ -2,13 +2,24 @@
 import Layout from "../layouts/Layout.astro";
 import { supabase } from "../lib/supabaseClient.js";
 
-const { data: products } = await supabase
-    .from("products")
-    .select("*, product_discounts(*)");
-const { data: allDiscounts } = await supabase
-    .from("product_discounts")
-    .select("*")
-    .range(0, 9999);
+async function fetchAllRows(query: (from: number, to: number) => any) {
+    const pageSize = 1000;
+    let from = 0;
+    let allData: any[] = [];
+
+    while (true) {
+        const { data, error } = await query(from, from + pageSize - 1);
+        if (error) break;
+        allData = allData.concat(data ?? []);
+        if ((data?.length ?? 0) < pageSize) break;
+        from += pageSize;
+    }
+    return allData;
+}
+
+const products = await fetchAllRows((from, to) =>
+    supabase.from("products").select("*, product_discounts(*)").range(from, to)
+);
 
 const { data: categoriesData } = await supabase
     .from("categories")
@@ -24,15 +35,6 @@ const formatMoney = (amount: number | null, perKg?: boolean) => {
     }).format(amount);
     return perKg ? `${formatted}/kg` : formatted;
 };
-
-const discountsByProduct: Record<string, any[]> = {};
-allDiscounts?.forEach((d) => {
-    if (!discountsByProduct[d.product_id]) discountsByProduct[d.product_id] = [];
-    discountsByProduct[d.product_id].push(d);
-});
-Object.values(discountsByProduct).forEach((arr) =>
-    arr.sort((a, b) => a.min_qty - b.min_qty)
-);
 
 const totalProductos = products?.length ?? 0;
 const sinStock = products?.filter((p) => (p.stock ?? 0) === 0).length ?? 0;
