@@ -2,8 +2,13 @@
 import Layout from "../layouts/Layout.astro";
 import { supabase } from "../lib/supabaseClient.js";
 
-const { data: products } = await supabase.from("products").select("*");
-const { data: allDiscounts } = await supabase.from("product_discounts").select("*");
+const { data: products } = await supabase
+    .from("products")
+    .select("*, product_discounts(*)");
+const { data: allDiscounts } = await supabase
+    .from("product_discounts")
+    .select("*")
+    .range(0, 9999);
 
 const { data: categoriesData } = await supabase
     .from("categories")
@@ -43,7 +48,8 @@ const rows = products?.map((p) => {
         : stock <= stockMin
         ? "bg-orange-50 text-orange-600"
         : "bg-emerald-50 text-emerald-700";
-    const discounts = discountsByProduct[p.id] ?? [];
+    const discounts = (p.product_discounts ?? [])
+        .sort((a: any, b: any) => a.min_qty - b.min_qty);
     return { ...p, stockStatus, badgeLabel, badgeClass, discounts };
 }) ?? [];
 ---
