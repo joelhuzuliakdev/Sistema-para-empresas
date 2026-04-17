@@ -6,12 +6,13 @@ const supabase = createServerSupabase(Astro);
 
 const { data: sales } = await supabase.from("sales").select("*");
 const { data: clients } = await supabase.from("clients").select("*");
-const { data: products } = await supabase.from("products").select("*");
+const { count: totalProductos } = await supabase
+    .from("products")
+    .select("*", { count: "exact", head: true });
 const { data: cash } = await supabase.from("cash_register").select("*").order("opened_at", { ascending: false }).limit(5);
 
 const totalVentas = sales?.reduce((acc, s) => acc + (s.total ?? 0), 0) ?? 0;
 const totalClientes = clients?.length ?? 0;
-const totalProductos = products?.length ?? 0;
 const cajaAbierta = cash?.find((c) => !c.closed_at);
 
 const { data: productosConStockBajo } = await supabase.rpc("productos_stock_bajo");
