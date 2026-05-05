@@ -5,18 +5,60 @@ import { supabase } from "../lib/supabaseClient.js";
 const { data: { user } } = await supabase.auth.getUser();
 const role = user?.user_metadata?.role ?? "empleado";
 const isEmployee = role !== "admin";
-const { data: products } = await supabase.from("products").select("*");
-const { data: allDiscounts } = await supabase.from("product_discounts").select("*");
+
+// 🔥 FUNCIÓN PAGINACIÓN
+async function fetchAllRows(query) {
+    const pageSize = 1000;
+    let from = 0;
+    let allData = [];
+
+    while (true) {
+        const { data, error } = await query(from, from + pageSize - 1);
+
+        if (error) {
+            console.error(error);
+            break;
+        }
+
+        allData = allData.concat(data ?? []);
+
+        if ((data?.length ?? 0) < pageSize) break;
+
+        from += pageSize;
+    }
+
+    return allData;
+}
+
+// ✅ PRODUCTOS (FIX)
+const products = await fetchAllRows((from, to) =>
+    supabase
+        .from("products")
+        .select("*")
+        .range(from, to)
+);
+
+// ✅ DESCUENTOS (FIX)
+const allDiscounts = await fetchAllRows((from, to) =>
+    supabase
+        .from("product_discounts")
+        .select("*")
+        .range(from, to)
+);
+
+// 👇 clientes puede quedar igual
 const { data: clients } = await supabase
     .from("clients")
     .select("id, name, special_discount")
     .order("name");
 
+// lógica igual
 const discountsByProduct: Record<string, any[]> = {};
 allDiscounts?.forEach((d) => {
     if (!discountsByProduct[d.product_id]) discountsByProduct[d.product_id] = [];
     discountsByProduct[d.product_id].push(d);
 });
+
 Object.values(discountsByProduct).forEach((arr) =>
     arr.sort((a, b) => b.min_qty - a.min_qty)
 );
@@ -39,7 +81,7 @@ const clientsJSON = JSON.stringify(
     }))
 );
 
-// Categorías únicas extraídas de los productos
+// categorías
 const categoryNames = [...new Set((products ?? []).map((p: any) => p.category).filter(Boolean))].sort();
 ---
 
