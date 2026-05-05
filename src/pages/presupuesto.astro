@@ -2,18 +2,60 @@
 import Layout from "../layouts/Layout.astro";
 import { supabase } from "../lib/supabaseClient.js";
 
-const { data: products } = await supabase.from("products").select("*").eq("active", true);
-const { data: allDiscounts } = await supabase.from("product_discounts").select("*");
+// 🔥 FUNCIÓN PARA TRAER TODO (rompe límite de 1000)
+async function fetchAllRows(query) {
+    const pageSize = 1000;
+    let from = 0;
+    let allData = [];
+
+    while (true) {
+        const { data, error } = await query(from, from + pageSize - 1);
+
+        if (error) {
+            console.error(error);
+            break;
+        }
+
+        allData = allData.concat(data ?? []);
+
+        if ((data?.length ?? 0) < pageSize) break;
+
+        from += pageSize;
+    }
+
+    return allData;
+}
+
+// ✅ PRODUCTOS (ANTES FALLABA)
+const products = await fetchAllRows((from, to) =>
+    supabase
+        .from("products")
+        .select("*")
+        .eq("active", true)
+        .range(from, to)
+);
+
+// ✅ DESCUENTOS (también puede romperse)
+const allDiscounts = await fetchAllRows((from, to) =>
+    supabase
+        .from("product_discounts")
+        .select("*")
+        .range(from, to)
+);
+
+// 👇 esto puede quedar igual (no suele pasar de 1000)
 const { data: clients } = await supabase
     .from("clients")
     .select("id, name, special_discount")
     .order("name");
 
+// 🔧 lógica igual
 const discountsByProduct: Record<string, any[]> = {};
 allDiscounts?.forEach((d) => {
     if (!discountsByProduct[d.product_id]) discountsByProduct[d.product_id] = [];
     discountsByProduct[d.product_id].push(d);
 });
+
 Object.values(discountsByProduct).forEach((arr) =>
     arr.sort((a, b) => b.min_qty - a.min_qty)
 );
@@ -36,7 +78,6 @@ const clientsJSON = JSON.stringify(
 
 const categoryNames = [...new Set((products ?? []).map((p: any) => p.category).filter(Boolean))].sort();
 ---
-
 <Layout>
     <div class="min-h-screen bg-slate-50 px-4 sm:px-6 py-6 sm:py-8 pt-20 lg:pt-8">
         <div class="max-w-5xl mx-auto">
