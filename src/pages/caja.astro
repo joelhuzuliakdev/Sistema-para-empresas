@@ -704,35 +704,40 @@ const rowsJSON = JSON.stringify(rows.map(r => ({
                 const porCat: Record<string, { total: number; efectivo: number; transferencia: number; debito: number; credito: number }> = {};
 
                 for (const v of ventasCaja) {
-                    const ventaTotal = v.final_total ?? v.total ?? 0;
+                    const ventaFinalTotal = v.final_total ?? v.total ?? 0;
                     const payments = paymentsMap[v.id] ?? [];
                     const catSubtotals = itemsBySaleAndCat[v.id] ?? {};
 
+                    // Suma total de items de esta venta (para calcular proporciones)
+                    const totalItemsVenta = Object.values(catSubtotals).reduce((s, val) => s + val, 0);
+
                     for (const [cat, catSubtotal] of Object.entries(catSubtotals)) {
                         if (!porCat[cat]) porCat[cat] = { total: 0, efectivo: 0, transferencia: 0, debito: 0, credito: 0 };
-                        porCat[cat].total += catSubtotal;
 
-                        // Distribuir el subtotal de esta categoría entre los payments proporcionalmente
-                        // Si hay rubro en el payment, solo ese payment "cubre" esa categoría
-                        // Si no hay rubros, distribuir proporcional al monto del payment
+                        // ✅ Distribuir final_total proporcionalmente entre categorías
+                        // Esto garantiza que la suma de rubros == total del día
+                        const proporcionCat = totalItemsVenta > 0 ? catSubtotal / totalItemsVenta : 0;
+                        const montoFinalCat = ventaFinalTotal * proporcionCat;
+
+                        porCat[cat].total += montoFinalCat;
+
+                        // Distribuir el montoFinalCat entre los métodos de pago
                         const paymentsConRubro = payments.filter(p => p.rubro === cat);
 
                         if (paymentsConRubro.length > 0) {
-                            // Distribuir entre los payments que tienen este rubro
                             const totalRubroPayments = paymentsConRubro.reduce((s, p) => s + p.amount, 0);
                             for (const p of paymentsConRubro) {
-                                const proporcion = totalRubroPayments > 0 ? p.amount / totalRubroPayments : 1 / paymentsConRubro.length;
-                                const monto = catSubtotal * proporcion;
+                                const prop = totalRubroPayments > 0 ? p.amount / totalRubroPayments : 1 / paymentsConRubro.length;
+                                const monto = montoFinalCat * prop;
                                 if (p.method === "efectivo")      porCat[cat].efectivo      += monto;
                                 if (p.method === "transferencia") porCat[cat].transferencia += monto;
                                 if (p.method === "debito")        porCat[cat].debito        += monto;
                                 if (p.method === "credito")       porCat[cat].credito       += monto;
                             }
                         } else {
-                            // Sin rubros → distribuir proporcional al monto de cada payment
                             for (const p of payments) {
-                                const proporcion = ventaTotal > 0 ? p.amount / ventaTotal : 1 / payments.length;
-                                const monto = catSubtotal * proporcion;
+                                const prop = ventaFinalTotal > 0 ? p.amount / ventaFinalTotal : 1 / payments.length;
+                                const monto = montoFinalCat * prop;
                                 if (p.method === "efectivo")      porCat[cat].efectivo      += monto;
                                 if (p.method === "transferencia") porCat[cat].transferencia += monto;
                                 if (p.method === "debito")        porCat[cat].debito        += monto;
