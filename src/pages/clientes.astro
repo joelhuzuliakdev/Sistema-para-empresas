@@ -73,6 +73,35 @@ const debtsByClient = debts?.reduce((acc, d) => {
                 </div>
             </div>
 
+            <!-- Buscador y filtros -->
+            <div class="mb-4 space-y-3">
+                <div class="relative">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <input
+                        id="client-search-input"
+                        type="text"
+                        placeholder="Buscar cliente por nombre..."
+                        class="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                    />
+                </div>
+                <div class="flex gap-2">
+                    <button data-filter="all" class="client-filter-btn flex-1 py-2 rounded-xl text-xs sm:text-sm font-semibold border-2 transition-colors border-blue-500 bg-blue-50 text-blue-700">
+                        Todos
+                    </button>
+                    <button data-filter="debtors" class="client-filter-btn flex-1 py-2 rounded-xl text-xs sm:text-sm font-semibold border-2 transition-colors border-slate-200 text-slate-600 hover:bg-slate-50">
+                        Deudores
+                    </button>
+                    <button data-filter="no-debtors" class="client-filter-btn flex-1 py-2 rounded-xl text-xs sm:text-sm font-semibold border-2 transition-colors border-slate-200 text-slate-600 hover:bg-slate-50">
+                        Al día
+                    </button>
+                </div>
+                <p id="no-results-msg" class="hidden text-center text-sm text-slate-400 py-6">
+                    No se encontraron clientes con ese criterio.
+                </p>
+            </div>
+
             <!-- Lista clientes -->
             <div class="space-y-3">
                 {clients && clients.length > 0 ? clients.map((c) => {
@@ -80,7 +109,11 @@ const debtsByClient = debts?.reduce((acc, d) => {
                     const clientDebts = debtsByClient[c.id] ?? [];
                     const isSpecial = c.special_discount != null && c.special_discount > 0;
                     return (
-                        <div class={`bg-white border rounded-2xl shadow-sm overflow-hidden transition-all ${hasDebt ? "border-red-200" : "border-slate-200"}`}>
+                        <div
+                            class={`client-card bg-white border rounded-2xl shadow-sm overflow-hidden transition-all ${hasDebt ? "border-red-200" : "border-slate-200"}`}
+                            data-name={(c.name ?? "").toLowerCase()}
+                            data-has-debt={hasDebt ? "true" : "false"}
+                        >
 
                             <div class="flex items-center gap-3 sm:gap-4 px-4 sm:px-5 py-3.5 sm:py-4">
                                 <!-- Avatar -->
@@ -797,5 +830,52 @@ const debtsByClient = debts?.reduce((acc, d) => {
             deleteClientBtn.disabled = false;
             deleteClientBtn.textContent = "Eliminar";
         }
+    });
+
+    // --- Buscador y filtro de clientes ---
+    const searchInput   = document.getElementById("client-search-input") as HTMLInputElement;
+    const filterBtns    = document.querySelectorAll<HTMLButtonElement>(".client-filter-btn");
+    const clientCards   = document.querySelectorAll<HTMLElement>(".client-card");
+    const noResultsMsg  = document.getElementById("no-results-msg")!;
+
+    let currentFilter: "all" | "debtors" | "no-debtors" = "all";
+
+    function applyClientFilters() {
+        const query = searchInput.value.trim().toLowerCase();
+        let visibleCount = 0;
+
+        clientCards.forEach((card) => {
+            const name = card.dataset.name ?? "";
+            const hasDebt = card.dataset.hasDebt === "true";
+
+            const matchesSearch = query === "" || name.includes(query);
+            const matchesFilter =
+                currentFilter === "all" ||
+                (currentFilter === "debtors" && hasDebt) ||
+                (currentFilter === "no-debtors" && !hasDebt);
+
+            const shouldShow = matchesSearch && matchesFilter;
+            card.classList.toggle("hidden", !shouldShow);
+            if (shouldShow) visibleCount++;
+        });
+
+        noResultsMsg.classList.toggle("hidden", visibleCount !== 0);
+    }
+
+    searchInput?.addEventListener("input", applyClientFilters);
+
+    filterBtns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+            currentFilter = btn.dataset.filter as "all" | "debtors" | "no-debtors";
+
+            filterBtns.forEach((b) => {
+                b.classList.remove("border-blue-500", "bg-blue-50", "text-blue-700");
+                b.classList.add("border-slate-200", "text-slate-600");
+            });
+            btn.classList.remove("border-slate-200", "text-slate-600");
+            btn.classList.add("border-blue-500", "bg-blue-50", "text-blue-700");
+
+            applyClientFilters();
+        });
     });
 </script>
