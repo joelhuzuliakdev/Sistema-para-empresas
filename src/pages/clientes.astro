@@ -539,15 +539,19 @@ const debtsByClient = debts?.reduce((acc, d) => {
                 .insert([{ debt_id: debtId, client_id: clientId, amount: abono, payment_method: method }]);
             if (paymentError) throw paymentError;
 
-            // 3. Actualizar el campo debt del cliente
-            const { data: clientData, error: clientFetchError } = await supabase
-                .from("clients")
-                .select("debt")
-                .eq("id", clientId)
-                .single();
-            if (clientFetchError) throw clientFetchError;
+            // 3. Recalcular la deuda del cliente sumando SOLO las boletas que sigan impagas
+            const { data: pendingDebts, error: pendingError } = await supabase
+                .from("debts")
+                .select("current_total")
+                .eq("client_id", clientId)
+                .eq("paid", false);
+            if (pendingError) throw pendingError;
 
-            const newClientDebt = Math.max(0, parseFloat(clientData?.debt ?? "0") - abono);
+            const newClientDebt = pendingDebts.reduce(
+                (sum, d) => sum + parseFloat(d.current_total ?? "0"),
+                0
+            );
+
             const { error: updateError } = await supabase
                 .from("clients")
                 .update({ debt: newClientDebt })
@@ -579,23 +583,25 @@ const debtsByClient = debts?.reduce((acc, d) => {
         btn.textContent = "Guardando...";
 
         try {
-            // 1. Marcar deuda como pagada
+            // 1. Marcar deuda como pagada y limpiar su total
             const { error: debtError } = await supabase
                 .from("debts")
-                .update({ paid: true })
+                .update({ paid: true, current_total: 0 })
                 .eq("id", debtId);
             if (debtError) throw debtError;
 
-            // 2. Traer deuda actual del cliente y restar
-            const { data: clientData, error: clientFetchError } = await supabase
-                .from("clients")
-                .select("debt")
-                .eq("id", clientId)
-                .single();
-            if (clientFetchError) throw clientFetchError;
+            // 2. Recalcular la deuda del cliente sumando SOLO las boletas que sigan impagas
+            const { data: pendingDebts, error: pendingError } = await supabase
+                .from("debts")
+                .select("current_total")
+                .eq("client_id", clientId)
+                .eq("paid", false);
+            if (pendingError) throw pendingError;
 
-            const currentDebt = parseFloat(clientData?.debt ?? "0");
-            const newDebt = Math.max(0, currentDebt - (isNaN(amount) ? 0 : amount));
+            const newDebt = pendingDebts.reduce(
+                (sum, d) => sum + parseFloat(d.current_total ?? "0"),
+                0
+            );
 
             const { error: updateError } = await supabase
                 .from("clients")
