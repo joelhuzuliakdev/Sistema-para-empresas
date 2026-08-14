@@ -54,10 +54,25 @@ const rows = products?.map((p) => {
         .sort((a: any, b: any) => a.min_qty - b.min_qty);
     return { ...p, stockStatus, badgeLabel, badgeClass, discounts };
 }) ?? [];
+
+const productosPorCategoria = new Map<string, typeof rows>();
+
+rows.forEach((p) => {
+    const categoria = p.category?.trim() || "Sin categoría";
+
+    if (!productosPorCategoria.has(categoria)) {
+        productosPorCategoria.set(categoria, []);
+    }
+
+    productosPorCategoria.get(categoria)!.push(p);
+});
+
+const categoriasParaImprimir = Array.from(productosPorCategoria.entries())
+    .sort(([a], [b]) => a.localeCompare(b, "es"));
 ---
 
 <Layout>
-    <div class="min-h-screen bg-slate-50 px-4 sm:px-6 py-6 sm:py-8 pt-20 lg:pt-8">
+    <div id="app-view" class="min-h-screen bg-slate-50 px-4 sm:px-6 py-6 sm:py-8 pt-20 lg:pt-8">
         <div class="max-w-6xl mx-auto">
 
             <!-- Header -->
@@ -73,14 +88,39 @@ const rows = products?.map((p) => {
                         <p class="text-xs sm:text-sm text-slate-500">Catálogo y estado de stock</p>
                     </div>
                 </div>
-                <button id="open-modal-btn"
-                    class="inline-flex items-center gap-1.5 sm:gap-2 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-all shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                    </svg>
-                    <span class="hidden xs:inline">Nuevo producto</span>
-                    <span class="xs:hidden">Nuevo</span>
-                </button>
+                <div class="flex items-center gap-2 shrink-0">
+                    <button
+                        id="print-btn"
+                        type="button"
+                        class="inline-flex items-center gap-1.5 sm:gap-2 bg-white border border-slate-200 hover:bg-slate-50 active:scale-95 text-slate-700 text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-all shrink-0"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            class="w-4 h-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a1 1 0 001-1v-4a1 1 0 00-1-1H9a1 1 0 00-1 1v4a1 1 0 001 1zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                            />
+                        </svg>
+
+                        <span class="hidden xs:inline">Imprimir</span>
+                        <span class="xs:hidden">Print</span>
+                    </button>
+                    <button id="open-modal-btn"
+                        class="inline-flex items-center gap-1.5 sm:gap-2 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-all shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span class="hidden xs:inline">Nuevo producto</span>
+                        <span class="xs:hidden">Nuevo</span>
+                    </button>
+                </div>
             </div>
 
             <!-- Stats -->
@@ -320,6 +360,77 @@ const rows = products?.map((p) => {
         </div>
     </div>
 
+    <!-- Vista imprimible por rubro -->
+    <div id="print-catalog">
+
+        <div class="print-header">
+            <div>
+                <h1 class="print-title">Catálogo de productos</h1>
+                <p class="print-date">
+                    {new Date().toLocaleDateString("es-AR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric"
+                    })}
+                </p>
+            </div>
+        </div>
+
+        {categoriasParaImprimir.map(([categoria, productosCategoria], index) => (
+
+            <section class={`print-category ${index > 0 ? "print-category-break" : ""}`}>
+
+                <table class="print-table">
+
+                    <colgroup>
+                        <col class="col-code" />
+                        <col class="col-name" />
+                        <col class="col-price" />
+                        <col class="col-stock" />
+                        <col class="col-discounts" />
+                    </colgroup>
+
+                    <thead>
+                        <tr class="print-category-title-row">
+                            <th colspan="5" class="print-category-title-cell">
+                                {categoria}
+                            </th>
+                        </tr>
+                        <tr>
+                            <th>Código</th>
+                            <th>Producto</th>
+                            <th>Precio</th>
+                            <th>Stock</th>
+                            <th>Descuentos</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {productosCategoria.map((p) => (
+                            <tr>
+                                <td>{p.code ?? "—"}</td>
+                                <td class="product-name"><strong>{p.name}</strong></td>
+                                <td>{formatMoney(p.price, p.price_per_kg)}</td>
+                                <td class="stock-cell">{p.stock ?? 0}</td>
+                                <td class="discount-cell">
+                                    {p.discounts.length > 0
+                                        ? p.discounts.map((d: any) =>
+                                            `${d.label ? d.label : `x${d.min_qty}${p.price_per_kg ? "kg" : ""}`} -${d.discount_pct}%`
+                                        ).join(", ")
+                                        : "—"}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+
+                </table>
+
+            </section>
+
+        ))}
+
+    </div>
+
     <!-- Modal -->
     <div id="modal-overlay" class="hidden fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center sm:px-4">
         <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-lg max-h-[90vh] flex flex-col">
@@ -454,6 +565,338 @@ const rows = products?.map((p) => {
     </div>
 </Layout>
 
+<style>
+    #print-catalog {
+        display: none;
+    }
+
+    @media print {
+
+        @page {
+            size: A4;
+            margin: 8mm;
+        }
+
+        html,
+        body {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            background: white !important;
+        }
+
+        /* Ocultar aplicación */
+        #app-view,
+        #modal-overlay {
+            display: none !important;
+        }
+
+        /* Mostrar catálogo */
+        #print-catalog {
+            display: block !important;
+            position: static !important;
+
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+
+            background: white !important;
+            color: #000 !important;
+        }
+
+
+        /* =================================
+        ENCABEZADO
+        ================================= */
+
+        .print-header {
+            display: flex !important;
+            justify-content: space-between;
+            align-items: flex-start;
+
+            width: 100%;
+
+            margin: 0 0 18px 0;
+            padding: 0 0 10px 0;
+
+            border-bottom: 2px solid #000;
+
+            page-break-after: avoid;
+            break-after: avoid;
+        }
+
+        .print-title {
+            margin: 0;
+            padding: 0;
+
+            font-size: 22px;
+            line-height: 1.2;
+
+            font-weight: 700;
+        }
+
+        .print-date {
+            margin: 4px 0 0 0;
+
+            font-size: 10px;
+            color: #555;
+        }
+
+
+        /* =================================
+        CONTENEDOR DEL RUBRO
+        ================================= */
+
+        .print-category {
+            display: block !important;
+            width: 100% !important;
+            margin: 0 0 20px 0;
+            padding: 0;
+
+            page-break-inside: auto;
+            break-inside: auto;
+        }
+
+
+        /* =================================
+        SALTO ENTRE RUBROS
+        ================================= */
+
+        .print-category-break {
+            page-break-before: always !important;
+            break-before: page !important;
+        }
+
+
+        /* =================================
+        RUBRO
+        ================================= */
+
+        .print-category {
+            display: block !important;
+
+            width: 100% !important;
+
+            margin: 0 0 20px 0;
+            padding: 0;
+
+            page-break-inside: auto;
+            break-inside: auto;
+        }
+
+
+        /* =================================
+        TITULO DEL RUBRO
+        ================================= */
+
+        .print-category-title-row th {
+            padding: 8px 10px;
+
+            font-size: 18px;
+            line-height: 1.2;
+            font-weight: 700;
+
+            color: #000;
+            background: #f1f5f9;
+
+            border-bottom: 2px solid #000;
+            border-left: none;
+            border-right: none;
+            text-align: left;
+        }
+
+
+        /* =================================
+        TABLA
+        ================================= */
+
+        .print-table {
+            display: table !important;
+
+            width: 100% !important;
+
+            margin: 0 !important;
+            padding: 0 !important;
+
+            border-collapse: collapse;
+
+            /*
+            * AUTO permite que el navegador
+            * dé más espacio al nombre.
+            */
+            table-layout: auto !important;
+
+            font-size: 9px;
+
+            page-break-inside: auto;
+            break-inside: auto;
+        }
+
+
+        /* =================================
+        COLUMNAS
+        ================================= */
+
+        .print-table .col-code {
+            width: 12%;
+        }
+
+        .print-table .col-name {
+            width: 38%;
+        }
+
+        .print-table .col-price {
+            width: 15%;
+        }
+
+        .print-table .col-stock {
+            width: 8%;
+        }
+
+        .print-table .col-discounts {
+            width: 27%;
+        }
+
+
+        /* =================================
+        ENCABEZADO TABLA
+        ================================= */
+
+        .print-table thead {
+            display: table-header-group !important;
+        }
+
+        .print-table thead tr {
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+
+        /* =================================
+        FILAS
+        ================================= */
+
+        .print-table tbody tr {
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+
+        /* =================================
+        CELDAS
+        ================================= */
+
+        .print-table th,
+        .print-table td {
+
+            border: 1px solid #999;
+
+            padding: 5px 6px;
+
+            vertical-align: top;
+
+            line-height: 1.25;
+
+            color: #000;
+
+            /*
+            * Permitir que el texto ocupe
+            * varias líneas.
+            */
+            white-space: normal !important;
+
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+        }
+
+
+        .print-table th {
+
+            background: #e2e8f0;
+
+            font-weight: 700;
+
+            text-align: left;
+        }
+
+
+        /* =================================
+        NOMBRE DEL PRODUCTO
+        ================================= */
+
+        .print-table .product-name {
+
+            width: 38%;
+
+            white-space: normal !important;
+
+            overflow: visible !important;
+
+            overflow-wrap: break-word !important;
+
+            word-break: normal !important;
+        }
+
+        .print-table .product-name strong {
+
+            display: inline !important;
+
+            white-space: normal !important;
+
+            overflow: visible !important;
+
+            text-overflow: clip !important;
+        }
+
+
+        /* =================================
+        DESCUENTOS
+        ================================= */
+
+        .print-table .discount-cell {
+
+            white-space: normal !important;
+
+            overflow-wrap: break-word !important;
+
+            word-break: normal !important;
+        }
+
+
+        /* =================================
+        STOCK
+        ================================= */
+
+        .print-table .stock-cell {
+
+            text-align: center;
+
+            white-space: nowrap !important;
+        }
+
+
+        /* =================================
+        ELEMENTOS QUE NO SE IMPRIMEN
+        ================================= */
+
+        button,
+        input,
+        select {
+            display: none !important;
+        }
+
+        .print-category-wrapper,
+        .print-category,
+        .print-table,
+        .print-table tbody,
+        .print-table tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+        }
+    }
+
+</style>
+
 <script>
     import { supabase } from "../lib/supabaseClient.js";
 
@@ -488,6 +931,11 @@ const rows = products?.map((p) => {
     categoryFilter?.addEventListener("change", applyFilters);
     stockFilter?.addEventListener("change", applyFilters);
 
+    // --- Imprimir catálogo por rubro ---
+    document.getElementById("print-btn")?.addEventListener("click", () => {
+        window.print();
+    });
+
     // --- Toggle precio por kilo ---
     const toggleBtn      = document.getElementById("toggle-price-per-kg") as HTMLButtonElement;
     const pricePerKgInput = document.getElementById("modal-price-per-kg") as HTMLInputElement;
@@ -500,7 +948,6 @@ const rows = products?.map((p) => {
         isPricePerKg = value;
         pricePerKgInput.value = value ? "true" : "false";
         toggleBtn.setAttribute("aria-checked", value ? "true" : "false");
-        // Visual del toggle
         const thumb = toggleBtn.querySelector("span")!;
         if (value) {
             toggleBtn.classList.remove("bg-slate-200");
