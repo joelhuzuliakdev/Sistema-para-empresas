@@ -27,7 +27,7 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
 ---
 
 <Layout>
-    <div class="min-h-screen bg-slate-50 px-4 sm:px-6 py-6 sm:py-8 pt-20 lg:pt-8">
+    <div class="min-h-screen bg-slate-200 px-4 sm:px-6 py-6 sm:py-8 pt-20 lg:pt-8">
         <div class="max-w-3xl mx-auto">
 
             <!-- Header -->
@@ -58,7 +58,7 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
 
             <!-- Lista -->
             {pendingCount > 0 && (
-                <div id="sales-list" class="space-y-4">
+                <div id="sales-list" class="space-y-6">
                     <div class="flex items-center justify-between mb-2">
                         <p id="pending-label" class="text-sm font-semibold text-slate-600">
                             {pendingCount} {pendingCount === 1 ? "venta pendiente" : "ventas pendientes"}
@@ -74,12 +74,12 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                         const isBudget = parsed?.is_budget === true;
 
                         return (
-                            <div class="sale-card bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden"
+                            <div class={`sale-card bg-white rounded-2xl overflow-hidden border border-slate-300 border-l-4 shadow-md ring-1 ring-black/5 ${isBudget ? "border-l-violet-500" : "border-l-emerald-500"}`}
                                 data-notification-id={n.id}
                                 data-is-budget={isBudget ? "true" : "false"}>
 
                                 <!-- Cabecera -->
-                                <div class={`flex items-start sm:items-center justify-between px-4 sm:px-5 py-4 border-b gap-3 ${isBudget ? "border-violet-100 bg-violet-50" : "border-slate-100"}`}>
+                                <div class={`flex items-start sm:items-center justify-between px-4 sm:px-5 py-4 border-b gap-3 ${isBudget ? "border-violet-200 bg-violet-50" : "border-emerald-200 bg-emerald-50"}`}>
                                     <div class="min-w-0 flex-1">
                                         <div class="flex items-center gap-2 flex-wrap">
                                             <p class="text-sm font-semibold text-slate-800 leading-snug">{n.message}</p>
@@ -100,7 +100,7 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                                 </div>
 
                                 <!-- Items -->
-                                <div class="px-4 sm:px-5 py-3 border-b border-slate-100 space-y-1.5">
+                                <div class="px-4 sm:px-5 py-3 border-b border-slate-200 space-y-1.5">
                                     {parsed?.items?.map((item: any) => (
                                         <div class="flex items-center justify-between gap-2">
                                             <span class="text-xs text-slate-600 truncate">{item.name} × {item.qty}</span>
@@ -129,7 +129,7 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                                         <!-- Cliente -->
                                         <div>
                                             <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Cliente <span class="client-required hidden text-red-500">*</span></label>
-                                            <select class="client-select w-full py-2 pl-3 pr-8 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition appearance-none">
+                                            <select class="client-select w-full py-2 pl-3 pr-8 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition appearance-none">
                                                 <option value="">Cliente general</option>
                                                 {clients?.map((c) => (<option value={c.id}>{c.name}</option>))}
                                             </select>
@@ -234,7 +234,7 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                                         </div>
 
                                         <!-- Resumen totales -->
-                                        <div class="bg-slate-50 rounded-xl px-4 py-3 space-y-1">
+                                        <div class="bg-slate-100 border border-slate-200 rounded-xl px-4 py-3 space-y-1">
                                             <div class="flex items-center justify-between">
                                                 <span class="text-xs text-slate-400">Subtotal</span>
                                                 <span class="subtotal-display text-xs text-slate-600">{formatMoney(parsed?.total ?? 0)}</span>
@@ -306,7 +306,7 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                                         </div>
 
                                         <!-- ── CANCELAR VENTA ── -->
-                                        <div class="border-t border-slate-100 pt-3">
+                                        <div class="border-t border-slate-200 pt-3">
                                             <button type="button"
                                                 class="cancel-sale-btn w-full py-2.5 rounded-xl text-xs font-semibold border border-red-200 text-red-500 hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
                                                 data-notification-id={n.id}
@@ -325,7 +325,7 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                                 <!-- Panel éxito -->
                                 <div class="success-panel hidden px-4 sm:px-5 py-4 space-y-3">
                                     <div class="success-msg flex items-center gap-3"></div>
-                                    <div class="border-t border-slate-100 pt-3">
+                                    <div class="border-t border-slate-200 pt-3">
                                         <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Comprobante</p>
                                         <div class="grid grid-cols-3 gap-2">
                                             <button type="button" class="ticket-print-btn flex flex-col items-center justify-center gap-1.5 py-3 rounded-xl text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
@@ -423,6 +423,10 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
         debito:"Débito", credito:"Crédito", deudor:"Deuda",
     };
     const fmt = (n: number) => "$ " + new Intl.NumberFormat("es-AR",{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
+
+    // ── Configuración del tiempo real ──────────────────────
+    const SONIDO_AVISO = true;    // pitido corto cuando entra una venta nueva
+    const POLL_MS      = 60000;   // red de seguridad: revisa cada 60 s por si se cayó el websocket (0 = desactivar)
 
     type PaymentEntry = { method: string; amount: number; rubro: string|null; transferAccount?: string|null; abono?: string|null; };
     type TicketData = {
@@ -699,7 +703,10 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
     }
 
     // ── Presupuestos ───────────────────────────────────────
-    document.querySelectorAll<HTMLElement>(".sale-card[data-is-budget='true']").forEach(card=>{
+    function initBudgetCard(card: HTMLElement) {
+        if (card.dataset.ready === "1") return;   // evita enganchar eventos dos veces
+        card.dataset.ready = "1";
+
         card.querySelector<HTMLButtonElement>(".discard-btn")?.addEventListener("click",async()=>{
             await supabase.from("notifications").update({read:true}).eq("id",card.dataset.notificationId!);
             card.remove();updateLabel();
@@ -710,10 +717,13 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
             const td:TicketData={items:p.items??[],total:p.total??0,paymentMethod:"efectivo",clientName:p.client_name??null,sellerName:p.seller_name??null,fecha,surcharge:0,transferAccount:null,isBudget:true};
             try{await imprimirTicket(td);}catch{const w=window.open("","_blank","width=400,height=600");if(w){w.document.write(buildTicketHTML(td));w.document.close();setTimeout(()=>w.print(),500);}}
         });
-    });
+    }
 
     // ── Ventas normales ────────────────────────────────────
-    document.querySelectorAll<HTMLElement>(".sale-card[data-is-budget='false']").forEach(card=>{
+    function initSaleCard(card: HTMLElement) {
+        if (card.dataset.ready === "1") return;   // evita enganchar eventos dos veces
+        card.dataset.ready = "1";
+
         const clientSel       = card.querySelector<HTMLSelectElement>(".client-select")!;
         const cobrarBtn       = card.querySelector<HTMLButtonElement>(".cobrar-btn")!;
         const totalDisp       = card.querySelector<HTMLElement>(".total-display")!;
@@ -799,7 +809,8 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
 
             card.querySelector(".debtor-info")?.classList.toggle("hidden",!hasDeb);
             card.querySelector<HTMLElement>(".client-required")?.classList.toggle("hidden",!hasDeb);
-            clientSel.classList.toggle("border-red-400",hasDeb);clientSel.classList.toggle("border-slate-200",!hasDeb);
+            // Ojo: el borde "normal" del select es slate-300 (ver HTML)
+            clientSel.classList.toggle("border-red-400",hasDeb);clientSel.classList.toggle("border-slate-300",!hasDeb);
         }
 
         card.querySelectorAll<HTMLButtonElement>(".payment-btn").forEach(btn=>{
@@ -900,7 +911,7 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                 }).eq("id",saleId);
                 if(upErr) throw upErr;
 
-                // 2. ── NUEVO: insertar en sale_payments ──
+                // 2. Insertar en sale_payments
                 const salePaymentRows = paymentsData.map(p => ({
                     sale_id: saleId,
                     method:  p.method,
@@ -931,11 +942,117 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                 cobrarBtn.disabled=false;cobTxt.textContent="Confirmar cobro";spinner.classList.add("hidden");
             }
         });
-    });
+    }
+
+    // ── Inicializar las tarjetas que vienen del servidor ───
+    document.querySelectorAll<HTMLElement>(".sale-card[data-is-budget='true']").forEach(initBudgetCard);
+    document.querySelectorAll<HTMLElement>(".sale-card[data-is-budget='false']").forEach(initSaleCard);
 
     document.getElementById("mark-all-read")?.addEventListener("click",async()=>{
         await supabase.from("notifications").update({read:true}).eq("type","nueva_venta").eq("read",false);
         document.querySelectorAll<HTMLElement>(".sale-card").forEach(c=>c.remove());
         updateLabel();
     });
+
+    // ══════════════════════════════════════════════════════
+    //  TIEMPO REAL: ventas nuevas sin recargar la página
+    // ══════════════════════════════════════════════════════
+
+    function beep() {
+        if (!SONIDO_AVISO) return;
+        try {
+            const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
+            const ctx = new AC();
+            const osc = ctx.createOscillator(), gain = ctx.createGain();
+            osc.type = "sine";
+            osc.frequency.value = 880;
+            gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35);
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.start(); osc.stop(ctx.currentTime + 0.4);
+            osc.onended = () => ctx.close();
+        } catch { /* el navegador puede bloquear el audio hasta que haya un clic */ }
+    }
+
+    function highlightCard(card: HTMLElement) {
+        card.style.transition = "box-shadow .6s ease";
+        card.style.boxShadow = "0 0 0 4px rgba(16,185,129,.55)";
+        setTimeout(() => { card.style.boxShadow = ""; }, 2500);
+    }
+
+    // Pide la página de nuevo, detecta tarjetas que faltan y las agrega
+    async function doSync() {
+        const res = await fetch(location.href, { cache: "no-store" });
+        if (!res.ok) return;
+        const doc = new DOMParser().parseFromString(await res.text(), "text/html");
+
+        const missing = [...doc.querySelectorAll<HTMLElement>(".sale-card")].filter(c =>
+            !document.querySelector(`.sale-card[data-notification-id="${c.dataset.notificationId}"]`)
+        );
+        if (missing.length === 0) return;
+
+        const list = document.getElementById("sales-list");
+        const hayTarjetas = document.querySelectorAll(".sale-card").length > 0;
+
+        // Estado "Todo al día": no hay lista donde insertar → recarga (no se pierde nada)
+        if (!list || !hayTarjetas) { location.reload(); return; }
+
+        // Se insertan de atrás para adelante para dejar la más nueva arriba
+        const header = list.firstElementChild;
+        missing.reverse().forEach(c => {
+            const card = document.importNode(c, true) as HTMLElement;
+            header?.after(card);
+            if (card.dataset.isBudget === "true") initBudgetCard(card);
+            else initSaleCard(card);
+            highlightCard(card);
+        });
+
+        updateLabel();
+        beep();
+    }
+
+    // Evita que dos avisos seguidos corran en paralelo y dupliquen tarjetas
+    let syncing = false, syncQueued = false;
+    async function syncCards() {
+        if (syncing) { syncQueued = true; return; }
+        syncing = true;
+        try {
+            do {
+                syncQueued = false;
+                await doSync();
+            } while (syncQueued);
+        } catch (e) {
+            console.error("No se pudo sincronizar las ventas", e);
+        } finally {
+            syncing = false;
+        }
+    }
+
+    let primeraConexion = true;
+    const channel = supabase
+        .channel("cobros-nuevas-ventas")
+        .on(
+            "postgres_changes",
+            { event: "INSERT", schema: "public", table: "notifications", filter: "type=eq.nueva_venta" },
+            (payload) => { if (!(payload.new as any)?.read) syncCards(); }
+        )
+        .subscribe((status) => {
+            if (status !== "SUBSCRIBED") return;
+            // La primera vez la página ya está al día; en reconexiones se ponen al día las ventas perdidas
+            if (primeraConexion) primeraConexion = false;
+            else syncCards();
+        });
+
+    // Al volver a la pestaña (celular, compu dormida, etc.)
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") syncCards();
+    });
+
+    // Red de seguridad por si el websocket se cae sin avisar
+    if (POLL_MS > 0) {
+        setInterval(() => { if (document.visibilityState === "visible") syncCards(); }, POLL_MS);
+    }
+
+    window.addEventListener("beforeunload", () => { supabase.removeChannel(channel); });
 </script>
