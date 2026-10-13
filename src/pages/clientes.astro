@@ -17,15 +17,22 @@ const getInitials = (name: string) => {
     return name.split(" ").slice(0, 2).map((n) => n[0]).join("").toUpperCase();
 };
 
-const totalDeuda = clients?.reduce((acc, c) => acc + (c.debt ?? 0), 0) ?? 0;
-const conDeuda = clients?.filter((c) => (c.debt ?? 0) > 0).length ?? 0;
-
 const debtsByClient = debts?.reduce((acc, d) => {
     const cid = d.client_id;
     if (!acc[cid]) acc[cid] = [];
     acc[cid].push(d);
     return acc;
 }, {} as Record<string, any[]>) ?? {};
+
+// La deuda real se calcula desde las boletas impagas (tabla debts),
+// no desde la columna clients.debt, que puede quedar desactualizada.
+const realDebt = (clientId: string) =>
+    (debtsByClient[clientId] ?? []).reduce((s, d) => s + parseFloat(d.current_total ?? "0"), 0);
+
+clients?.forEach((c) => { c.debt = realDebt(c.id); });
+
+const totalDeuda = clients?.reduce((acc, c) => acc + (c.debt ?? 0), 0) ?? 0;
+const conDeuda = clients?.filter((c) => (c.debt ?? 0) > 0).length ?? 0;
 ---
 
 <Layout>
