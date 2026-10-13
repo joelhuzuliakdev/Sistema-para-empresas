@@ -925,9 +925,29 @@ const CUENTAS = cuentasData?.map(c => c.name) ?? [];
                 if (spErr) throw spErr;
 
                 if(hasDeb&&clientId){
-                    const{data:cd}=await supabase.from("clients").select("debt").eq("id",clientId).single();
-                    await supabase.from("clients").update({debt:(cd?.debt??0)+totalFinal}).eq("id",clientId);
-                    await supabase.from("debts").insert([{client_id:clientId,sale_id:saleId,original_total:totalFinal,current_total:totalFinal,paid:false}]);
+                    // Solo se registra como deuda la parte pagada con "deudor" (en pagos mixtos, no el total)
+                    const montoDeuda = paymentsData
+                        .filter(p => p.method === "deudor")
+                        .reduce((s, p) => s + (p.amount || 0), 0);
+
+                    if (montoDeuda > 0) {
+                        // 1. Crear la boleta de deuda (con control de error)
+                        const { error: debtErr } = await supabase.from("debts").insert([{
+                            client_id: clientId, sale_id: saleId,
+                            original_total: montoDeuda, current_total: montoDeuda, paid: false,
+                        }]);
+                        if (debtErr) throw debtErr;
+
+                        // 2. Recalcular la deuda del cliente desde las boletas impagas
+                        const { data: pend, error: pendErr } = await supabase
+                            .from("debts").select("current_total")
+                            .eq("client_id", clientId).eq("paid", false);
+                        if (pendErr) throw pendErr;
+                        const nuevaDeuda = (pend ?? []).reduce((s, d) => s + parseFloat(d.current_total ?? "0"), 0);
+
+                        const { error: cliErr } = await supabase.from("clients").update({ debt: nuevaDeuda }).eq("id", clientId);
+                        if (cliErr) throw cliErr;
+                    }
                 }
                 await supabase.from("notifications").update({read:true}).eq("id",nid);
 
